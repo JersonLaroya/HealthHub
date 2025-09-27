@@ -116,6 +116,7 @@ const mainNavItems: NavItem[] =
     : [
         // Default user menu
         { title: "Dashboard", href: "/user/dashboard", icon: LayoutGrid },
+        { title: "Personal Information", href: "/user/personal-info", icon: ClipboardCheck },
         { title: "Medical Forms", href: "/user/medical-forms", icon: ClipboardCheck },
         { title: "Records", href: "/user/records", icon: ClipboardCheck },
       ];

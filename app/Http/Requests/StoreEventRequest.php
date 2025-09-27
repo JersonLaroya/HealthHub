@@ -11,7 +11,9 @@ class StoreEventRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user(); // currently logged-in user
+
+        return in_array($user->user_role->name, ['Admin', 'Head Nurse', 'Nurse']);
     }
 
     /**

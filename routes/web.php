@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\User\PersonalInfoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
  
@@ -23,33 +24,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 });
 
-// Route::middleware(['role:Admin'])->prefix('admin')->name('admin.')->group(function () {
-//     Route::get('/dashboard', function () {
-//         return Inertia::render('admin/dashboard');
-//     })->name('dashboard');
-//     Route::get('/dtr', function () {
-//         return Inertia::render('admin/dtr');
-//     })->name('dtr');
-//     Route::get('/events', function () {
-//         return Inertia::render('admin/events');
-//     })->name('events');
-//     Route::get('/files', function () {
-//         return Inertia::render('admin/files');
-//     })->name('files');
-//     Route::get('/forms', function () {
-//         return Inertia::render('admin/forms');
-//     })->name('forms');
-//     Route::get('/patients', function () {
-//         return Inertia::render('admin/patients');
-//     })->name('patients');
-//     Route::get('/reports', function () {
-//         return Inertia::render('admin/reports');
-//     })->name('reports');
-//     Route::get('/personnels', function () {
-//         return Inertia::render('admin/personnels');
-//     })->name('personnels');
-//     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
-// });
+
+Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('user/dashboard');
+    })->name('dashboard');
+
+    // Personal Information page (view & update)
+    Route::get('/personal-info', [PersonalInfoController::class, 'edit'])->name('personal-info.edit');
+    Route::put('/personal-info', [PersonalInfoController::class, 'update'])->name('personal-info.update');
+
+    Route::get('/medical-forms', function () {
+        return Inertia::render('user/medical-forms');
+    })->name('medical-forms');
+    Route::get('/records', function () {
+        return Inertia::render('user/records');
+    })->name('records');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+});
 
 
 Route::middleware(['role:Admin'])
@@ -68,7 +60,6 @@ Route::middleware(['role:Admin'])
         Route::get('/reports', fn() => Inertia::render('admin/reports'))->name('reports');
 
         Route::resource('personnels', PersonnelController::class);
-        
         Route::post('/personnels', [PersonnelController::class, 'store'])->name('admin.personnels.store');
         Route::put('/personnels/{personnel}', [PersonnelController::class, 'update'])->name('admin.personnels.update');
         Route::delete('/personnels/{personnel}', [PersonnelController::class, 'destroy'])->name('admin.personnels.destroy');
@@ -80,19 +71,6 @@ Route::middleware(['role:Nurse'])->prefix('nurse')->name('nurse.')->group(functi
     Route::get('/dashboard', fn() => Inertia::render('admin/dashboard'))->name('dashboard');
     Route::get('/dtr', fn() => Inertia::render('admin/dtr'))->name('dtr');
 
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
-});
-
-Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('user/dashboard');
-    })->name('dashboard');
-    Route::get('/medical-forms', function () {
-        return Inertia::render('user/medical-forms');
-    })->name('medical-forms');
-    Route::get('/records', function () {
-        return Inertia::render('user/records');
-    })->name('records');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
 });
 

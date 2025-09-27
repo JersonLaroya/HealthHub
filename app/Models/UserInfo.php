@@ -14,8 +14,9 @@ class UserInfo extends Model
         'first_name',
         'middle_name',
         'last_name',
+        'suffix',
         'contact_no',
-        'birthday',
+        'birthdate',
         'sex',
         'home_address_id',
         'present_address_id',
@@ -25,5 +26,20 @@ class UserInfo extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function homeAddress()
+    {
+        return $this->belongsTo(HomeAddress::class, 'home_address_id');
+    }
+
+    public function presentAddress()
+    {
+        return $this->belongsTo(PresentAddress::class, 'present_address_id');
+    }
+
+    public function guardian()
+    {
+        return $this->belongsTo(Guardian::class, 'guardian_id');
     }
 }
