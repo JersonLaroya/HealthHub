@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
@@ -99,6 +100,36 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/events', [EventController::class, 'store'])->name('nurse.events.store');
         Route::put('/events/{event}', [EventController::class, 'update'])->name('nurse.events.update');
         Route::delete('/events/{event}', [EventController::class, 'destroy'])->name('nurse.events.destroy');
+    });
+});
+
+//For DTR
+Route::middleware(['auth'])->group(function () {
+    // Admin
+    Route::prefix('admin')->middleware('role:Admin')->group(function () {
+        Route::get('/dtr', [DtrController::class, 'index'])->name('admin.dtr.index');
+        Route::post('/dtr', [DtrController::class, 'store'])->name('admin.dtr.store');
+        Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('admin.dtr.update');
+        Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('admin.dtr.destroy');
+        Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
+    });
+
+    // Head Nurse
+    Route::prefix('headnurse')->middleware('role:Head Nurse')->group(function () {
+        Route::get('/dtr', [DtrController::class, 'index'])->name('headnurse.dtr.index');
+        Route::post('/dtr', [DtrController::class, 'store'])->name('headnurse.dtr.store');
+        Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('headnurse.dtr.update');
+        Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('headnurse.dtr.destroy');
+        Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
+    });
+
+    // Nurse
+    Route::prefix('nurse')->middleware('role:Nurse')->group(function () {
+        Route::get('/dtr', [DtrController::class, 'index'])->name('nurse.dtr.index');
+        Route::post('/dtr', [DtrController::class, 'store'])->name('nurse.dtr.store');
+        Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('nurse.dtr.update');
+        Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('nurse.dtr.destroy');
+        Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
     });
 });
 

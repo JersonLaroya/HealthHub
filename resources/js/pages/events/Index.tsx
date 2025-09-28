@@ -19,6 +19,7 @@ import SortableHeader from "@/components/custom/sort-table-header";
 import { DialogDescription } from "@radix-ui/react-dialog";
 
 export default function Index({ events, filters, breadcrumbs, currentRole}) {
+  
   const [showModal, setShowModal] = useState(false);
   const [editEvent, setEditEvent] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);

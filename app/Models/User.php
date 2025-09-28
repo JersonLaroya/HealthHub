@@ -78,4 +78,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserInfo::class);
     }
+
+    public function dtrs()
+    {
+        return $this->hasMany(Dtr::class);
+    }
+
 }

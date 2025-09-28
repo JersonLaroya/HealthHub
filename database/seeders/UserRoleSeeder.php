@@ -19,6 +19,8 @@ class UserRoleSeeder extends Seeder
             ['name' => 'Head Nurse',  'is_personnel' => true],
             ['name' => 'Nurse',       'is_personnel' => true],
             ['name' => 'Student',     'is_personnel' => false],
+            ['name' => 'Staff',     'is_personnel' => false],
+            ['name' => 'Faculty',     'is_personnel' => false],
         ];
 
         foreach ($roles as $role) {
