@@ -3,10 +3,12 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\DtrController;
+use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\User\PersonalInfoController;
+use App\Http\Controllers\User\RcyController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
  
@@ -41,6 +43,7 @@ Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')
     Route::get('/records', function () {
         return Inertia::render('user/records');
     })->name('records');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
 });
 
@@ -64,6 +67,12 @@ Route::middleware(['role:Admin'])
         Route::post('/personnels', [PersonnelController::class, 'store'])->name('admin.personnels.store');
         Route::put('/personnels/{personnel}', [PersonnelController::class, 'update'])->name('admin.personnels.update');
         Route::delete('/personnels/{personnel}', [PersonnelController::class, 'destroy'])->name('admin.personnels.destroy');
+
+        Route::get('/rcy', [RcyMemberController::class, 'index'])->name('rcy.index');
+        Route::post('/rcy', [RcyMemberController::class, 'store'])->name('rcy.store');
+        Route::put('/rcy/{rcyMember}', [RcyMemberController::class, 'update'])->name('rcy.update');
+        Route::delete('/rcy/{rcyMember}', [RcyMemberController::class, 'destroy'])->name('rcy.destroy');
+        Route::get('rcy/search-students', [RcyMemberController::class, 'searchStudents']);
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
 });
@@ -130,6 +139,13 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('nurse.dtr.update');
         Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('nurse.dtr.destroy');
         Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
+    });
+
+    // RCY
+    Route::prefix('user')->middleware('role:Student')->group(function () {
+            Route::get('/rcy', [RcyController::class, 'create'])->name('rcy.add');
+            Route::post('/rcy', [RcyController::class, 'store'])->name('rcy.store');
+            Route::get('/patients/search', [RcyController::class, 'searchPatients'])->name('patients.search');
     });
 });
 

@@ -44,18 +44,21 @@ class ProfileController extends Controller
         };
 
 
-    //     return Inertia::render($component, [
-    //         'user' => $user,
-    //         'mustVerifyEmail' => $user instanceof MustVerifyEmail,
-    //         'status' => $request->session()->get('status'),
-    //         ]
-    // );
+            // return Inertia::render($component, [
+            //     'auth' => [
+            //         'user' => $user,
+            //         'user_info' => $user->userInfo,
+            //     ],
+            //     'offices' => $offices,
+            //     'courses' => $courses,
+            //     'years' => $years,
+            //     'roles' => $roles,
+            //     'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+            //     'status' => $request->session()->get('status'),
+            // ]);
 
             return Inertia::render($component, [
-                'auth' => [
-                    'user' => $user,
-                    'user_info' => $user->userInfo,
-                ],
+                'user_info' => $user->userInfo,
                 'offices' => $offices,
                 'courses' => $courses,
                 'years' => $years,
@@ -63,6 +66,7 @@ class ProfileController extends Controller
                 'mustVerifyEmail' => $user instanceof MustVerifyEmail,
                 'status' => $request->session()->get('status'),
             ]);
+
     }
 
     /**

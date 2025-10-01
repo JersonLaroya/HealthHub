@@ -65,11 +65,12 @@ class DtrController extends Controller
     $dtrData['sex'] = $request->input('sex');
     $dtrData['age'] = $request->input('age');
     $dtrData['course_year_office'] = $request->input('course_year_office');
+    $dtrData['status'] = 'accepted';
 
 
     Dtr::create($dtrData);
 
-    return redirect()->back()->with('success', 'Event created successfully.');
+    return redirect()->back()->with('success', 'Dtr created successfully.');
 }
 
 
@@ -108,7 +109,9 @@ class DtrController extends Controller
 
         $dtr->update($dtrData);
 
-        return redirect()->route('dtrs.index')->with('success', 'DTR updated successfully.');
+        $role = strtolower(auth()->user()->userRole->name); // 'admin', 'headnurse', or 'nurse'
+        
+        return redirect()->route("{$role}.dtr.index")->with('success', 'DTR updated successfully.');
     }
 
 
@@ -169,7 +172,7 @@ class DtrController extends Controller
                 foreach ($terms as $term) {
                     $q->where(function ($q2) use ($term) {
                         $q2->where('first_name', 'ILIKE', "%{$term}%")
-                        ->orWhere('middle_name', 'ILIKE', "%{$term}%")
+                        // ->orWhere('middle_name', 'ILIKE', "%{$term}%")
                         ->orWhere('last_name', 'ILIKE', "%{$term}%");
                     });
                 }

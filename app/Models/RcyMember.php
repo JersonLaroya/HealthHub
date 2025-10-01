@@ -5,24 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Dtr extends Model
+class RcyMember extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'purpose',
-        'management',
-        'dtr_date',
-        'dtr_time',
-        'name',
-        'sex',
-        'age',
-        'course_year_office',
-        'status',
-    ];
+    protected $fillable = ['user_id', 'position_id'];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
+
+    public function position()
+    {
+        return $this->belongsTo(RcyPosition::class, 'position_id');
+    }
+
 }

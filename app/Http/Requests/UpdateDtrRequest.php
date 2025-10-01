@@ -26,6 +26,7 @@ class UpdateDtrRequest extends FormRequest
             'sex'        => 'required|string|max:10',
             'age'        => 'required|integer',
             'course_year_office' => 'required|string|max:255',
+            'status' => 'required|in:accepted,pending',
         ];
     }
 }

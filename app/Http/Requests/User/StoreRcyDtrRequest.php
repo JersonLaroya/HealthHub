@@ -1,19 +1,29 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\User;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 
-class StoreDtrRequest extends FormRequest
+class StoreRcyDtrRequest extends FormRequest
 {
-    public function authorize()
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
     {
-        $user = $this->user(); // currently logged-in user
+        $userId = auth()->id();
 
-        return in_array($user->userRole->name, ['Admin', 'Head Nurse', 'Nurse']);
+        // Check if the user exists in the rcy_members table
+        return DB::table('rcy_members')->where('user_id', $userId)->exists();
     }
 
-    public function rules()
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
     {
         return [
             'dtr_date'       => 'required|date',
@@ -26,7 +36,6 @@ class StoreDtrRequest extends FormRequest
             'sex'        => 'required|string|max:10',
             'age'        => 'required|integer',
             'course_year_office' => 'required|string|max:255',
-            'status' => 'required|in:accepted,pending',
         ];
     }
 }

@@ -78,6 +78,8 @@ function clinicNav(role: string): NavItem[] {
   ];
 }
 
+const isRcyMember = auth.is_rcy_member;
+
 const mainNavItems: NavItem[] =
   isSuperAdmin
     ? [
@@ -119,6 +121,9 @@ const mainNavItems: NavItem[] =
         { title: "Personal Information", href: "/user/personal-info", icon: ClipboardCheck },
         { title: "Medical Forms", href: "/user/medical-forms", icon: ClipboardCheck },
         { title: "Records", href: "/user/records", icon: ClipboardCheck },
+        ...(isRcyMember
+        ? [{ title: "RCY", href: `/user/rcy` }] 
+        : []),
       ];
 
 
@@ -239,27 +244,31 @@ const rightNavItems: NavItem[] = mainNavItems;
                                     item.children ? (
                                     <DropdownMenu key={index}>
                                         <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            className={cn(
-                                            "h-9 cursor-pointer px-3",
-                                            page.url.startsWith(item.href ?? "") && activeItemStyles
+                                            <div className="relative flex h-full items-center">
+                                            <Button
+                                                variant="ghost"
+                                                className={cn(
+                                                "h-9 cursor-pointer px-3",
+                                                item.children?.some((child) => page.url.startsWith(child.href ?? "")) && activeItemStyles
+                                                )}
+                                            >
+                                                {item.title}
+                                            </Button>
+                                            {item.children?.some((child) => page.url.startsWith(child.href ?? "")) && (
+                                                <div className="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
                                             )}
-                                        >
-                                            {/* {item.icon && <Icon iconNode={item.icon} className="mr-2 h-4 w-4" />} */}
-                                            {item.title}
-                                        </Button>
+                                            </div>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                        {item.children.map((child, cIdx) => (
+                                            {item.children.map((child, cIdx) => (
                                             <Link
-                                            key={cIdx}
-                                            href={child.href}
-                                            className="block w-full px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                                key={cIdx}
+                                                href={child.href}
+                                                className="block w-full px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                             >
-                                            {child.title}
+                                                {child.title}
                                             </Link>
-                                        ))}
+                                            ))}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                     ) : (
@@ -281,7 +290,7 @@ const rightNavItems: NavItem[] = mainNavItems;
                                     </NavigationMenuItem>
                                     )
                                 )}
-                                </div>
+                            </div>
                         </div>
 
                         <div className="relative flex items-center space-x-1">

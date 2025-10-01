@@ -84,4 +84,9 @@ class User extends Authenticatable
         return $this->hasMany(Dtr::class);
     }
 
+    public function rcyMember()
+    {
+        return $this->hasOne(RcyMember::class);
+    }
+
 }

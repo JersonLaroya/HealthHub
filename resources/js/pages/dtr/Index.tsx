@@ -101,6 +101,7 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
     management: "",
     dtr_date: getTodayDate(),
     dtr_time: getCurrentTime(),
+    status: currentRole === "user" ? "pending" : "accepted",
   });
 
   const handleSort = (column: string) => {
@@ -134,6 +135,7 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
       management: dtr.management,
       dtr_date: dtr.dtr_date,
       dtr_time: dtr.dtr_time,
+      status: dtr.status,
     });
     setPatientQuery(dtr.name);
     setEditDtr(dtr);
@@ -219,6 +221,7 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
                   <SortableHeader column="course_year_office" label="Course & Year / Office" sortBy={sort} sortDirection={direction} onSort={handleSort} />
                   <SortableHeader column="purpose" label="Purpose" sortBy={sort} sortDirection={direction} onSort={handleSort} />
                   <SortableHeader column="management" label="Management" sortBy={sort} sortDirection={direction} onSort={handleSort} />
+                  <th className="p-2 border-b">Status</th>
                   <th className="p-2 border-b">Actions</th>
                 </tr>
               </thead>
@@ -234,6 +237,15 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
                       <td className="p-2 border-b">{dtr.course_year_office}</td>
                       <td className="p-2 border-b break-words">{dtr.purpose}</td>
                       <td className="p-2 border-b">{dtr.management}</td>
+                      <td className="p-2 border-b">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            dtr.status === "accepted" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {dtr.status}
+                        </span>
+                      </td>
                       <td className="p-2 border-b space-x-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(dtr)}>Edit</Button>
                         {['admin', 'headnurse'].includes(currentRole) && (
@@ -419,6 +431,20 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
                   {errors.management && <p className="text-red-500 text-sm">{errors.management}</p>}
                 </div>
               </div>
+
+              {!['user'].includes(currentRole) && (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
+                  <select
+                    value={data.status}
+                    onChange={(e) => setData({ ...data, status: e.target.value })}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white dark:bg-neutral-700 dark:text-gray-100 text-gray-900 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2"
+                  >
+                    <option value="accepted">Accepted</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+              )}
 
               <DialogFooter className="flex justify-end gap-2 mt-2">
                 <Button type="button" variant="outline" disabled={processing} onClick={() => setShowModal(false)}>Cancel</Button>
