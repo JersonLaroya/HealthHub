@@ -14,7 +14,7 @@ class DtrController extends Controller
     // Display list of DTRs with search & sort
     public function index(Request $request)
     {
-        $query = Dtr::query(); // No need for 'user.userInfo' unless you use it in the table
+        $query = Dtr::query();
 
         // Search by name or purpose
         if ($request->search) {
@@ -25,10 +25,24 @@ class DtrController extends Controller
             });
         }
 
-        // Sorting
+        // Custom status ordering: pending first, rejected last
+        $query->orderByRaw("
+            CASE 
+                WHEN status = 'pending' THEN 1
+                WHEN status = 'accepted' THEN 2
+                WHEN status = 'rejected' THEN 3
+                ELSE 4
+            END
+        ");
+
+        // Sorting for other columns
         $sortField = $request->sort ?? 'dtr_date'; // default column
         $sortOrder = $request->direction ?? 'desc';
-        $query->orderBy($sortField, $sortOrder);
+
+        // Only apply if the sort field is not "status"
+        if ($sortField !== 'status') {
+            $query->orderBy($sortField, $sortOrder);
+        }
 
         // Pagination
         $dtrs = $query->paginate(10)->withQueryString();
@@ -44,7 +58,7 @@ class DtrController extends Controller
                 'sort' => $sortField,
                 'direction' => $sortOrder,
             ],
-            'currentRole' => strtolower(str_replace(' ', '', auth()->user()->userRole->name)), // e.g. "admin", "headnurse", "nurse"
+            'currentRole' => strtolower(str_replace(' ', '', auth()->user()->userRole->name)),
         ]);
     }
 

@@ -74,7 +74,6 @@ function clinicNav(role: string): NavItem[] {
     { title: "Patients", href: `/${role}/patients`, icon: LayoutGrid },
     { title: "DTR", href: `/${role}/dtr`, icon: LayoutGrid },
     { title: "Events", href: `/${role}/events`, icon: LayoutGrid },
-    { title: "Forms", href: `/${role}/forms`, icon: LayoutGrid },
   ];
 }
 
@@ -98,6 +97,14 @@ const mainNavItems: NavItem[] =
     : isAdmin
     ? [
         ...clinicNav("admin"),
+        {
+            title: "Forms",
+            icon: ClipboardCheck,
+            children: [
+                { title: "Assign Forms", href: "/admin/form-assignments/create" },
+                { title: "All Assignments", href: "/admin/form-assignments" },
+            ],
+        },
         { title: "Reports", href: "/admin/reports", icon: LayoutGrid },
         {
           title: "Clinic",

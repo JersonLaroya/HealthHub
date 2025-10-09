@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CourseSeeder::class,
             OfficesTableSeeder::class,
+            FormSeeder::class,
         ]);
 
         // Optional: still create a test user

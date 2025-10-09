@@ -240,10 +240,14 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
                       <td className="p-2 border-b">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            dtr.status === "accepted" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                            dtr.status === "accepted"
+                              ? "bg-green-100 text-green-800"
+                              : dtr.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-500"
                           }`}
                         >
-                          {dtr.status}
+                          {dtr.status.charAt(0).toUpperCase() + dtr.status.slice(1)}
                         </span>
                       </td>
                       <td className="p-2 border-b space-x-2">
@@ -268,6 +272,43 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {dtrs.links && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!dtrs.prev_page_url}
+                onClick={() =>
+                  router.get(
+                    dtrs.prev_page_url,
+                    { search, sort, direction },
+                    { preserveState: true }
+                  )
+                }
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Page {dtrs.current_page} of {dtrs.last_page}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!dtrs.next_page_url}
+                onClick={() =>
+                  router.get(
+                    dtrs.next_page_url,
+                    { search, sort, direction },
+                    { preserveState: true }
+                  )
+                }
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </Card>
 
         {/* Delete Modal */}
@@ -434,7 +475,9 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
 
               {!['user'].includes(currentRole) && (
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Status
+                  </label>
                   <select
                     value={data.status}
                     onChange={(e) => setData({ ...data, status: e.target.value })}
@@ -442,6 +485,7 @@ export default function Index({ dtrs = { data: [] }, filters = {}, currentRole, 
                   >
                     <option value="accepted">Accepted</option>
                     <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
                   </select>
                 </div>
               )}

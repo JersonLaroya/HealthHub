@@ -4,9 +4,11 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
+use App\Http\Controllers\FormAssignmentController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\User\MedicalFormController;
 use App\Http\Controllers\User\PersonalInfoController;
 use App\Http\Controllers\User\RcyController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 
+// Routes for Student, Faculty, and Staff
 Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('user/dashboard');
@@ -37,9 +40,11 @@ Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')
     Route::get('/personal-info', [PersonalInfoController::class, 'edit'])->name('personal-info.edit');
     Route::put('/personal-info', [PersonalInfoController::class, 'update'])->name('personal-info.update');
 
-    Route::get('/medical-forms', function () {
-        return Inertia::render('user/medical-forms');
-    })->name('medical-forms');
+    // Medical Forms page
+    Route::get('/medical-forms', [MedicalFormController::class, 'index'])->name('medical-forms.index');
+    Route::get('/medical-forms/{id}', [MedicalFormController::class, 'show'])->name('medical-forms.show');
+    Route::post('/medical-forms/{assignment}/submit', [MedicalFormController::class, 'submit'])->name('medical-forms.submit');
+
     Route::get('/records', function () {
         return Inertia::render('user/records');
     })->name('records');
@@ -47,7 +52,7 @@ Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
 });
 
-
+// Routes for Admin
 Route::middleware(['role:Admin'])
     ->prefix('admin')
     ->name('admin.')
@@ -73,6 +78,12 @@ Route::middleware(['role:Admin'])
         Route::put('/rcy/{rcyMember}', [RcyMemberController::class, 'update'])->name('rcy.update');
         Route::delete('/rcy/{rcyMember}', [RcyMemberController::class, 'destroy'])->name('rcy.destroy');
         Route::get('rcy/search-students', [RcyMemberController::class, 'searchStudents']);
+
+        Route::get('/form-assignments', [FormAssignmentController::class, 'index'])->name('form-assignments.index');
+        Route::get('/form-assignments/create', [FormAssignmentController::class, 'create'])->name('form-assignments.create');
+        Route::post('/form-assignments', [FormAssignmentController::class, 'store'])->name('form-assignments.store');
+        Route::get('/form-assignments/search-users', [FormAssignmentController::class, 'searchUsers'])->name('form-assignments.search-users');
+        Route::get('/form-assignments/auto-select-users', [FormAssignmentController::class, 'autoSelectUsers'])->name('form-assignments.auto-select-users');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
 });
