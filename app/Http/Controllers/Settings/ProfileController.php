@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\Course;
 use App\Models\Office;
+use App\Models\Patient;
 use App\Models\UserRole;
 use App\Models\YearLevel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -43,20 +44,6 @@ class ProfileController extends Controller
             default   => 'user/profile', 
         };
 
-
-            // return Inertia::render($component, [
-            //     'auth' => [
-            //         'user' => $user,
-            //         'user_info' => $user->userInfo,
-            //     ],
-            //     'offices' => $offices,
-            //     'courses' => $courses,
-            //     'years' => $years,
-            //     'roles' => $roles,
-            //     'mustVerifyEmail' => $user instanceof MustVerifyEmail,
-            //     'status' => $request->session()->get('status'),
-            // ]);
-
             return Inertia::render($component, [
                 'user_info' => $user->userInfo,
                 'offices' => $offices,
@@ -77,7 +64,7 @@ class ProfileController extends Controller
         $user = auth()->user()->load('userInfo');
 
 
-        // ✅ Update User table
+        // Update User table
         $user->fill($request->safe()->except('user_info'));
 
         if ($user->userRole?->name !== 'Student') {
@@ -90,11 +77,25 @@ class ProfileController extends Controller
         }
         $user->save();
 
-        // ✅ Update UserInfo table
+        // Update UserInfo table
         $user->userInfo()->update($request->input('user_info'));
 
         // Redirect based on role
         $userRoleName = $user->userRole->name;
+
+        // Create a Patient record if needed
+        if (in_array($userRoleName, ['Student', 'Staff', 'Faculty'])) {
+            if (!$user->patient) {
+                Patient::create([
+                    'user_id' => $user->id,
+                    'bp' => null,
+                    'rr' => null,
+                    'pr' => null,
+                    'temp' => null,
+                    'o2_sat' => null,
+            ]);
+        }
+    }
 
         return match($userRoleName) {
             'Admin'   => to_route('admin.profile')->with('status', 'Profile updated successfully!'),

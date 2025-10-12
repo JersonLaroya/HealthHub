@@ -16,6 +16,7 @@ class Patient extends Model
         'pr',
         'temp',
         'o2_sat',
+        'blood_type',
     ];
 
     /**

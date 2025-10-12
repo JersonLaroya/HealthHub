@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\FormAssignmentController;
+use App\Http\Controllers\PatientController;
+use App\Http\Controllers\PatientPdfController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
@@ -65,7 +68,6 @@ Route::middleware(['role:Admin'])
         Route::get('/events', fn() => Inertia::render('admin/events'))->name('events');
         Route::get('/files', fn() => Inertia::render('admin/files'))->name('files');
         Route::get('/forms', fn() => Inertia::render('admin/forms'))->name('forms');
-        Route::get('/patients', fn() => Inertia::render('admin/patients'))->name('patients');
         Route::get('/reports', fn() => Inertia::render('admin/reports'))->name('reports');
 
         Route::resource('personnels', PersonnelController::class);
@@ -157,6 +159,33 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/rcy', [RcyController::class, 'create'])->name('rcy.add');
             Route::post('/rcy', [RcyController::class, 'store'])->name('rcy.store');
             Route::get('/patients/search', [RcyController::class, 'searchPatients'])->name('patients.search');
+    });
+});
+
+//For Patients
+Route::middleware(['auth'])->group(function () {
+    // Admin
+    Route::prefix('admin')->middleware('role:Admin')->group(function () {
+        Route::get('/patients', [PatientController::class, 'index'])->name('admin.patients.index');
+        Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('admin.patients.show');
+        Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('admin.patients.update');
+        //Route::get('/patients/{patient}/download-pdf', [PatientController::class, 'downloadPDF']);
+        Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('admin.patients.downloadPdf');
+
+
+        Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('admin.patients.consultations.store');
+        Route::put('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'update'])->name('consultations.update');
+        Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('consultations.destroy');
+    });
+
+    // Nurse
+    Route::prefix('nurse')->middleware('role:Nurse')->group(function () {
+        Route::get('/patients', [PatientController::class, 'index'])->name('nurse.patients.index');
+        Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('nurse.patients.show');
+        Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('nurse.patients.update');
+        Route::get('/patients/{patient}/download-pdf', [PatientController::class, 'downloadPDF'])->name('nurse.patients.downloadPDF');
+
+        Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
     });
 });
 
