@@ -13,6 +13,7 @@ class Form extends Model
         'title',
         'slug',
         'description',
+        'file_path',
         'is_active',
     ];
 

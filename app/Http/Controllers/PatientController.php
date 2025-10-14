@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdatePatientRequest;
+use App\Models\FormAssignment;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -82,4 +83,19 @@ class PatientController extends Controller
         //return $pdf->stream("Consultation_Record_{$patient->id}.pdf");
         return $pdf->stream("Consultation_Record_{$patient->id}.pdf");
     }
+
+    public function forms(Patient $patient)
+    {
+        $patient->load(['user.userInfo', 'user.course', 'user.yearLevel', 'user.office']);
+
+        $formAssignments = FormAssignment::with(['form', 'response'])
+            ->where('patient_id', $patient->id)
+            ->get();
+
+        return inertia('patients/Forms', [
+            'patient' => $patient,
+            'assignedForms' => $formAssignments,
+        ]);
+    }
+
 }

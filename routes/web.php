@@ -6,6 +6,8 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\FormAssignmentController;
+use App\Http\Controllers\FormController;
+use App\Http\Controllers\FormResponseController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPdfController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -67,7 +69,6 @@ Route::middleware(['role:Admin'])
         Route::get('/dtr', fn() => Inertia::render('admin/dtr'))->name('dtr');
         Route::get('/events', fn() => Inertia::render('admin/events'))->name('events');
         Route::get('/files', fn() => Inertia::render('admin/files'))->name('files');
-        Route::get('/forms', fn() => Inertia::render('admin/forms'))->name('forms');
         Route::get('/reports', fn() => Inertia::render('admin/reports'))->name('reports');
 
         Route::resource('personnels', PersonnelController::class);
@@ -80,6 +81,12 @@ Route::middleware(['role:Admin'])
         Route::put('/rcy/{rcyMember}', [RcyMemberController::class, 'update'])->name('rcy.update');
         Route::delete('/rcy/{rcyMember}', [RcyMemberController::class, 'destroy'])->name('rcy.destroy');
         Route::get('rcy/search-students', [RcyMemberController::class, 'searchStudents']);
+
+
+        Route::get('/forms', [FormController::class, 'index'])->name('admin.forms.index');
+        Route::post('/forms', [FormController::class, 'store'])->name('admin.forms.store');
+        Route::put('/forms/{form}', [FormController::class, 'update'])->name('admin.forms.update');
+        Route::delete('/forms/{form}', [FormController::class, 'destroy'])->name('admin.forms.destroy');
 
         Route::get('/form-assignments', [FormAssignmentController::class, 'index'])->name('form-assignments.index');
         Route::get('/form-assignments/create', [FormAssignmentController::class, 'create'])->name('form-assignments.create');
@@ -171,11 +178,12 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('admin.patients.update');
         //Route::get('/patients/{patient}/download-pdf', [PatientController::class, 'downloadPDF']);
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('admin.patients.downloadPdf');
-
-
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('admin.patients.consultations.store');
         Route::put('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'update'])->name('consultations.update');
         Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('consultations.destroy');
+
+        Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('admin.patients.forms');
+        Route::get('/admin/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('forms.patient.response');
     });
 
     // Nurse

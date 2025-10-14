@@ -14,7 +14,7 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
   const [status, setStatus] = useState(filters.status || "all");
   const [sort, setSort] = useState(filters.sort || "created_at");
   const [direction, setDirection] = useState(filters.direction || "desc");
-  const [selected, setSelected] = useState(null); // store selected assignment
+  const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
   const handleSort = (column) => {
@@ -35,8 +35,13 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
   };
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
     const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   const openDetails = (assignment) => {
@@ -52,7 +57,9 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl font-semibold">Form Assignments</h1>
-          <Button onClick={() => router.visit("/admin/form-assignments/create")}>+ Assign New Form</Button>
+          <Button onClick={() => router.visit("/admin/form-assignments/create")}>
+            + Assign New Form
+          </Button>
         </div>
 
         {/* Search & Filters */}
@@ -100,7 +107,7 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
                   assignments.data.map((a) => (
                     <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors">
                       <td className="p-2 border-b font-medium">{a.form?.title || "—"}</td>
-                      <td className="p-2 border-b">{a.user?.name || "—"}</td>
+                      <td className="p-2 border-b">{a.patient?.user?.name || "—"}</td>
                       <td className="p-2 border-b">
                         <Badge
                           variant={
@@ -116,9 +123,7 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
                       </td>
                       <td className="p-2 border-b">{a.admin?.name || "—"}</td>
                       <td className="p-2 border-b">{formatDate(a.created_at)}</td>
-                      <td className="p-2 border-b text-right">
-                        {a.due_date ? new Date(a.due_date).toLocaleDateString() : '—'}
-                      </td>
+                      <td className="p-2 border-b text-right">{formatDate(a.due_date)}</td>
                       <td className="p-2 border-b text-right space-x-2">
                         <Button size="sm" variant="outline" onClick={() => openDetails(a)}>
                           View
@@ -128,7 +133,7 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={7} className="p-4 text-center text-gray-500 dark:text-gray-400">
                       No assignments found.
                     </td>
                   </tr>
@@ -180,8 +185,8 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
                   <strong>Form:</strong> {selected.form?.title || "—"}
                 </p>
                 <p>
-                  <strong>Assigned To:</strong> {selected.user?.name || "—"}{" "}
-                  {selected.user?.role ? `(${selected.user.role})` : ""}
+                  <strong>Assigned To:</strong> {selected.patient?.user?.name || "—"}{" "}
+                  {selected.patient?.user?.role ? `(${selected.patient.user.role})` : ""}
                 </p>
                 <p>
                   <strong>Assigned By:</strong> {selected.admin?.name || "—"}
@@ -204,8 +209,7 @@ export default function Index({ assignments, filters = {}, breadcrumbs = [] }) {
                   <strong>Date Assigned:</strong> {formatDate(selected.created_at)}
                 </p>
                 <p>
-                  <strong>Due Date:</strong>{" "}
-                  {selected.due_date ? formatDate(selected.due_date) : "—"}
+                  <strong>Due Date:</strong> {formatDate(selected.due_date)}
                 </p>
               </div>
             )}

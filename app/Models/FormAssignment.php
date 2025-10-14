@@ -11,7 +11,7 @@ class FormAssignment extends Model
 
     protected $fillable = [
         'form_id',
-        'user_id',
+        'patient_id',
         'assigned_by',
         'status',
         'submitted_at',
@@ -27,9 +27,9 @@ class FormAssignment extends Model
         return $this->belongsTo(Form::class);
     }
 
-    public function user()
+    public function patient()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Patient::class);
     }
 
     public function admin()

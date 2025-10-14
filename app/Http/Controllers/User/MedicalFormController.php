@@ -17,7 +17,7 @@ class MedicalFormController extends Controller
         $user = $request->user();
 
         $assignments = FormAssignment::with('form', 'admin')
-            ->where('user_id', $user->id)
+            ->where('patient_id', $user->patient->id) // changed from user_id to patient_id
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -33,7 +33,7 @@ class MedicalFormController extends Controller
     public function show($id, Request $request)
     {
         $assignment = FormAssignment::with('form', 'admin')
-            ->where('user_id', $request->user()->id)
+            ->where('patient_id', $request->user()->patient->id) // changed here
             ->where('id', $id)
             ->firstOrFail();
 
@@ -56,7 +56,8 @@ class MedicalFormController extends Controller
 
         $assignment->update(['status' => 'submitted', 'submitted_at' => now()]);
 
-        return redirect()->route('user.medical-forms.index')->with('success', 'Form submitted successfully!');
+        return redirect()
+            ->route('user.medical-forms.index')
+            ->with('success', 'Form submitted successfully!');
     }
-    
 }

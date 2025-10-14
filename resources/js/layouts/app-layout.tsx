@@ -48,6 +48,7 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
       <Toaster
         position="top-right"
         toastOptions={{
+          duration: 1500,
           classNames: {
             success:
               '!bg-green-500 !text-white !border-none dark:bg-green-600 dark:text-white',

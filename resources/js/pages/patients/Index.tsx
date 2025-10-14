@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import SortableHeader from "@/components/custom/sort-table-header";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Index({ patients = { data: [] }, filters = {}, breadcrumbs = [] }) {
   const [search, setSearch] = useState(filters.q || "");
@@ -23,8 +24,13 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
     router.get(`/admin/patients`, { q: search, sort, direction }, { preserveState: true });
   };
 
-  const handleView = (patient) => {
-    router.get(`/admin/patients/${patient.id}`);
+  const handleViewConsultation = (patient) => {
+    router.get(`/admin/patients/${patient.id}`); // show.tsx
+  };
+
+  const handleViewForms = (patient) => {
+    // 🚧 We'll make this page later
+    router.get(`/admin/patients/${patient.id}/forms`);
   };
 
   return (
@@ -62,9 +68,8 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
                 {patients.data.length > 0 ? (
                     patients.data.map((patient) => (
                     <tr
-                        key={patient.id}
-                        className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
-                        onClick={() => handleView(patient)}
+                      key={patient.id}
+                      className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
                     >
                         <td className="p-2 border-b">
                         {patient.user?.user_info?.first_name} {patient.user?.user_info?.last_name}
@@ -77,17 +82,26 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
                                 : patient.user?.office?.name || "-"}
                         </td>
                         <td className="p-2 border-b">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                            e.stopPropagation();
-                            handleView(patient);
-                            }}
-                        >
-                            View
-                        </Button>
-                        </td>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              View
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewConsultation(patient)}>
+                              Consultation Records
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewForms(patient)}>
+                              Clinic Forms
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                     </tr>
                     ))
                 ) : (
