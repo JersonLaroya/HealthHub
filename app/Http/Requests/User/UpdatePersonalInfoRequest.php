@@ -18,28 +18,33 @@ class UpdatePersonalInfoRequest extends FormRequest
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:20', 
-            'contact_no' => 'nullable|string|max:50',
-            'birthdate' => 'nullable|date',
-            'sex' => 'nullable|string|max:10',
-            'home_address_id' => 'nullable|integer',
-            'present_address_id' => 'nullable|integer',
-            'guardian_id' => 'nullable|integer',
+            'contact_no' => 'required|string|max:50',
+            'birthdate' => 'required|date',
+            'sex' => 'required|string|max:10',
+            'signature' => 'required|string',
 
-            // Home address
-            'home_purok' => 'nullable|string|max:255',
-            'home_barangay' => 'nullable|string|max:255',
-            'home_town' => 'nullable|string|max:255',
-            'home_province' => 'nullable|string|max:255',
+            // Home Address
+            'home_province_name' => 'required|string|max:255',
+            'home_province_code' => 'required|string|max:20',
+            'home_municipality_name' => 'required|string|max:255',
+            'home_municipality_code' => 'required|string|max:20',
+            'home_barangay_name' => 'required|string|max:255',
+            'home_barangay_code' => 'required|string|max:20',
+            'home_purok' => 'required|string|max:255',
 
-            // Present address
-            'present_purok' => 'nullable|string|max:255',
-            'present_barangay' => 'nullable|string|max:255',
-            'present_town' => 'nullable|string|max:255',
-            'present_province' => 'nullable|string|max:255',
+            // Present Address
+            'present_province_name' => 'required|string|max:255',
+            'present_province_code' => 'required|string|max:20',
+            'present_municipality_name' => 'required|string|max:255',
+            'present_municipality_code' => 'required|string|max:20',
+            'present_barangay_name' => 'required|string|max:255',
+            'present_barangay_code' => 'required|string|max:20',
+            'present_purok' => 'required|string|max:255',
 
             // Guardian
-            'guardian_name' => 'nullable|string|max:255',
-            'guardian_contact' => 'nullable|string|max:50',
+            'guardian_name' => 'required|string|max:255',
+            'guardian_contact_no' => 'required|string|max:50',
         ];
     }
+
 }

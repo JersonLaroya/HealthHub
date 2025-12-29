@@ -15,42 +15,39 @@ class ProfileUpdateRequest extends FormRequest
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
-    {
-        $rules = [
-            'user_info.first_name'  => ['required', 'string', 'max:255'],
-            'user_info.middle_name' => ['nullable', 'string', 'max:255'],
-            'user_info.last_name'   => ['required', 'string', 'max:255'],
+{
+    $rules = [
+        'first_name'     => ['required', 'string', 'max:255'],
+        'middle_name'    => ['nullable', 'string', 'max:255'],
+        'last_name'      => ['required', 'string', 'max:255'],
+        'email'          => [
+            'required',
+            'string',
+            'lowercase',
+            'email',
+            'max:255',
+            Rule::unique(User::class)->ignore($this->user()->id),
+        ],
+        'office_id'      => ['nullable', 'integer', 'exists:offices,id'],
+        'user_role_id'   => ['nullable', 'integer', 'exists:user_roles,id'],
+        'course_id'      => ['nullable', 'integer', 'exists:courses,id'],
+        'year_level_id'  => ['nullable', 'integer', 'exists:year_levels,id'],
+    ];
 
-            'email'          => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
-            ],
-            'office_id'      => ['nullable', 'integer', 'exists:offices,id'],
-            'user_role_id'   => ['nullable', 'integer', 'exists:user_roles,id'],
-            'course_id'      => ['nullable', 'integer', 'exists:courses,id'],
-            'year_level_id'  => ['nullable', 'integer', 'exists:year_levels,id'],
-        ];
-
-        if (
-            $this->user()->userRole?->name === 'Student' | 
-            $this->user()->userRole?->name === 'Staff' | 
-            $this->user()->userRole?->name === 'Faculty') {
-                $rules['user_role_id'] = ['required', 'exists:user_roles,id'];
-        }
-
-        return $rules;
+    if (in_array($this->user()->userRole?->name, ['Student', 'Staff', 'Faculty'])) {
+        $rules['user_role_id'] = ['required', 'exists:user_roles,id'];
     }
 
-    public function messages(): array
-    {
-        return [
-            'user_info.first_name.required' => 'Please enter your first name.',
-            'user_info.last_name.required'  => 'Please enter your last name.',
-        ];
-    }
+    return $rules;
+}
+
+public function messages(): array
+{
+    return [
+        'first_name.required' => 'Please enter your first name.',
+        'last_name.required'  => 'Please enter your last name.',
+    ];
+}
+
 
 }

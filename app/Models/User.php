@@ -2,20 +2,36 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory;
 
     public $timestamps = true;
 
     protected $fillable = [
         'email',
         'password',
+
+        // profile fields
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix',
+        'sex',
+        'birthdate',
+        'contact_no',
+        'guardian_name',
+        'guardian_contact_no',
+        'signature',
+
+        // address FKs
+        'home_address_id',
+        'present_address_id',
+
+        // auth / role related
         'google_id',
         'google_token',
         'google_refresh_token',
@@ -33,35 +49,39 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'birthdate' => 'date',
     ];
 
     protected $appends = ['name'];
 
+    /* ======================
+       Accessors
+    ====================== */
+
     public function getNameAttribute(): string
     {
-        // Prefer user_info relation
-        if ($this->userInfo) {
-            return trim(
-                collect([
-                    $this->userInfo->first_name,
-                    $this->userInfo->middle_name,
-                    $this->userInfo->last_name
-                ])->filter()->join(' ')
-            );
-        }
-
-        // Fallback if no user_info yet
-        return $this->email;
+        return trim(
+            collect([
+                $this->first_name,
+                $this->middle_name,
+                $this->last_name,
+                $this->suffix,
+            ])->filter()->join(' ')
+        );
     }
+
+    /* ======================
+       Relationships
+    ====================== */
 
     public function userRole()
     {
-        return $this->belongsTo(UserRole::class, 'user_role_id');
+        return $this->belongsTo(UserRole::class);
     }
 
     public function office()
     {
-        return $this->belongsTo(Office::class, 'office_id');
+        return $this->belongsTo(Office::class);
     }
 
     public function course()
@@ -74,9 +94,25 @@ class User extends Authenticatable
         return $this->belongsTo(YearLevel::class);
     }
 
-    public function userInfo()
+    public function vitalSign()
     {
-        return $this->hasOne(UserInfo::class);
+        return $this->hasOne(VitalSign::class);
+    }
+
+    public function consultations()
+    {
+        return $this->hasMany(Consultation::class, 'user_id');
+    }
+
+
+    public function homeAddress()
+    {
+        return $this->belongsTo(Address::class, 'home_address_id');
+    }
+
+    public function presentAddress()
+    {
+        return $this->belongsTo(Address::class, 'present_address_id');
     }
 
     public function dtrs()
@@ -88,5 +124,4 @@ class User extends Authenticatable
     {
         return $this->hasOne(RcyMember::class);
     }
-
 }

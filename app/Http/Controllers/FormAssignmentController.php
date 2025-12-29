@@ -53,7 +53,7 @@ class FormAssignmentController extends Controller
     {
         return Inertia::render('admin/formAssignments/Create', [
             'forms' => Form::all(['id', 'title']),
-            'formList' => Form::withCount('assignments')->get(['id', 'title', 'created_at']),
+            'formList' => Form::withCount('assignments')->get(),
             'breadcrumbs' => [
                 ['title' => 'Form Assignments', 'href' => route('admin.form-assignments.index')],
                 ['title' => 'Assign Forms'],
@@ -68,12 +68,30 @@ class FormAssignmentController extends Controller
     {
         $validated = $request->validate([
             'form_id' => 'required|exists:forms,id',
-            'patient_ids' => 'required|array',
+            'patient_ids' => 'nullable|array',
             'patient_ids.*' => 'exists:patients,id',
             'due_date' => 'nullable|date',
         ]);
 
-        foreach ($validated['patient_ids'] as $patientId) {
+        $patientIds = $validated['patient_ids'] ?? [];
+
+        // Add first-year students if selected
+        if ($request->select_all_first_year_students) {
+            $studentIds = Patient::whereHas('user.userRole', fn($q) => $q->where('name', 'Student'))->pluck('id')->toArray();
+            $patientIds = array_merge($patientIds, $studentIds);
+        }
+
+        // Add faculty/staff if selected
+        if ($request->select_all_faculty_staff) {
+            $staffIds = Patient::whereHas('user.userRole', fn($q) => $q->whereIn('name', ['Faculty', 'Staff']))->pluck('id')->toArray();
+            $patientIds = array_merge($patientIds, $staffIds);
+        }
+
+        // Remove duplicates
+        $patientIds = array_unique($patientIds);
+
+        // Assign forms
+        foreach ($patientIds as $patientId) {
             FormAssignment::firstOrCreate([
                 'form_id' => $validated['form_id'],
                 'patient_id' => $patientId,
@@ -85,6 +103,14 @@ class FormAssignmentController extends Controller
         }
 
         return back()->with('success', 'Form successfully assigned to selected patients.');
+    }
+
+    public function destroy(Form $form)
+    {
+        // Delete related assignments first (to avoid foreign key constraint issues)
+        $form->assignments()->delete();
+
+        return response()->json(['message' => 'Form deleted successfully']);
     }
 
     /**

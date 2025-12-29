@@ -3,31 +3,33 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdatePatientRequest;
+use App\Models\Disease;
 use App\Models\FormAssignment;
-use App\Models\Patient;
+use App\Models\User;
+use App\Models\VitalSign;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PatientController extends Controller
 {
     /**
-     * Display the list of patients (searchable).
+     * Display the list of users (patients) searchable.
      */
     public function index(Request $request)
     {
         $search = $request->input('q');
 
-        $patients = Patient::with([
-                'user.userInfo',
-                'user.course',
-                'user.yearLevel',
-                'user.office'
+        $patients = User::with([
+                'course',
+                'yearLevel',
+                'office'
             ])
+            ->whereDoesntHave('userRole', function ($q) {
+                $q->whereIn('name', ['Admin', 'Nurse', 'Super Admin']);
+            })
             ->when($search, function ($query, $search) {
-                $query->whereHas('user.userInfo', function ($q) use ($search) {
-                    $q->where('first_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('last_name', 'ILIKE', "%{$search}%");
-                });
+                $query->where('first_name', 'ILIKE', "%{$search}%")
+                      ->orWhere('last_name', 'ILIKE', "%{$search}%");
             })
             ->orderByDesc('created_at')
             ->paginate(10);
@@ -39,57 +41,76 @@ class PatientController extends Controller
     }
 
     /**
-     * Show a single patient with consultation records.
+     * Show a single patient (user) with consultations and vital signs.
      */
-    public function show(Patient $patient)
+    public function show(User $patient)
     {
         $patient->load([
-            'user.userInfo',
-            'user.course',
-            'user.yearLevel',
-            'user.office',
-            'user.userRole',
-            'user.userInfo.homeAddress',
-            'user.userInfo.presentAddress',
-            'user.userInfo.guardian',
+            'course',
+            'yearLevel',
+            'office',
+            'userRole',
+            'homeAddress.barangay.municipality.province',
+            'presentAddress.barangay.municipality.province',
+            'vitalSign',
         ]);
 
         $consultations = $patient->consultations()
+            ->with(['diseases', 'vitalSigns'])
             ->orderBy('date')
             ->orderBy('time')
             ->paginate(10)
             ->withQueryString();
 
+        $diseases = Disease::orderBy('name')->get();
+
         return inertia('patients/Show', [
             'patient' => $patient,
             'consultations' => $consultations,
+            'diseases' => $diseases,
         ]);
     }
 
-    public function update(UpdatePatientRequest $request, Patient $patient)
+    /**
+     * Update user personal info (formerly patient info)
+     */
+    public function update(UpdatePatientRequest $request, User $user)
     {
-        $patient->update($request->validated());
+        // Find the vital signs for this user
+        $vitalSign = VitalSign::firstOrCreate(
+            ['user_id' => $user->id], // If it doesn't exist, create one
+            [] // default values if needed
+        );
 
-        return redirect()->back()->with('success', 'Patient information updated successfully.');
+        // Update the vital signs with validated data
+        $vitalSign->update($request->validated());
+
+        return redirect()->back()->with('success', 'Vital signs updated successfully.');
     }
 
-    public function downloadPDF(Patient $patient)
+    /**
+     * Download consultations PDF for a patient.
+     */
+    public function downloadPDF(User $patient)
     {
-        $consultations = $patient->consultations()->orderBy('date')->orderBy('time')->get();
+        $consultations = $patient->consultations()
+            ->orderBy('date')
+            ->orderBy('time')
+            ->get();
 
         $pdf = Pdf::loadView('pdf.consultation', compact('patient', 'consultations'))
             ->setPaper('a4', 'portrait');
 
-        //return $pdf->stream("Consultation_Record_{$patient->id}.pdf");
         return $pdf->stream("Consultation_Record_{$patient->id}.pdf");
     }
 
-    public function forms(Patient $patient)
+    /**
+     * List forms assigned to the user/patient
+     */
+    public function forms(User $patient)
     {
-        $patient->load(['user.userInfo', 'user.course', 'user.yearLevel', 'user.office']);
-
         $formAssignments = FormAssignment::with(['form', 'response'])
-            ->where('patient_id', $patient->id)
+            ->where('user_id', $patient->id) // changed from patient_id
             ->get();
 
         return inertia('patients/Forms', [
@@ -97,5 +118,4 @@ class PatientController extends Controller
             'assignedForms' => $formAssignments,
         ]);
     }
-
 }

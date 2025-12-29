@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,8 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const { data, setData, post, reset, processing, errors } = useForm({
     user_id: "",
     position_id: "",
@@ -47,16 +49,25 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
       return;
     }
 
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const timeout = setTimeout(async () => {
       try {
         setLoading(true);
         const res = await fetch(
-          `/admin/rcy/search-students?q=${encodeURIComponent(search)}`
+          `/admin/rcy/members/search-students?q=${encodeURIComponent(search)}`,
+          { signal: controller.signal }
         );
         if (!res.ok) throw new Error("Failed to fetch");
         const students = await res.json();
         setResults(students);
-      } catch (err) {
+      } catch (err: any) {
+        if (err.name === "AbortError") return; // Ignore abort errors
         console.error(err);
         setResults([]);
       } finally {
@@ -64,42 +75,43 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
       }
     }, 400);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [search]);
 
   const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!selectedStudent || !data.position_id) {
-    toast.error("Missing data", {
-      description: "Please select a student and a position.",
+    if (!selectedStudent || !data.position_id) {
+      toast.error("Missing data", {
+        description: "Please select a student and a position.",
+      });
+      return;
+    }
+
+    post("/admin/rcy/members", {
+      onSuccess: () => {
+        reset();
+        setSelectedStudent(null);
+        setSearch("");
+        setResults([]);
+        onClose(false);
+
+        toast.success("RCY member added", {
+          description: `${selectedStudent.name} has been added successfully.`,
+        });
+      },
+      onError: (errs) => {
+        const firstError = Object.values(errs)[0] as string;
+        toast.error("Validation failed", {
+          description: firstError || "Please check the form.",
+        });
+        console.log("Validation errors:", errs);
+      },
     });
-    return;
-  }
-
-  post("/admin/rcy", {
-    onSuccess: () => {
-      reset();
-      setSelectedStudent(null);
-      setSearch("");
-      setResults([]);
-      onClose(false);
-
-      toast.success("RCY member added", {
-        description: `${selectedStudent.name} has been added successfully.`,
-      });
-    },
-    onError: (errs) => {
-      // Show first validation error as toast
-      const firstError = Object.values(errs)[0] as string;
-      toast.error("Validation failed", {
-        description: firstError || "Please check the form.",
-      });
-      console.log("Validation errors:", errs);
-    },
-  });
-};
-
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -138,7 +150,7 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                 )}
-                {(loading || results.length > 0 || (!loading && search.length >= 2)) && (
+                {(results.length > 0 || (!loading && search.length >= 2)) && (
                   <ul className="absolute z-10 bg-white border rounded mt-1 max-h-40 overflow-y-auto w-full shadow">
                     {loading && (
                       <li className="px-3 py-2 text-gray-500 flex items-center">

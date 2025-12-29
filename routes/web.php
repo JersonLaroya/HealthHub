@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\DiseaseCategoryController;
+use App\Http\Controllers\Admin\ListOfDiseaseController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\ConsultationController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\User\MedicalFormController;
 use App\Http\Controllers\User\PersonalInfoController;
 use App\Http\Controllers\User\RcyController;
+use App\Http\Middleware\ExcludeRolesMiddleware;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
  
@@ -35,8 +38,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 
-// Routes for Student, Faculty, and Staff
-Route::middleware(['role:Student,Faculty,Staff'])->prefix('user')->name('user.')->group(function () {
+// Routes for User
+Route::middleware(['auth', ExcludeRolesMiddleware::class])->prefix('user')->name('user.')->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('user/dashboard');
     })->name('dashboard');
@@ -66,7 +69,6 @@ Route::middleware(['role:Admin'])
             return Inertia::render('admin/dashboard');
         })->name('dashboard');
 
-        Route::get('/dtr', fn() => Inertia::render('admin/dtr'))->name('dtr');
         Route::get('/events', fn() => Inertia::render('admin/events'))->name('events');
         Route::get('/files', fn() => Inertia::render('admin/files'))->name('files');
         Route::get('/reports', fn() => Inertia::render('admin/reports'))->name('reports');
@@ -76,23 +78,44 @@ Route::middleware(['role:Admin'])
         Route::put('/personnels/{personnel}', [PersonnelController::class, 'update'])->name('admin.personnels.update');
         Route::delete('/personnels/{personnel}', [PersonnelController::class, 'destroy'])->name('admin.personnels.destroy');
 
-        Route::get('/rcy', [RcyMemberController::class, 'index'])->name('rcy.index');
-        Route::post('/rcy', [RcyMemberController::class, 'store'])->name('rcy.store');
-        Route::put('/rcy/{rcyMember}', [RcyMemberController::class, 'update'])->name('rcy.update');
-        Route::delete('/rcy/{rcyMember}', [RcyMemberController::class, 'destroy'])->name('rcy.destroy');
-        Route::get('rcy/search-students', [RcyMemberController::class, 'searchStudents']);
+        // RCY Positions
+        Route::get('/rcy/positions', [RcyMemberController::class, 'indexPositions'])->name('rcy.positions.index');
+        Route::get('/rcy/positions/create', [RcyMemberController::class, 'createPosition'])->name('rcy.positions.create');
+        Route::post('/rcy/positions', [RcyMemberController::class, 'storePosition'])->name('rcy.positions.store');
+        Route::put('/rcy/positions/{position}', [RcyMemberController::class, 'updatePosition'])->name('rcy.positions.update');
+        Route::delete('/rcy/positions/{position}', [RcyMemberController::class, 'destroyPosition'])->name('rcy.positions.destroy');
+
+        // RCY Members
+        Route::get('/rcy/members', [RcyMemberController::class, 'index'])->name('rcy.members.index');
+        Route::get('/rcy/members/create', [RcyMemberController::class, 'createMember'])->name('rcy.members.create');
+        Route::post('/rcy/members', [RcyMemberController::class, 'store'])->name('rcy.members.store');
+        Route::put('/rcy/members/{user}', [RcyMemberController::class, 'update'])->name('rcy.members.update');
+        Route::delete('/rcy/members/{user}', [RcyMemberController::class, 'destroy'])->name('rcy.members.destroy');
+        Route::get('/rcy/members/search-students', [RcyMemberController::class, 'searchStudents'])->name('rcy.members.search');
 
 
-        Route::get('/forms', [FormController::class, 'index'])->name('admin.forms.index');
-        Route::post('/forms', [FormController::class, 'store'])->name('admin.forms.store');
-        Route::put('/forms/{form}', [FormController::class, 'update'])->name('admin.forms.update');
-        Route::delete('/forms/{form}', [FormController::class, 'destroy'])->name('admin.forms.destroy');
+
+        Route::get('/forms', [FormController::class, 'index'])->name('forms.index');
+        Route::post('/forms', [FormController::class, 'store'])->name('forms.store');
+        Route::put('/forms/{form}', [FormController::class, 'update'])->name('forms.update');
+        Route::delete('/forms/{form}', [FormController::class, 'destroy'])->name('forms.destroy');
 
         Route::get('/form-assignments', [FormAssignmentController::class, 'index'])->name('form-assignments.index');
         Route::get('/form-assignments/create', [FormAssignmentController::class, 'create'])->name('form-assignments.create');
         Route::post('/form-assignments', [FormAssignmentController::class, 'store'])->name('form-assignments.store');
         Route::get('/form-assignments/search-users', [FormAssignmentController::class, 'searchUsers'])->name('form-assignments.search-users');
         Route::get('/form-assignments/auto-select-users', [FormAssignmentController::class, 'autoSelectUsers'])->name('form-assignments.auto-select-users');
+
+        // Disease Categories
+        Route::get('/disease-categories', [DiseaseCategoryController::class, 'index']);
+        Route::post('/disease-categories', [DiseaseCategoryController::class, 'store']);
+        Route::put('/disease-categories/{category}', [DiseaseCategoryController::class, 'update']);
+        Route::delete('/disease-categories/{category}', [DiseaseCategoryController::class, 'destroy']);
+
+        Route::get('/list-of-diseases', [ListOfDiseaseController::class, 'index']);
+        Route::post('/list-of-diseases', [ListOfDiseaseController::class, 'store']);
+        Route::put('/list-of-diseases/{disease}', [ListOfDiseaseController::class, 'update']);
+        Route::delete('/list-of-diseases/{disease}', [ListOfDiseaseController::class, 'destroy']);
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
 });
@@ -169,31 +192,29 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-//For Patients
-Route::middleware(['auth'])->group(function () {
+// Shared Admin & Nurse routes
+Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
     // Admin
-    Route::prefix('admin')->middleware('role:Admin')->group(function () {
+    Route::prefix('admin')->group(function () {
         Route::get('/patients', [PatientController::class, 'index'])->name('admin.patients.index');
         Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('admin.patients.show');
         Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('admin.patients.update');
-        //Route::get('/patients/{patient}/download-pdf', [PatientController::class, 'downloadPDF']);
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('admin.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('admin.patients.consultations.store');
-        Route::put('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'update'])->name('consultations.update');
-        Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('consultations.destroy');
-
+        Route::put('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'update'])->name('admin.patients.consultations.update');
         Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('admin.patients.forms');
-        Route::get('/admin/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('forms.patient.response');
+        Route::get('/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('admin.forms.patient.response');
+        Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('admin.patients.consultations.destroy');
     });
 
     // Nurse
-    Route::prefix('nurse')->middleware('role:Nurse')->group(function () {
+    Route::prefix('nurse')->group(function () {
         Route::get('/patients', [PatientController::class, 'index'])->name('nurse.patients.index');
         Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('nurse.patients.show');
-        Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('nurse.patients.update');
-        Route::get('/patients/{patient}/download-pdf', [PatientController::class, 'downloadPDF'])->name('nurse.patients.downloadPDF');
-
+        Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('nurse.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
+        Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('nurse.patients.forms');
+        Route::get('/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('nurse.forms.patient.response');
     });
 });
 

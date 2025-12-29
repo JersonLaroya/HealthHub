@@ -13,7 +13,7 @@ class UpdateEventRequest extends FormRequest
     {
         $user = $this->user(); // currently logged-in user
 
-        return in_array($user->user_role->name, ['Admin', 'Head Nurse', 'Nurse']);
+        return in_array($user->userRole->name, ['Admin', 'Head Nurse', 'Nurse']);
     }
 
     /**
@@ -25,9 +25,10 @@ class UpdateEventRequest extends FormRequest
     {
         return [
             'title'       => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'required|string',
             'start_at'    => 'required|date',
-            'end_at'      => 'nullable|date|after_or_equal:start_at',
+            'end_at'      => 'required|date|after_or_equal:start_at',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
     }
 }

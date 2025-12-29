@@ -17,16 +17,25 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import AuthLayout from '@/layouts/auth-layout'
+import { toast } from 'sonner';
 
-export default function Register({ userRoles, offices }: { userRoles: Array<{id: number, name: string}>, offices: Array<{id: number, name: string}> }) {
+export default function Register({ userRoles, offices, courses, years }: { userRoles: Array<{id: number, name: string}>, offices: Array<{id: number, name: string}> }) {
 
     const [showPassword, setShowPassword] = useState(false)
+
+    const [roleSelected, setRoleSelected] = useState<string>("");
+    const [officeSelected, setOfficeSelected] = useState("");
+    const [courseSelected, setCourseSelected] = useState("");
+    const [yearSelected, setYearSelected] = useState("");
 
     return (
         <AuthLayout title="Register" description="Create your HealthHub account">
             <Head title="Register" />
             <Form
                 {...RegisteredUserController.store.form()}
+                onSuccess={(page) => {
+                    toast.success('Account created successfully!');
+                }}
                 resetOnSuccess={['password']}
                 disableWhileProcessing
                 className="flex flex-col gap-6"
@@ -37,17 +46,21 @@ export default function Register({ userRoles, offices }: { userRoles: Array<{id:
                             {/* User Role */}
                             <div className="grid gap-2">
                                 <Label htmlFor="user_role_id">Register As</Label>
-                                <Select name="user_role_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select user type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {userRoles.map((role) => (
-                                    <SelectItem key={role.id} value={String(role.id)}>
-                                        {role.name}
-                                    </SelectItem>
-                                    ))}
-                                </SelectContent>
+                                <Select
+                                    name="user_role_id"
+                                    value={roleSelected} // this binds the selected value
+                                    onValueChange={(value) => setRoleSelected(value)} // update state when changed
+                                    >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select user type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {userRoles.map((role) => (
+                                        <SelectItem key={role.id} value={String(role.id)}>
+                                            {role.name}
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
                                 </Select>
                                 <InputError message={errors.user_role_id} />
                             </div>
@@ -55,20 +68,69 @@ export default function Register({ userRoles, offices }: { userRoles: Array<{id:
                             {/* Office */}
                             <div className="grid gap-2">
                                 <Label htmlFor="office_id">Office</Label>
-                                <Select name="office_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select office" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {offices.map((office) => (
-                                    <SelectItem key={office.id} value={String(office.id)}>
-                                        {office.name}
-                                    </SelectItem>
-                                    ))}
-                                </SelectContent>
+                                <Select name="office_id" value={officeSelected} onValueChange={setOfficeSelected}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select office" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {offices
+                                        .filter((office) => {
+                                            const selectedRoleName = userRoles.find(
+                                            (role) => String(role.id) === roleSelected
+                                            )?.name;
+                                            return selectedRoleName === "Student"
+                                            ? courses.some((course) => course.office_id === office.id)
+                                            : true;
+                                        })
+                                        .map((office) => (
+                                            <SelectItem key={office.id} value={String(office.id)}>
+                                            {office.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
                                 </Select>
                                 <InputError message={errors.office_id} />
                             </div>
+
+                            {/* Courses */}
+                            {roleSelected && userRoles.find(r => String(r.id) === roleSelected)?.name === "Student" && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="course_id">Course</Label>
+                                    <Select name="course_id" value={courseSelected} onValueChange={setCourseSelected}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select course" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {courses
+                                        .filter(course => String(course.office_id) === officeSelected)
+                                        .map(course => (
+                                            <SelectItem key={course.id} value={String(course.id)}>
+                                            {course.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                            {/* Year Level */}
+                            {roleSelected && userRoles.find(r => String(r.id) === roleSelected)?.name === "Student" && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="year_level_id">Year Level</Label>
+                                    <Select name="year_level_id" value={yearSelected} onValueChange={setYearSelected}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select year level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {years.map((year) => (
+                                        <SelectItem key={year.id} value={String(year.id)}>
+                                            {year.name}
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
 
                             {/* First Name */}
                             <div className="grid gap-2">

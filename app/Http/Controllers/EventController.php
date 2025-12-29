@@ -7,85 +7,103 @@ use App\Http\Requests\UpdateEventRequest;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class EventController extends Controller
 {
     public function index(Request $request)
-{
-    $query = Event::with(['creator.userInfo', 'editor.userInfo']);
+    {
+        $query = Event::with(['creator', 'editor']);
 
-    // Search
-    if ($request->filled('search')) {
-        $query->where('title', 'like', "%{$request->search}%")
-              ->orWhere('description', 'like', "%{$request->search}%");
+        // Search
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('title', 'like', "%{$request->search}%")
+                  ->orWhere('description', 'like', "%{$request->search}%");
+            });
+        }
+
+        // Date filters
+        if ($request->filled('start_date')) {
+            $query->whereDate('start_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('end_at', '<=', $request->end_date);
+        }
+
+        // Sorting
+        $sort = $request->get('sort', 'start_at');
+        $direction = $request->get('direction', 'asc');
+
+        $query->orderBy($sort, $direction);
+
+        $events = $query->paginate(10)->withQueryString();
+
+        return Inertia::render('events/Index', [
+            'events' => $events,
+            'filters' => [
+                'search'     => $request->search,
+                'sort'       => $sort,
+                'direction'  => $direction,
+                'start_date' => $request->start_date,
+                'end_date'   => $request->end_date,
+            ],
+            'breadcrumbs' => [
+                ['title' => 'Events', 'href' => '/events'],
+            ],
+            'currentRole' => strtolower(str_replace(' ', '', auth()->user()->userRole->name)),
+        ]);
     }
-
-    // Date filters
-    if ($request->filled('start_date')) {
-        $query->whereDate('start_at', '>=', $request->start_date);
-    }
-    if ($request->filled('end_date')) {
-        $query->whereDate('end_at', '<=', $request->end_date);
-    }
-
-    // Sorting
-    $sort = $request->get('sort', 'start_at');
-    $direction = $request->get('direction', 'asc');
-    $query->orderBy($sort, $direction);
-
-    // Pagination with timestamps included
-    $events = $query->paginate(10)->withQueryString();
-
-    return Inertia::render('events/Index', [
-        'events'   => $events,
-        'filters'  => array_merge([
-            'search' => null, 
-            'sort', 
-            'direction', 
-            'start_date', 
-            'end_date'
-        ]),
-        'breadcrumbs' => [
-            ['title' => 'Events', 'href' => '/events'],
-        ],
-        'currentRole' => strtolower(str_replace(' ', '', auth()->user()->userRole->name)), // e.g. "admin", "headnurse", "nurse"
-    ]);
-
-    // 'filters' => array_merge([
-    //         'search' => null,
-    //         'role' => null,
-    //         'sort' => 'last_name',
-    //         'direction' => 'asc',
-    //     ], $request->only('search', 'role', 'sort', 'direction')),
-
-}
-
 
     public function store(StoreEventRequest $request)
     {
         $validated = $request->validated();
 
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('events', 'public');
+        }
+
         Event::create([
             ...$validated,
             'created_by' => auth()->id(),
-            'edited_by'  => auth()->id(), 
+            'edited_by'  => auth()->id(),
         ]);
 
-        return redirect()->back()->with('success', 'Event created successfully.');
+        return back()->with('success', 'Event created successfully.');
     }
 
     public function update(UpdateEventRequest $request, Event $event)
     {
         $validated = $request->validated();
 
+        // If no new image, DO NOT update image column
+        if ($request->hasFile('image')) {
+
+            if ($event->image) {
+                Storage::disk('public')->delete($event->image);
+            }
+
+            $validated['image'] = $request->file('image')->store('events', 'public');
+        } else {
+            unset($validated['image']); // THIS LINE FIXES IT
+        }
+
+        $validated['edited_by'] = auth()->id();
+
         $event->update($validated);
 
-        return redirect()->back()->with('success', 'Event updated successfully.');
+        return back()->with('success', 'Event updated successfully.');
     }
 
     public function destroy(Event $event)
     {
+        if ($event->image) {
+            Storage::disk('public')->delete($event->image);
+        }
+
         $event->delete();
-        return redirect()->back()->with('success', 'Event deleted successfully.');
+
+        return back()->with('success', 'Event deleted successfully.');
     }
 }

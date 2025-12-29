@@ -1,6 +1,6 @@
 // Index.tsx
 import { useState } from "react";
-import { Head, router, usePage } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { toast } from "sonner";
 
@@ -19,27 +19,19 @@ import SortableHeader from "@/components/custom/sort-table-header";
 import AddRcyModal from "./AddRcyModal";
 import EditRcyModal from "./EditRcyModal";
 
-
 export default function Index({ rcys, positions, filters, breadcrumbs }) {
-
   const [search, setSearch] = useState(filters.search || "");
   const [sort, setSort] = useState(filters.sort || "last_name");
   const [direction, setDirection] = useState(filters.direction || "asc");
 
-  // For Add modal
-  const [open, setOpen] = useState(false);
-
-  // For Edit modal
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [open, setOpen] = useState(false); // Add modal
+  const [showEditModal, setShowEditModal] = useState(false); // Edit modal
   const [rcyToEdit, setRcyToEdit] = useState(null);
 
-
-  // For Delete modal
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false); // Delete modal
   const [rcyToDelete, setRcyToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Sorting
   const handleSort = (column: string) => {
     const newDirection =
       sort === column && direction === "asc" ? "desc" : "asc";
@@ -47,11 +39,13 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
     setDirection(newDirection);
 
     router.get(
-      "/admin/rcy",
+      "/admin/rcy/members",
       { search, sort: column, direction: newDirection },
       { preserveState: true, replace: true }
     );
   };
+
+  console.log(rcys);
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -66,11 +60,7 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              router.get(
-                "/admin/rcy",
-                { search },
-                { preserveState: true, replace: true }
-              );
+              router.get("/admin/rcy/members", { search }, { preserveState: true, replace: true });
             }}
             className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto"
           >
@@ -94,95 +84,73 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
         <Card className="p-4 shadow-md bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100">
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse min-w-[600px]">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                <th className="p-2 border-b">Name</th>
-                <th className="p-2 border-b">Email</th>
-                <SortableHeader
-                  column="position_id"
-                  label="Position"
-                  sortBy={sort}
-                  sortDirection={direction}
-                  onSort={handleSort}
-                />
-                <SortableHeader
-                  column="created_at"
-                  label="Created At"
-                  sortBy={sort}
-                  sortDirection={direction}
-                  onSort={handleSort}
-                />
-                <th className="p-2 border-b">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rcys.data.length > 0 ? (
-                rcys.data.map((rcy) => (
-                  <tr
-                    key={rcy.id}
-                    className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
-                  >
-                    {/* Name */}
-                    <td className="p-2 border-b">
-                      {rcy.user?.user_info?.first_name}{" "}
-                      {rcy.user?.user_info?.last_name}
-                    </td>
+              <thead>
+                <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
+                  <th className="p-2 border-b">Name</th>
+                  <th className="p-2 border-b">Email</th>
+                  <SortableHeader
+                    column="position_id"
+                    label="Position"
+                    sortBy={sort}
+                    sortDirection={direction}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    column="created_at"
+                    label="Created At"
+                    sortBy={sort}
+                    sortDirection={direction}
+                    onSort={handleSort}
+                  />
+                  <th className="p-2 border-b">Actions</th>
+                </tr>
+              </thead>
+              {/* Table Body */}
+              <tbody>
+                {rcys.data.length > 0 ? (
+                  rcys.data.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors">
+                      {/* Name */}
+                      <td className="p-2 border-b">
+                        {user.first_name} {user.middle_name ? user.middle_name + " " : ""}{user.last_name}
+                      </td>
 
-                    {/* Email */}
-                    <td className="p-2 border-b break-words">{rcy.user?.email}</td>
+                      {/* Email */}
+                      <td className="p-2 border-b break-words">{user.email}</td>
 
-                    {/* Position (from relation) */}
-                    <td className="p-2 border-b">
-                      {rcy.position?.name ?? "—"}
-                    </td>
+                      {/* Position */}
+                      <td className="p-2 border-b">{user.user_role?.name ?? "—"}</td>
 
-                    {/* Created At */}
-                    <td className="p-2 border-b">
-                      {new Date(rcy.created_at).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </td>
+                      {/* Created At */}
+                      <td className="p-2 border-b">
+                        {new Date(user.created_at).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
 
-                    {/* Actions */}
-                    <td className="p-2 border-b space-x-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setRcyToEdit(rcy);
-                          setShowEditModal(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
+                      {/* Actions */}
+                      <td className="p-2 border-b space-x-2">
+                        <Button size="sm" variant="secondary" onClick={() => { setRcyToEdit(user); setShowEditModal(true); }}>
+                          Edit
+                        </Button>
 
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => {
-                          setRcyToDelete(rcy);
-                          setShowDeleteModal(true);
-                        }}
-                      >
-                        Delete
-                      </Button>
+                        <Button size="sm" variant="destructive" onClick={() => { setRcyToDelete(user); setShowDeleteModal(true); }}>
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      No RCY members found.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="p-4 text-center text-gray-500 dark:text-gray-400"
-                  >
-                    No RCY members found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
@@ -193,11 +161,7 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
                 size="sm"
                 disabled={!rcys.prev_page_url}
                 onClick={() =>
-                  router.get(
-                    rcys.prev_page_url,
-                    { search, sort, direction },
-                    { preserveState: true }
-                  )
+                  router.get(rcys.prev_page_url, { search, sort, direction }, { preserveState: true })
                 }
               >
                 Previous
@@ -210,11 +174,7 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
                 size="sm"
                 disabled={!rcys.next_page_url}
                 onClick={() =>
-                  router.get(
-                    rcys.next_page_url,
-                    { search, sort, direction },
-                    { preserveState: true }
-                  )
+                  router.get(rcys.next_page_url, { search, sort, direction }, { preserveState: true })
                 }
               >
                 Next
@@ -232,9 +192,7 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
             <p className="text-gray-600 dark:text-gray-300">
               Are you sure you want to delete{" "}
               <span className="font-semibold">
-                {rcyToDelete?.user?.user_info
-                  ? `${rcyToDelete.user.user_info.first_name} ${rcyToDelete.user.user_info.last_name}`
-                  : rcyToDelete?.user?.email}
+                {rcyToDelete?.first_name} {rcyToDelete?.last_name}
               </span>
               ?
             </p>
@@ -252,10 +210,10 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
                 onClick={() => {
                   if (rcyToDelete) {
                     setDeleting(true);
-                    router.delete(`/admin/rcy/${rcyToDelete.id}`, {
+                    router.delete(`/admin/rcy/members/${rcyToDelete.id}`, {
                       onSuccess: () => {
                         toast.error("RCY deleted", {
-                          description: `${rcyToDelete.user.user_info.first_name} ${rcyToDelete.user.user_info.last_name} removed.`,
+                          description: `${rcyToDelete.first_name} ${rcyToDelete.last_name} removed.`,
                         });
                         setShowDeleteModal(false);
                         setRcyToDelete(null);
@@ -271,25 +229,21 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
           </DialogContent>
         </Dialog>
 
-        {/* Add Modal (separate file) */}
-        <AddRcyModal 
-          open={open} 
-          onClose={() => setOpen(false)} 
-          positions={positions} 
-        />
+        {/* Add Modal */}
+        <AddRcyModal open={open} onClose={() => setOpen(false)} positions={positions} />
 
-        {/* Edit Modal (separate file) */}
+        {/* Edit Modal */}
         {rcyToEdit && (
-        <EditRcyModal
-          open={showEditModal}
-          onClose={() => {
-            setShowEditModal(false);
-            setRcyToEdit(null);
-          }}
-          positions={positions}
-          rcy={rcyToEdit}
-        />
-      )}
+          <EditRcyModal
+            open={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setRcyToEdit(null);
+            }}
+            positions={positions}
+            rcy={rcyToEdit}
+          />
+        )}
       </div>
     </AppLayout>
   );

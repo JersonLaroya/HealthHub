@@ -17,6 +17,15 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+//     server: {
+//     host: '0.0.0.0',          // Allow access from other devices
+//     port: 5173,
+//     cors: true,               // ✅ Enable CORS for dev server
+//     hmr: {
+//       host: '192.168.1.6',    // 👈 your LAN IP address
+//       protocol: 'ws',
+//     },
+//   },
     esbuild: {
         jsx: 'automatic',
     },

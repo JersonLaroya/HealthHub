@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 
 export async function fillClinicConsultationRecordForm(patient, consultations) {
   const formUrl = "/storage/forms/clinic_consultation_record_form.pdf";
@@ -8,13 +8,15 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
   const templatePdf = await PDFDocument.load(formBytes);
   const form = templatePdf.getForm();
 
-  console.log(patient);
+  const roleName = patient.user_role?.name ?? "";
 
-  // Fill patient info on the template itself
-  form.getTextField("name1").setText(`${patient.user.user_info.first_name} ${patient.user.user_info.last_name}`);
-  form.getTextField("sex").setText((patient.user.user_info.sex ?? "").charAt(0).toUpperCase());
-  
-  const birthdate = patient.user.user_info.birthdate;
+  // ----------------------
+  // Fill patient info
+  // ----------------------
+  form.getTextField("name1").setText(`${patient.first_name} ${patient.last_name}`);
+  form.getTextField("sex").setText((patient.sex ?? "").charAt(0).toUpperCase());
+
+  const birthdate = patient.birthdate;
   if (birthdate) {
     const dateObj = new Date(birthdate);
     const formattedBirthdate = `${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}-${dateObj.getFullYear()}`;
@@ -23,39 +25,44 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
     form.getTextField("birthdate").setText("");
   }
 
-  form.getTextField("blood_type").setText(patient.blood_type ?? "");
-  form.getTextField("course_office").setText(patient.user.course?.code ?? "");
-  form.getTextField("school_year").setText(patient.year_level?.name ?? "");
-  form.getTextField("contact_number1").setText(patient.user.user_info.contact_no ?? "");
-  form.getTextField("bp").setText(patient.bp ?? "");
-  form.getTextField("rr").setText(patient.rr ?? "");
-  form.getTextField("pr").setText(patient.pr ?? "");
-  form.getTextField("temp").setText(patient.temp ?? "");
-  form.getTextField("o2_sat").setText(patient.o2_sat ?? "");
+  form.getTextField("blood_type").setText(patient.vital_sign.blood_type ?? "");
+  form.getTextField("course_office").setText(patient.course?.code ?? "");
+  form.getTextField("school_year").setText(`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+  form.getTextField("contact_number1").setText(patient.contact_no ?? "");
+  form.getTextField("bp").setText(patient.vital_sign.bp ?? "");
+  form.getTextField("rr").setText(patient.vital_sign.rr ?? "");
+  form.getTextField("pr").setText(patient.vital_sign.pr ?? "");
+  form.getTextField("temp").setText(patient.vital_sign.temp ?? "");
+  form.getTextField("o2_sat").setText(patient.vital_sign.o2_sat ?? "");
 
-  form.getTextField("name2").setText(patient.user.user_info.guardian.name ?? "");
-  form.getTextField("contact_number2").setText(patient.user.user_info.guardian.contact_no ?? "");
+  form.getTextField("name2").setText(patient.guardian_name ?? "");
+  form.getTextField("contact_number2").setText(patient.guardian_contact_no ?? "");
 
-  const address = patient.user.user_info.home_address
-    ? `${patient.user.user_info.home_address.purok}, ${patient.user.user_info.home_address.barangay}, ${patient.user.user_info.home_address.town}, ${patient.user.user_info.home_address.province}`
+  const homeAddress = patient.home_address
+    ? `${patient.home_address.purok || ""}, ${patient.home_address.barangay?.name || ""}, ${patient.home_address.barangay?.municipality?.name || ""}, ${patient.home_address.barangay?.municipality?.province?.name || ""}`
     : "";
 
-  form.getTextField("home_address")?.setText(address);
-  form.getTextField("present_address")?.setText(address);
-  form.getTextField("school_year")?.setText(`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+  const presentAddress = patient.present_address
+    ? `${patient.present_address.purok || ""}, ${patient.present_address.barangay?.name || ""}, ${patient.present_address.barangay?.municipality?.name || ""}, ${patient.present_address.barangay?.municipality?.province?.name || ""}`
+    : "";
 
-  if (patient.user.user_role.name.includes("Student")) {
-    form.getCheckBox("student_checkbox")?.check();
-    form.getCheckBox("student_checkbox")?.defaultUpdateAppearances();
-  } else {
+  form.getTextField("home_address")?.setText(homeAddress);
+  form.getTextField("present_address")?.setText(presentAddress);
+
+  if (roleName === "Staff" || roleName === "Faculty") {
     form.getCheckBox("faculty_employee_checkbox")?.check();
     form.getCheckBox("faculty_employee_checkbox")?.defaultUpdateAppearances();
+  } else {
+    form.getCheckBox("student_checkbox")?.check();
+    form.getCheckBox("student_checkbox")?.defaultUpdateAppearances();
   }
 
-  // Flatten form on the template
+  // Flatten form
   form.flatten();
 
-  // Create final PDF and copy only page 1 from template
+  // ----------------------
+  // Create final PDF
+  // ----------------------
   const pdfDoc = await PDFDocument.create();
   const [firstPage] = await pdfDoc.copyPages(templatePdf, [0]);
   pdfDoc.addPage(firstPage);
@@ -79,9 +86,10 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
     { x: 333, width: 226, header: "Management" },
   ];
 
+  // Updated wrapText to safely handle non-string input
   const wrapText = (text, maxWidth, size = fontSize) => {
     const lines = [];
-    const paragraphs = (text || "").split(/\r?\n/);
+    const paragraphs = String(text || "").split(/\r?\n/);
 
     for (const paragraph of paragraphs) {
       const words = paragraph.split(" ");
@@ -102,76 +110,55 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
   };
 
   const drawCenteredText = (text, col, y, size = fontSize) => {
-    const textWidth = font.widthOfTextAtSize(text, size);
+    const textWidth = font.widthOfTextAtSize(String(text || ""), size);
     const xCentered = col.x + (col.width - textWidth) / 2;
-    page.drawText(text, {
-      x: xCentered,
-      y,
-      font,
-      size,
-    });
-  };
-
-  const drawHeader = (targetPage) => {
-    const headerY = targetPage.getHeight() - 60;
-    columns.forEach((col) => {
-      const textWidth = font.widthOfTextAtSize(col.header, fontSize);
-      const xCentered = col.x + (col.width - textWidth) / 2;
-      targetPage.drawText(col.header, {
-        x: xCentered,
-        y: headerY,
-        font,
-        size: fontSize,
-      });
-    });
-    return headerY - lineHeight - rowPadding;
+    page.drawText(String(text || ""), { x: xCentered, y, font, size });
   };
 
   const formatDateTime = (rawDate) => {
     if (!rawDate) return "";
-
     const dateObj = new Date(rawDate);
-    
-    // Format date as DD-MM-YY
     const day = String(dateObj.getDate()).padStart(2, "0");
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const year = String(dateObj.getFullYear()).slice(-2);
-
-    // Format time as h:mm AM/PM
     let hours = dateObj.getHours();
     const minutes = String(dateObj.getMinutes()).padStart(2, "0");
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
-
     return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
   };
 
   const records = consultations?.data || [];
 
   for (const c of records) {
-    // Use smaller font for Date & Time column
     const dateFontSize = 8;
-    const dateLineHeight = dateFontSize + 2; // proportional line height
-
     const dateLines = wrapText(formatDateTime(c.date), columns[0].width - 4, dateFontSize);
-    const vitalsLines = wrapText(c.vital_signs || "", columns[1].width - 4);
-    const chiefLines = wrapText(c.chief_complaint || "", columns[2].width - 4);
+
+    // --- Convert vital signs object into a string ---
+    const vitalsText = c.vital_signs
+      ? [
+          c.vital_signs.bp,
+          c.vital_signs.rr,
+          c.vital_signs.pr,
+          c.vital_signs.temp ? `${c.vital_signs.temp}°C` : null,
+          c.vital_signs.o2_sat,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : "-";
+
+    const vitalsLines = wrapText(vitalsText, columns[1].width - 4);
+
+    const chiefLines = wrapText(c.medical_complaint || "", columns[2].width - 4);
     const managementLines = wrapText(c.management_and_treatment || "", columns[3].width - 4);
 
-    const maxLines = Math.max(
-      dateLines.length,
-      vitalsLines.length,
-      chiefLines.length,
-      managementLines.length
-    );
-
+    const maxLines = Math.max(dateLines.length, vitalsLines.length, chiefLines.length, managementLines.length);
     const requiredHeight = maxLines * lineHeight + rowPadding * 2;
 
     if (yPosition - requiredHeight < 50) {
-      const [newPage] = await pdfDoc.copyPages(templatePdf, [1]); // only use page 2 layout
+      const [newPage] = await pdfDoc.copyPages(templatePdf, [1]);
       pdfDoc.addPage(newPage);
       page = newPage;
-
       yPosition = page.getHeight() - 225;
     }
 
@@ -187,20 +174,14 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
   }
 
   // ----------------------
-  // Add page numbers after table drawing
+  // Page numbers
   // ----------------------
   const totalPages = pdfDoc.getPageCount();
   for (let i = 0; i < totalPages; i++) {
     const currentPage = pdfDoc.getPage(i);
     const { width: pageWidth } = currentPage.getSize();
-
     const pageNumberText = `${i + 1} of ${totalPages}`;
-    currentPage.drawText(pageNumberText, {
-      x: pageWidth - 400, // adjust X if needed to match your "first_page" and "next_page" fields
-      y: 37,             // adjust Y if needed to match the template
-      size: 8,
-      font,
-    });
+    currentPage.drawText(pageNumberText, { x: pageWidth - 400, y: 37, size: 8, font });
   }
 
   const pdfBytes = await pdfDoc.save();

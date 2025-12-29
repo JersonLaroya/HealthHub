@@ -20,9 +20,17 @@ class UpdateConsultationRequest extends FormRequest
         return [
             'date' => 'required|date',
             'time' => 'required',
-            'vital_signs' => 'nullable|string|max:255',
-            'chief_complaint' => 'required|string|max:255',
+
+            'bp' => 'nullable|string|max:20',
+            'rr' => 'nullable|string|max:20',
+            'pr' => 'nullable|string|max:20',
+            'temp' => 'nullable|string|max:10',
+            'o2_sat' => 'nullable|string|max:10',
+
+            'medical_complaint' => 'required|string|max:255',
+            'disease_id' => 'nullable|exists:list_of_diseases,id',
             'management_and_treatment' => 'required|string|max:255',
         ];
     }
+
 }

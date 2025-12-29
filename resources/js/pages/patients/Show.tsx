@@ -17,8 +17,10 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     const url = URL.createObjectURL(pdfBlob)
     window.open(url, '_blank')
   }
+
+  console.log('consultation data:', consultations); // Debugging line
  
-  const { auth } = usePage().props;
+  const { auth, diseases } = usePage().props;
 
   const getCurrentSchoolYear = () => {
     const today = new Date();
@@ -30,8 +32,11 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
   };
   const currentSchoolYear = getCurrentSchoolYear();
   const [schoolYear, setSchoolYear] = useState(currentSchoolYear);
+  const [selectingDiseases, setSelectingDiseases] = useState(false);
+  const [selectingDiseasesEdit, setSelectingDiseasesEdit] = useState(false);
 
   const { data, setData, put, processing, errors } = useForm({
+    user_id: patient.id || "",
     blood_type: patient.blood_type || "",
     bp: patient.bp || "",
     rr: patient.rr || "",
@@ -55,15 +60,23 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     return `${hours}:${minutes}`;
   };
 
-
   const [addingConsultation, setAddingConsultation] = useState(false);
 
   const { data: consultationData, setData: setConsultationData, post: postConsultation, processing: addingProcessing, errors: consultationErrors } = useForm({
+    user_id: patient.id,
     date: getTodayDate(),
     time: getCurrentTime(),
-    vital_signs: "",
-    chief_complaint: "",
+    medical_complaint: "", 
+    disease_ids: [],
     management_and_treatment: "",
+    vital_signs_id: "",  
+
+    // vital signs (ALL OPTIONAL)
+    bp: "",
+    rr: "",
+    pr: "",
+    temp: "",
+    o2_sat: "",
   });
 
   const handleAddConsultation = (e) => {
@@ -73,11 +86,17 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
         toast.success("Consultation added successfully.");
         setAddingConsultation(false);
         setConsultationData({
+          user_id: patient.id,
           date: getTodayDate(),
           time: getCurrentTime(),
-          vital_signs: "",
-          chief_complaint: "",
+          medical_complaint : "",
+          disease_ids: [],
           management_and_treatment: "",
+          bp: "",
+          rr: "",
+          pr: "",
+          temp: "",
+          o2_sat: "",
         });
       },
     });
@@ -101,7 +120,7 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     date: "",
     time: "",
     vital_signs: "",
-    chief_complaint: "",
+    medical_complaint : "",
     management_and_treatment: "",
   });
 
@@ -110,11 +129,17 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     setEditConsultData({
       date: c.date,
       time: c.time,
-      vital_signs: c.vital_signs,
-      chief_complaint: c.chief_complaint,
-      management_and_treatment: c.management_and_treatment,
+      bp: c.vital_signs?.bp || "",
+      rr: c.vital_signs?.rr || "",
+      pr: c.vital_signs?.pr || "",
+      temp: c.vital_signs?.temp || "",
+      o2_sat: c.vital_signs?.o2_sat || "",
+      medical_complaint: c.medical_complaint || "",
+      management_and_treatment: c.management_and_treatment || "",
+      disease_ids: c.diseases?.map((d) => d.id) || [],
     });
   };
+
 
   const closeEditConsultation = () => {
     setEditingConsultation(null);
@@ -158,21 +183,30 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold">Clinic Consultation Record</h1>
           <div className="flex gap-2">
-            {/* <Button
-              variant="outline"
-              onClick={() => window.open(`/admin/patients/${patient.id}/download-pdf`, "_blank")}
-            >
-              Download PDF
-            </Button> */}
             <Button variant="outline" onClick={() => handleOpenPdf(patient, consultations)}>
               Download PDF
             </Button>
             <Button onClick={() => setEditing(true)}>Edit</Button>
             <Button
               variant="default"
-              onClick={() => setAddingConsultation(true)}
+              onClick={() => {
+                setConsultationData({
+                  date: getTodayDate(),
+                  time: getCurrentTime(),
+                  vital_signs: "",
+                  medical_complaint : "",
+                  management_and_treatment: "",
+                  disease_ids: [], // make sure this is included
+                  bp: "",
+                  rr: "",
+                  pr: "",
+                  temp: "",
+                  o2_sat: "",
+                });
+                setAddingConsultation(true);
+              }}
             >
-              Add
+              Add Consultation
             </Button>
           </div>
         </div>
@@ -182,10 +216,10 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
           {/* BASIC INFO */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm items-center">
             <div className="col-span-1 sm:col-span-2">
-              <strong>Role:</strong> {patient.user?.user_role?.name || "-"}
+              <strong>Role:</strong> {patient?.user_role?.name || "-"}
             </div>
             <div className="col-span-1 sm:col-span-2">
-              <strong>Blood Type:</strong> {patient.blood_type || "-"}
+              <strong>Blood Type:</strong> {patient.vital_sign.blood_type || "-"}
             </div>
             <div className="col-span-1 flex items-center gap-2">
               <strong>School Year:</strong>
@@ -203,30 +237,30 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
           {/* PERSONAL INFO */}
           <div className="flex flex-col lg:flex-row text-sm divide-y lg:divide-y-0 lg:divide-x divide-gray-300 dark:divide-neutral-600">
             <div className="w-full lg:w-1/2 space-y-1 pl-0 lg:pl-4 py-2 lg:py-0">
-              <p><strong>Name:</strong> {patient.user?.user_info?.first_name} {patient.user?.user_info?.last_name}</p>
+              <p><strong>Name:</strong> {patient?.first_name} {patient?.last_name}</p>
               <p><strong>Home Address:</strong>
-                {patient.user.user_info.home_address
-                  ? `${patient.user.user_info.home_address.purok}, ${patient.user.user_info.home_address.barangay}, ${patient.user.user_info.home_address.town}, ${patient.user.user_info.home_address.province}`
+                {patient?.home_address
+                  ? `${patient.home_address.purok}, ${patient.home_address.barangay.name}, ${patient.home_address.barangay.municipality.name}, ${patient.home_address.barangay.municipality.province.name}`
                   : '-'}
               </p>
-              <p><strong>Guardian/Spouse:</strong> {patient.user?.user_info?.guardian?.name || "-"}</p>
+              <p><strong>Guardian/Spouse:</strong> {patient?.guardian_name || "-"}</p>
               <p><strong>Present Address:</strong>
-                {patient.user.user_info.home_address
-                  ? `${patient.user.user_info.home_address.purok}, ${patient.user.user_info.home_address.barangay}, ${patient.user.user_info.home_address.town}, ${patient.user.user_info.home_address.province}`
+                {patient?.present_address
+                  ? `${patient.present_address.purok}, ${patient.present_address.barangay.name}, ${patient.present_address.barangay.municipality.name}, ${patient.present_address.barangay.municipality.province.name}`
                   : '-'}
               </p>
             </div>
 
             <div className="w-full lg:w-1/2 flex flex-col lg:items-end space-y-1 pr-0 lg:pr-4 py-2 lg:py-0">
               <div className="text-left space-y-1">
-                <p><strong>Birth Date:</strong> {patient.user?.user_info?.birthdate || "-"}</p>
-                <p><strong>Sex:</strong> {patient.user?.user_info?.sex || "-"}</p>
-                <p><strong>Contact No.:</strong> {patient.user?.user_info?.contact_no || "-"}</p>
-                <p><strong>Guardian Contact:</strong> {patient.user?.user_info?.guardian?.contact_no || "-"}</p>
+                <p><strong>Birth Date:</strong> {patient?.birthdate || "-"}</p>
+                <p><strong>Sex:</strong> {patient?.sex || "-"}</p>
+                <p><strong>Contact No.:</strong> {patient?.contact_no || "-"}</p>
+                <p><strong>Guardian Contact:</strong> {patient?.guardian_contact_no || "-"}</p>
                 <p><strong>Course/Office:</strong> 
-                  {patient.user?.course
-                    ? `${patient.user.course.name} ${patient.user.year_level?.name || ""}`
-                    : patient.user?.office?.name || "-"}
+                  {patient?.course
+                    ? `${patient.course.name} ${patient.year_level?.name || ""}`
+                    : patient?.office?.name || "-"}
                 </p>
               </div>
             </div>
@@ -237,11 +271,14 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
           {/* VITAL SIGNS */}
           <div className="flex flex-col lg:flex-row text-sm text-center items-center divide-y lg:divide-y-0 lg:divide-x divide-gray-300 dark:divide-neutral-600">
             <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">Initial Vital Signs</label></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">BP</label><p>{patient.bp || "-"}</p></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">RR</label><p>{patient.rr || "-"}</p></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">PR</label><p>{patient.pr || "-"}</p></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">Temp</label><p>{patient.temp || "-"}</p></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">O2 Sat</label><p>{patient.o2_sat || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">BP</label><p>{patient.vital_sign.bp || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">RR</label><p>{patient.vital_sign.rr || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">PR</label><p>{patient.vital_sign.pr || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0">
+              <label className="font-semibold block mb-0.5">Temp</label>
+              <p>{patient.vital_sign?.temp ? `${patient.vital_sign.temp}°C` : "-"}</p>
+            </div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">O2 Sat</label><p>{patient.vital_sign.o2_sat || "-"}</p></div>
           </div>
         </Card>
 
@@ -253,6 +290,7 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                 <th className="p-2 text-left border-b">Date & Time</th>
                 <th className="p-2 text-left border-b">Vital Signs</th>
                 <th className="p-2 text-left border-b">Chief Complaint</th>
+                <th className="p-2 text-left border-b">Disease</th>
                 <th className="p-2 text-left border-b">Management & Treatment</th>
                 {auth.user?.user_role?.name?.toLowerCase() === 'admin' && (
                   <th className="p-2 text-left border-b">Actions</th>
@@ -275,15 +313,35 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                   return (
                     <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
                       <td className="p-2 border-b">{formattedDateTime}</td>
-                     <td className="p-2 border-b align-top">
+                      <td className="p-2 border-b align-top">
                         <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.vital_signs || ""}
+                          {c.vital_signs ? (
+                            [
+                              c.vital_signs.bp,
+                              c.vital_signs.rr,
+                              c.vital_signs.pr,
+                              c.vital_signs.temp ? `${c.vital_signs.temp}°C` : null,
+                              c.vital_signs.o2_sat,
+                            ]
+                              .filter(Boolean) // keep only non-null/non-empty
+                              .join(", ") || "-" // fallback if all empty
+                          ) : (
+                            "-"
+                          )}
                         </div>
                       </td>
 
                       <td className="p-2 border-b align-top">
                         <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.chief_complaint || ""}
+                          {c.medical_complaint  || ""}
+                        </div>
+                      </td>
+
+                      <td className="p-2 border-b align-top">
+                        <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
+                          {c.diseases?.length
+                            ? c.diseases.map(d => d.name).join(", ")
+                            : "-"}
                         </div>
                       </td>
 
@@ -445,29 +503,74 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                 )}
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Vital Signs</label>
-                <Textarea
-                  value={consultationData.vital_signs}
-                  onChange={(e) => setConsultationData("vital_signs", e.target.value)}
-                  placeholder="Enter vital signs"
-                />
-                {consultationErrors?.vital_signs && (
-                  <p className="text-red-600 text-sm mt-1">{consultationErrors.vital_signs}</p>
-                )}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm">Vital Signs</h3>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    placeholder="BP (e.g. 120/80)"
+                    value={consultationData.bp}
+                    onChange={(e) => setConsultationData("bp", e.target.value)}
+                  />
+                  <Input
+                    placeholder="RR"
+                    value={consultationData.rr}
+                    onChange={(e) => setConsultationData("rr", e.target.value)}
+                  />
+                  <Input
+                    placeholder="PR"
+                    value={consultationData.pr}
+                    onChange={(e) => setConsultationData("pr", e.target.value)}
+                  />
+                  <Input
+                    placeholder="Temp (°C)"
+                    value={consultationData.temp}
+                    onChange={(e) => setConsultationData("temp", e.target.value)}
+                  />
+                  <Input
+                    placeholder="O₂ Sat (%)"
+                    value={consultationData.o2_sat}
+                    onChange={(e) => setConsultationData("o2_sat", e.target.value)}
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="text-sm font-medium">Chief Complaint</label>
                 <Textarea
-                  value={consultationData.chief_complaint}
-                  onChange={(e) => setConsultationData("chief_complaint", e.target.value)}
+                  value={consultationData.medical_complaint }
+                  onChange={(e) => setConsultationData("medical_complaint", e.target.value)}
                   placeholder="Enter chief complaint"
                   className="min-h-[100px] resize-y"
                 />
-                {consultationErrors?.chief_complaint && (
-                  <p className="text-red-600 text-sm mt-1">{consultationErrors.chief_complaint}</p>
+                {consultationErrors?.medical_complaint  && (
+                  <p className="text-red-600 text-sm mt-1">{consultationErrors.medical_complaint }</p>
                 )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Diseases</label>
+
+                {/* Selected diseases display */}
+                <div className="flex flex-wrap gap-2 mt-2 mb-1">
+                  {consultationData.disease_ids.length > 0
+                    ? consultationData.disease_ids
+                        .map((id) => diseases.find((d) => d.id === id)?.name)
+                        .filter(Boolean)
+                        .map((name) => (
+                          <span
+                            key={name}
+                            className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-sm"
+                          >
+                            {name}
+                          </span>
+                        ))
+                    : <span className="text-gray-500 text-sm">No diseases selected</span>}
+                </div>
+
+                <Button type="button" size="sm" onClick={() => setSelectingDiseases(true)}>
+                  Select Diseases
+                </Button>
               </div>
 
               <div>
@@ -494,63 +597,155 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
         </DialogContent>
       </Dialog>
 
+      {/* Selecting Diseases Modal */}
+      <Dialog open={selectingDiseases} onOpenChange={setSelectingDiseases}>
+        <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+          <DialogHeader>
+            <DialogTitle>Select Diseases</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+            {diseases.map((disease) => (
+              <label key={disease.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  value={disease.id}
+                  checked={consultationData.disease_ids.includes(disease.id)}
+                  onChange={(e) => {
+                    const id = disease.id;
+                    setConsultationData(
+                      "disease_ids",
+                      e.target.checked
+                        ? [...consultationData.disease_ids, id]
+                        : consultationData.disease_ids.filter((d) => d !== id)
+                    );
+                  }}
+                />
+                {disease.name}
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" onClick={() => setSelectingDiseases(false)}>Cancel</Button>
+            <Button onClick={() => setSelectingDiseases(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Edit Consultation Modal */}
       <Dialog open={!!editingConsultation} onOpenChange={closeEditConsultation}>
         <DialogContent className="sm:max-w-lg bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Edit Consultation</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleUpdateConsultation} className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
+              {/* Date */}
               <div>
-                <Input 
-                  type="date" 
-                  value={editConsultData.date} 
-                  onChange={(e) => setEditConsultData("date", e.target.value)} 
+                <label className="text-sm font-medium">Date</label>
+                <Input
+                  type="date"
+                  value={editConsultData.date}
+                  onChange={(e) => setEditConsultData("date", e.target.value)}
                 />
                 {editConsultErrors?.date && (
                   <p className="text-red-600 text-sm mt-1">{editConsultErrors.date}</p>
                 )}
               </div>
 
+              {/* Time */}
               <div>
-                <Input 
-                  type="time" 
-                  value={editConsultData.time} 
-                  onChange={(e) => setEditConsultData("time", e.target.value)} 
+                <label className="text-sm font-medium">Time</label>
+                <Input
+                  type="time"
+                  value={editConsultData.time}
+                  onChange={(e) => setEditConsultData("time", e.target.value)}
                 />
                 {editConsultErrors?.time && (
                   <p className="text-red-600 text-sm mt-1">{editConsultErrors.time}</p>
                 )}
               </div>
 
-              <div>
-                <Textarea 
-                  value={editConsultData.vital_signs} 
-                  onChange={(e) => setEditConsultData("vital_signs", e.target.value)} 
-                  placeholder="Vital Signs" 
-                />
-                {editConsultErrors?.vital_signs && (
-                  <p className="text-red-600 text-sm mt-1">{editConsultErrors.vital_signs}</p>
-                )}
+              {/* Vital Signs */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm">Vital Signs</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="BP"
+                    value={editConsultData.bp || ""}
+                    onChange={(e) => setEditConsultData("bp", e.target.value)}
+                  />
+                  <Input
+                    placeholder="RR"
+                    value={editConsultData.rr || ""}
+                    onChange={(e) => setEditConsultData("rr", e.target.value)}
+                  />
+                  <Input
+                    placeholder="PR"
+                    value={editConsultData.pr || ""}
+                    onChange={(e) => setEditConsultData("pr", e.target.value)}
+                  />
+                  <Input
+                    placeholder="Temp (°C)"
+                    value={editConsultData.temp || ""}
+                    onChange={(e) => setEditConsultData("temp", e.target.value)}
+                  />
+                  <Input
+                    placeholder="O₂ Sat (%)"
+                    value={editConsultData.o2_sat || ""}
+                    onChange={(e) => setEditConsultData("o2_sat", e.target.value)}
+                  />
+                </div>
               </div>
 
+              {/* Chief Complaint */}
               <div>
+                <label className="text-sm font-medium">Chief Complaint</label>
                 <Textarea
-                  value={editConsultData.chief_complaint} 
-                  onChange={(e) => setEditConsultData("chief_complaint", e.target.value)} 
-                  placeholder="Chief Complaint" 
+                  value={editConsultData.medical_complaint || ""}
+                  onChange={(e) => setEditConsultData("medical_complaint", e.target.value)}
+                  placeholder="Enter chief complaint"
+                  className="min-h-[100px] resize-y"
                 />
-                {editConsultErrors?.chief_complaint && (
-                  <p className="text-red-600 text-sm mt-1">{editConsultErrors.chief_complaint}</p>
+                {editConsultErrors?.medical_complaint && (
+                  <p className="text-red-600 text-sm mt-1">{editConsultErrors.medical_complaint}</p>
                 )}
               </div>
 
+              {/* Diseases */}
               <div>
-                <Textarea 
-                  value={editConsultData.management_and_treatment} 
-                  onChange={(e) => setEditConsultData("management_and_treatment", e.target.value)} 
-                  placeholder="Management & Treatment" 
+                <label className="text-sm font-medium">Diseases</label>
+                <div className="flex flex-wrap gap-2 mt-2 mb-1">
+                  {editConsultData.disease_ids?.length > 0
+                    ? editConsultData.disease_ids
+                        .map((id) => diseases.find((d) => d.id === id)?.name)
+                        .filter(Boolean)
+                        .map((name) => (
+                          <span
+                            key={name}
+                            className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-sm"
+                          >
+                            {name}
+                          </span>
+                        ))
+                    : <span className="text-gray-500 text-sm">No diseases selected</span>}
+                </div>
+                <Button type="button" size="sm" onClick={() => setSelectingDiseasesEdit(true)}>
+                  Select Diseases
+                </Button>
+              </div>
+
+              {/* Management & Treatment */}
+              <div>
+                <label className="text-sm font-medium">Management & Treatment</label>
+                <Textarea
+                  value={editConsultData.management_and_treatment || ""}
+                  onChange={(e) => setEditConsultData("management_and_treatment", e.target.value)}
+                  placeholder="Enter management & treatment"
+                  className="min-h-[100px] resize-y"
                 />
                 {editConsultErrors?.management_and_treatment && (
                   <p className="text-red-600 text-sm mt-1">{editConsultErrors.management_and_treatment}</p>
@@ -559,12 +754,50 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
             </div>
 
             <DialogFooter className="flex justify-end gap-2 mt-2">
-              <Button variant="outline" type="button" onClick={closeEditConsultation}>Cancel</Button>
+              <Button variant="outline" type="button" onClick={closeEditConsultation}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={editingConsultProcessing}>
                 {editingConsultProcessing ? "Updating..." : "Update"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+              
+      {/* Selecting Diseases for Edit Consultation */}
+      <Dialog open={selectingDiseasesEdit} onOpenChange={setSelectingDiseasesEdit}>
+        <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+          <DialogHeader>
+            <DialogTitle>Select Diseases</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+            {diseases.map((disease) => (
+              <label key={disease.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  value={disease.id}
+                  checked={editConsultData.disease_ids?.includes(disease.id)}
+                  onChange={(e) => {
+                    const id = disease.id;
+                    setEditConsultData(
+                      "disease_ids",
+                      e.target.checked
+                        ? [...(editConsultData.disease_ids || []), id]
+                        : editConsultData.disease_ids.filter((d) => d !== id)
+                    );
+                  }}
+                />
+                {disease.name}
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" onClick={() => setSelectingDiseasesEdit(false)}>Cancel</Button>
+            <Button onClick={() => setSelectingDiseasesEdit(false)}>Done</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -575,7 +808,7 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
             <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
           <p className="text-gray-600 dark:text-gray-300">
-            Are you sure you want to delete this consultation for <span className="font-semibold">{consultationToDelete?.chief_complaint}</span>?
+            Are you sure you want to delete this consultation for <span className="font-semibold">{consultationToDelete?.medical_complaint }</span>?
           </p>
           <DialogFooter className="flex gap-2">
             <Button variant="outline" disabled={deleting} onClick={() => setShowDeleteModal(false)}>Cancel</Button>

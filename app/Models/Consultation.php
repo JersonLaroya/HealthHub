@@ -10,29 +10,54 @@ class Consultation extends Model
     use HasFactory;
 
     protected $fillable = [
-        'patient_id',
-        'submitted_by',
-        'chief_complaint',
+        'user_id',
+        'created_by',
+        'medical_complaint',
         'management_and_treatment',
-        'vital_signs',
+        'vital_signs_id',
         'date',
         'time',
         'status',
     ];
 
-    /**
-     * A consultation belongs to a patient.
-     */
-    public function patient()
+    /* ======================
+       Relationships
+    ====================== */
+
+    // Patient (now User)
+    public function user()
     {
-        return $this->belongsTo(Patient::class);
+        return $this->belongsTo(User::class);
     }
 
-    /**
-     * A consultation is submitted by a user (admin, nurse, or RCY).
-     */
-    public function submitter()
+    // Admin / Nurse / RCY who created it
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'submitted_by');
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function diseases()
+    {
+        return $this->belongsToMany(
+            Disease::class,
+            'consultation_disease'
+        );
+    }
+
+
+    // Vital signs snapshot
+    public function vitalSigns()
+    {
+        return $this->belongsTo(VitalSign::class, 'vital_signs_id');
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function ($consultation) {
+            // Delete associated vital signs
+            if ($consultation->vitalSigns) {
+                $consultation->vitalSigns->delete();
+            }
+        });
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Models\User;
 
 class UpdateRcyRequest extends FormRequest
 {
@@ -18,8 +19,8 @@ class UpdateRcyRequest extends FormRequest
         return [
             'position_id' => [
                 'required',
-                'exists:rcy_positions,id',
-                Rule::unique('rcy_members', 'position_id')->ignore($this->rcy),
+                'exists:user_roles,id',
+                Rule::unique('users', 'user_role_id')->ignore($this->route('user')->id),
             ],
         ];
     }
@@ -30,5 +31,4 @@ class UpdateRcyRequest extends FormRequest
             'position_id.unique' => 'This position already has an assigned RCY member.',
         ];
     }
-
 }

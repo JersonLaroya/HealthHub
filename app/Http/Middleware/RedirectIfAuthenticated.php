@@ -20,8 +20,8 @@ class RedirectIfAuthenticated
             $routeName = match ($userRole) {
                 'Admin' => 'admin.dashboard',
                 'Nurse' => 'nurse.dashboard',
-                'Student', 'Faculty', 'Staff' => 'user.dashboard',
-                default => 'dashboard',
+                //'Student', 'Faculty', 'Staff' => 'user.dashboard',
+                default => 'user.dashboard',
             };
 
             return redirect()->route($routeName);

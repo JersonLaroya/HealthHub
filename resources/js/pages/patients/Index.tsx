@@ -25,11 +25,10 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
   };
 
   const handleViewConsultation = (patient) => {
-    router.get(`/admin/patients/${patient.id}`); // show.tsx
+    router.get(`/admin/patients/${patient.id}`);
   };
 
   const handleViewForms = (patient) => {
-    // 🚧 We'll make this page later
     router.get(`/admin/patients/${patient.id}/forms`);
   };
 
@@ -57,31 +56,36 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
             <table className="w-full text-sm border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                    <SortableHeader column="name" label="Name" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                    <SortableHeader column="sex" label="Sex" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                    <SortableHeader column="birthdate" label="Birthdate" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                    <SortableHeader column="course_year_or_office" label="Course & Year / Office" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                    <th className="p-2 border-b text-sm">Actions</th>
+                  <SortableHeader column="name" label="Name" sortBy={sort} sortDirection={direction} onSort={handleSort} />
+                  <SortableHeader column="sex" label="Sex" sortBy={sort} sortDirection={direction} onSort={handleSort} />
+                  <SortableHeader column="birthdate" label="Birthdate" sortBy={sort} sortDirection={direction} onSort={handleSort} />
+                  <SortableHeader column="course_year_or_office" label="Course & Year / Office" sortBy={sort} sortDirection={direction} onSort={handleSort} />
+                  <th className="p-2 border-b text-sm">Actions</th>
                 </tr>
-                </thead>
-                <tbody>
+              </thead>
+              <tbody>
                 {patients.data.length > 0 ? (
-                    patients.data.map((patient) => (
+                  patients.data.map((patient) => (
                     <tr
                       key={patient.id}
                       className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
                     >
-                        <td className="p-2 border-b">
-                        {patient.user?.user_info?.first_name} {patient.user?.user_info?.last_name}
-                        </td>
-                        <td className="p-2 border-b">{patient.user?.user_info?.sex || "-"}</td>
-                        <td className="p-2 border-b">{patient.user?.user_info?.birthdate || "-"}</td>
-                        <td className="p-2 border-b">
-                            {patient.user?.course
-                                ? `${patient.user.course.name} ${patient.user.year_level?.name || ""}`
-                                : patient.user?.office?.name || "-"}
-                        </td>
-                        <td className="p-2 border-b">
+                      <td className="p-2 border-b">
+                        {patient.first_name} {patient.last_name}
+                      </td>
+                      <td className="p-2 border-b">{patient.sex || "-"}</td>
+                      <td className="p-2 border-b">
+                        {patient.birthdate
+                          ? new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                              .format(new Date(patient.birthdate))
+                          : "-"}
+                      </td>
+                      <td className="p-2 border-b">
+                        {patient.course
+                          ? `${patient.course.name} ${patient.year_level?.name || ""}`
+                          : patient.office?.name || "-"}
+                      </td>
+                      <td className="p-2 border-b">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -103,15 +107,15 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
                         </DropdownMenu>
                       </td>
                     </tr>
-                    ))
+                  ))
                 ) : (
-                    <tr>
+                  <tr>
                     <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">
-                        No patients found.
+                      No patients found.
                     </td>
-                    </tr>
+                  </tr>
                 )}
-                </tbody>
+              </tbody>
             </table>
           </div>
 

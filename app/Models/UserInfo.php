@@ -15,6 +15,7 @@ class UserInfo extends Model
         'middle_name',
         'last_name',
         'suffix',
+        'signature',
         'contact_no',
         'birthdate',
         'sex',

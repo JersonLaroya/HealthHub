@@ -39,7 +39,7 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
-        $user = $request->user();
+         $user = $request->user() ? $request->user()->load('userRole') : null;
         $isRcyMember = $user ? RcyMember::where('user_id', $user->id)->exists() : false;
 
         return [

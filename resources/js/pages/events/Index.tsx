@@ -59,7 +59,10 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
     description: "",
     start_at: "",
     end_at: "",
+    image: null,
   });
+
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Add modal
   const handleAdd = () => {
@@ -68,16 +71,24 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
     setShowModal(true);
   };
 
+  const formatDateTimeLocal = (date: string | null) => {
+  if (!date) return "";
+    return new Date(date).toISOString().slice(0, 16);
+  };
+
   // Edit modal
   const handleEdit = (event: any) => {
     setData({
       title: event.title || "",
       description: event.description || "",
-      start_at: event.start_at || "",
-      end_at: event.end_at || "",
+      start_at: formatDateTimeLocal(event.start_at),
+      end_at: formatDateTimeLocal(event.end_at),
+      image: null,
     });
+
     setEditEvent(event);
     setShowModal(true);
+    setImagePreview(event.image ? `/storage/${event.image}` : null);
   };
 
     // Sorting
@@ -244,100 +255,109 @@ function EventDescription({ text }: { text: string }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse min-w-[700px]">
               <thead>
-  <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-    <SortableHeader
-      column="title"
-      label="Title"
-      sortBy={sort}
-      sortDirection={direction}
-      onSort={handleSort}
-    />
-    <th className="p-2 border-b">Description</th>
-    <SortableHeader
-      column="start_at"
-      label="Start At"
-      sortBy={sort}
-      sortDirection={direction}
-      onSort={handleSort}
-    />
-    <SortableHeader
-      column="end_at"
-      label="End At"
-      sortBy={sort}
-      sortDirection={direction}
-      onSort={handleSort}
-    />
-    <th className="p-2 border-b">Created By</th>
-    <th className="p-2 border-b">Edited By</th>
-    <th className="p-2 border-b">Created At</th>
-    <th className="p-2 border-b">Updated At</th>
-    <th className="p-2 border-b">Actions</th>
-  </tr>
-</thead>
-<tbody>
-  {events && events.data && events.data.length > 0 ? (
-    events.data.map((event: any) => (
-      <tr
-        key={event.id}
-        className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
-      >
-        <td className="p-2 border-b">{event.title}</td>
-        <td className="p-2 border-b">
-          <EventDescription text={event.description || ""} />
-        </td>
-        <td className="p-2 border-b">
-          {new Date(event.start_at).toLocaleString()}
-        </td>
-        <td className="p-2 border-b">
-          {event.end_at ? new Date(event.end_at).toLocaleString() : "—"}
-        </td>
-        <td className="p-2 border-b">
-          {event.creator?.user_info?.first_name}{" "}
-          {event.creator?.user_info?.last_name}
-        </td>
-        <td className="p-2 border-b">
-          {event.editor
-            ? `${event.editor?.user_info?.first_name} ${event.editor?.user_info?.last_name}`
-            : "—"}
-        </td>
-        <td className="p-2 border-b">
-          {new Date(event.created_at).toLocaleString()}
-        </td>
-        <td className="p-2 border-b">
-          {new Date(event.updated_at).toLocaleString()}
-        </td>
-        <td className="p-2 border-b space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEdit(event)}
-          >
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => {
-              setEventToDelete(event);  // set the specific event
-              setShowDeleteModal(true); // show modal
-            }}
-          >
-            Delete
-          </Button>
-        </td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td
-        colSpan={9}
-        className="p-4 text-center text-gray-500 dark:text-gray-400"
-      >
-        No events found.
-      </td>
-    </tr>
-  )}
-</tbody>
+                <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
+                  <SortableHeader
+                    column="title"
+                    label="Title"
+                    sortBy={sort}
+                    sortDirection={direction}
+                    onSort={handleSort}
+                  />
+                  <th className="p-2 border-b">Image</th>
+                  <th className="p-2 border-b">Description</th>
+                  <SortableHeader
+                    column="start_at"
+                    label="Start At"
+                    sortBy={sort}
+                    sortDirection={direction}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    column="end_at"
+                    label="End At"
+                    sortBy={sort}
+                    sortDirection={direction}
+                    onSort={handleSort}
+                  />
+                  <th className="p-2 border-b">Created By</th>
+                  <th className="p-2 border-b">Edited By</th>
+                  <th className="p-2 border-b">Created At</th>
+                  <th className="p-2 border-b">Updated At</th>
+                  <th className="p-2 border-b">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events && events.data && events.data.length > 0 ? (
+                  events.data.map((event: any) => (
+                    <tr
+                      key={event.id}
+                      className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                    >
+                      <td className="p-2 border-b">{event.title}</td>
+                      <td className="p-2 border-b">
+                        {event.image ? (
+                          <img
+                            src={`/storage/${event.image}`}
+                            alt={event.title}
+                            className="max-h-20 object-contain"
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="p-2 border-b">
+                        <EventDescription text={event.description || ""} />
+                      </td>
+                      <td className="p-2 border-b">
+                        {new Date(event.start_at).toLocaleString()}
+                      </td>
+                      <td className="p-2 border-b">
+                        {event.end_at ? new Date(event.end_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="p-2 border-b">
+                        {event.creator?.first_name} {event.creator?.last_name}
+                      </td>
+                      <td className="p-2 border-b">
+                        {event.editor ? `${event.editor.first_name} ${event.editor.last_name}` : "—"}
+                      </td>
+                      <td className="p-2 border-b">
+                        {new Date(event.created_at).toLocaleString()}
+                      </td>
+                      <td className="p-2 border-b">
+                        {new Date(event.updated_at).toLocaleString()}
+                      </td>
+                      <td className="p-2 border-b space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(event)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setEventToDelete(event);  // set the specific event
+                            setShowDeleteModal(true); // show modal
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="p-4 text-center text-gray-500 dark:text-gray-400"
+                    >
+                      No events found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
 
             </table>
           </div>
@@ -450,6 +470,32 @@ function EventDescription({ text }: { text: string }) {
                 />
                 {errors.title && (
                   <p className="text-sm text-red-600">{errors.title}</p>
+                )}
+              </div>
+
+              <div>
+                <Label>Event Image</Label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setData("image", file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }
+                  }}
+                  className="mt-1 block w-full"
+                />
+                {imagePreview && (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="mt-2 max-h-40 object-contain"
+                  />
+                )}
+                {errors.image && (
+                  <p className="text-sm text-red-600">{errors.image}</p>
                 )}
               </div>
 

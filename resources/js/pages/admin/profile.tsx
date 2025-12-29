@@ -66,40 +66,28 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         }
     }, [status]);
 
-    const { auth } = usePage<{ 
-            auth: { 
-                    user: { 
-                    id: number; 
-                    name: string; 
-                    email: string; 
-                    email_verified_at: string | null; 
-                    user_role: { id: number; name: string }; 
-                    // student fields if applicable
-                    first_name?: string;
-                    middle_name?: string;
-                    last_name?: string;
-                    office?: string;
-                    course?: string;
-                    year?: string;
+    const { auth } = usePage<{ auth: { user: { 
+    id: number;
+    first_name: string;
+    middle_name?: string;
+    last_name: string;
+    email: string;
+    email_verified_at: string | null;
+    user_role: { id: number; name: string };
+    // office?: string;
+    // course?: string;
+    // year?: string;
+} } }>().props;
 
-                    user_info?: {
-                        first_name?: string;
-                        middle_name?: string;
-                        last_name?: string;
-                    };
-                } 
-            } 
-    }>().props;
+const user = auth.user;
 
-    const user = auth.user;
+const { data, setData, put, processing, errors } = useForm({
+    first_name: user.first_name || "",
+    middle_name: user.middle_name || "",
+    last_name: user.last_name || "",
+    email: user.email || "",
+});
 
-    const { data, setData, put, processing, errors } = useForm({
-        user_info: {
-            first_name: user.user_info?.first_name || "",
-            middle_name: user.user_info?.middle_name || "",
-            last_name: user.user_info?.last_name || "",
-        },
-    });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -124,33 +112,33 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Label htmlFor="first_name">First Name</Label>
                                     <Input
                                         id="first_name"
-                                        name="user_info[first_name]"
-                                        defaultValue={data.user_info.first_name || ""}
+                                        name="first_name"
+                                        defaultValue={data.first_name}
                                         placeholder="First Name"
                                     />
-                                    <InputError message={errors['user_info.first_name']} />
+                                    <InputError message={errors.first_name} />
                                     </div>
 
                                     <div className="grid gap-2">
                                     <Label htmlFor="middle_name">Middle Name</Label>
                                     <Input
                                         id="middle_name"
-                                        name="user_info[middle_name]"
-                                        defaultValue={data.user_info.middle_name || ""}
+                                        name="middle_name"
+                                        defaultValue={data.middle_name}
                                         placeholder="Middle Name"
                                     />
-                                    <InputError message={errors['user_info.middle_name']} />
+                                    <InputError message={errors.middle_name} />
                                     </div>
 
                                     <div className="grid gap-2">
                                     <Label htmlFor="last_name">Last Name</Label>
                                     <Input
                                         id="last_name"
-                                        name="user_info[last_name]"
-                                        defaultValue={data.user_info.last_name || ""}
+                                        name="last_name"
+                                        defaultValue={data.last_name}
                                         placeholder="Last Name"
                                     />
-                                    <InputError message={errors['user_info.last_name']} />
+                                    <InputError message={errors.last_name} />
                                     </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Email address</Label>
@@ -158,15 +146,12 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="email"
                                         type="email"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.email}
+                                        defaultValue={data.email}
                                         name="email"
                                         required
-                                        autoComplete="username"
                                         placeholder="Email address"
                                     />
-
-                                    <InputError className="mt-2" message={errors.email} />
+                                    <InputError message={errors.email} />
                                 </div>
 
                                 {mustVerifyEmail && auth.user.email_verified_at === null && (

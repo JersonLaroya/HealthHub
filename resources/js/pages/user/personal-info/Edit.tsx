@@ -1,12 +1,15 @@
 import { Head, useForm } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
+import { useRef, useLayoutEffect, useState, useEffect } from "react";
 import { toast } from "sonner";
+import SignaturePad from "signature_pad";
 
 // shadcn components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface PersonalInfoProps {
   personalInfo: {
@@ -17,251 +20,516 @@ interface PersonalInfoProps {
     contact_no?: string;
     birthdate?: string;
     sex?: string;
-
     homeAddress?: {
       purok?: string;
       barangay?: string;
+      barangayCode?: string;
       town?: string;
+      municipalityCode?: string;
       province?: string;
+      provinceCode?: string;
     };
+
     presentAddress?: {
       purok?: string;
       barangay?: string;
+      barangayCode?: string;
       town?: string;
+      municipalityCode?: string;
       province?: string;
+      provinceCode?: string;
     };
     guardian?: {
       name?: string;
       contact_no?: string;
     };
+    signature?: string;
   } | null;
   breadcrumbs: any;
 }
 
 export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
+  const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const signaturePadRef = useRef<SignaturePad | null>(null);
+
+  const signatureUrl = personalInfo?.signature
+    ? personalInfo.signature.startsWith("data:")
+      ? personalInfo.signature
+      : personalInfo.signature.replace(/^signatures\//, "/storage/signatures/")
+    : null;
+
+  const [drawnSignature, setDrawnSignature] = useState<string | null>(signatureUrl);
+  const [uploadedSignature, setUploadedSignature] = useState<string | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(signatureUrl);
+  const [activeTab, setActiveTab] = useState("draw");
+  const hasSelectedSignature = Boolean(signaturePreview);
+
+  const formatDate = (isoString: string | undefined) => {
+    if (!isoString) return "";
+    return isoString.split("T")[0]; // "2025-12-18"
+  };
+
+  const defaultProvince = {
+    name: "Bohol",
+    code: "071200000",
+  };
+
   const { data, setData, put, processing, errors } = useForm({
     first_name: personalInfo?.first_name || "",
     middle_name: personalInfo?.middle_name || "",
     last_name: personalInfo?.last_name || "",
     suffix: personalInfo?.suffix || "",
     contact_no: personalInfo?.contact_no || "",
-    birthdate: personalInfo?.birthdate || "",
+    birthdate: formatDate(personalInfo?.birthdate),
     sex: personalInfo?.sex || "",
 
-    // Home Address
+    home_province_name: personalInfo?.homeAddress?.province || "",
+    home_province_code: personalInfo?.homeAddress?.provinceCode || "",
+    home_municipality_name: personalInfo?.homeAddress?.town || "",
+    home_municipality_code: personalInfo?.homeAddress?.municipalityCode || "",
+    home_barangay_name: personalInfo?.homeAddress?.barangay || "",
+    home_barangay_code: personalInfo?.homeAddress?.barangayCode || "",
     home_purok: personalInfo?.homeAddress?.purok || "",
-    home_barangay: personalInfo?.homeAddress?.barangay || "",
-    home_town: personalInfo?.homeAddress?.town || "",
-    home_province: personalInfo?.homeAddress?.province || "",
 
-    // Present Address
+    present_province_name: personalInfo?.presentAddress?.province || "",
+    present_province_code: personalInfo?.presentAddress?.provinceCode || "",
+    present_municipality_name: personalInfo?.presentAddress?.town || "",
+    present_municipality_code: personalInfo?.presentAddress?.municipalityCode || "",
+    present_barangay_name: personalInfo?.presentAddress?.barangay || "",
+    present_barangay_code: personalInfo?.presentAddress?.barangayCode || "",
     present_purok: personalInfo?.presentAddress?.purok || "",
-    present_barangay: personalInfo?.presentAddress?.barangay || "",
-    present_town: personalInfo?.presentAddress?.town || "",
-    present_province: personalInfo?.presentAddress?.province || "",
 
-    // Guardian
     guardian_name: personalInfo?.guardian?.name || "",
-    guardian_contact: personalInfo?.guardian?.contact_no || "",
-  });
+    guardian_contact_no: personalInfo?.guardian?.contact_no || "",
 
+    signature: personalInfo?.signature || "",
+  });
+  console.log("Initial form data:", data);
+
+  const [provinces, setProvinces] = useState<any[]>([]);
+  const [homeMunicipalities, setHomeMunicipalities] = useState<any[]>([]);
+  const [homeBarangays, setHomeBarangays] = useState<any[]>([]);
+  const [presentMunicipalities, setPresentMunicipalities] = useState<any[]>([]);
+  const [presentBarangays, setPresentBarangays] = useState<any[]>([]);
+
+  // Store selected codes
+  const [homeProvinceCode, setHomeProvinceCode] = useState(personalInfo?.homeAddress?.provinceCode || "");
+  const [homeMunicipalityCode, setHomeMunicipalityCode] = useState(personalInfo?.homeAddress?.municipalityCode || "");
+  const [presentProvinceCode, setPresentProvinceCode] = useState(personalInfo?.presentAddress?.provinceCode || "");
+  const [presentMunicipalityCode, setPresentMunicipalityCode] = useState(personalInfo?.presentAddress?.municipalityCode || "");
+
+  // Load provinces
+  useLayoutEffect(() => {
+    fetch("https://psgc.gitlab.io/api/provinces/")
+      .then(res => res.json())
+      .then(setProvinces);
+  }, []);
+  
+  // Preload home address municipalities & barangays
+  useEffect(() => {
+    if (!homeProvinceCode) return;
+
+    fetch(`https://psgc.gitlab.io/api/provinces/${homeProvinceCode}/municipalities/`)
+      .then(res => res.json())
+      .then((municipalities) => {
+        setHomeMunicipalities(municipalities);
+
+        if (homeMunicipalityCode) {
+          fetch(`https://psgc.gitlab.io/api/municipalities/${homeMunicipalityCode}/barangays/`)
+            .then(res => res.json())
+            .then(setHomeBarangays);
+        }
+      });
+  }, [homeProvinceCode, homeMunicipalityCode]);
+
+  // Preload present address municipalities & barangays
+  useEffect(() => {
+    if (!presentProvinceCode) return;
+
+    fetch(`https://psgc.gitlab.io/api/provinces/${presentProvinceCode}/municipalities/`)
+      .then(res => res.json())
+      .then((municipalities) => {
+        setPresentMunicipalities(municipalities);
+
+        if (presentMunicipalityCode) {
+          fetch(`https://psgc.gitlab.io/api/municipalities/${presentMunicipalityCode}/barangays/`)
+            .then(res => res.json())
+            .then(setPresentBarangays);
+        }
+      });
+  }, [presentProvinceCode, presentMunicipalityCode]);
+
+  // Signature pad setup
+  useLayoutEffect(() => {
+    if (activeTab !== "draw") return;
+    const timer = setTimeout(() => {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.scale(ratio, ratio);
+
+      signaturePadRef.current?.off();
+      const signaturePad = new SignaturePad(canvas, { backgroundColor: "rgb(255,255,255)" });
+      signaturePadRef.current = signaturePad;
+
+      if (drawnSignature) {
+        const img = new Image();
+        img.onload = () => {
+          signaturePad.clear();
+          const scale = Math.min(canvas.width / img.width / ratio, canvas.height / img.height / ratio);
+          const x = (canvas.width / ratio - img.width * scale) / 2;
+          const y = (canvas.height / ratio - img.height * scale) / 2;
+          ctx?.drawImage(img, x, y, img.width * scale, img.height * scale);
+        };
+        img.src = drawnSignature;
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [activeTab, drawnSignature]);
+
+  const clearSignature = () => {
+    signaturePadRef.current?.clear();
+    setDrawnSignature(null);
+    setUploadedSignature(null);
+    setSignaturePreview(null);
+    setData("signature", "");
+  };
+
+  const handleUploadSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setUploadedSignature(base64);
+      setSignaturePreview(base64);
+      setData("signature", base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    console.log("Form data changed:", data);
+  }, [data]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!hasSelectedSignature) {
+      toast.error("Please select or draw a signature before saving.");
+      return;
+    }
+
+    if (signaturePadRef.current && !signaturePadRef.current.isEmpty()) {
+      setData("signature", signaturePadRef.current.toDataURL());
+    }
+
+    console.log("Submitting personal info:", data);
+
     put("/user/personal-info", {
-        onSuccess: () => {
-            toast.success("Personal info updated", {
-            description: "Your personal details were saved successfully.",
-            });
-        },
-        onError: () => {
-            toast.error("Update failed", {
-            description: "Please check the form for errors.",
-            });
-        },
+      onSuccess: () => {
+        toast.success("Personal info updated", {
+          description: "Your personal details were saved successfully.",
+        });
+      },
+      onError: () => {
+        toast.error("Update failed", {
+          description: "Fill up all fields.",
+        });
+      },
     });
   };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Personal Info" />
-
       <div className="p-6 flex justify-center">
         <div className="w-full max-w-3xl space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Personal Information
-            </h1>
-
-            <Card className="p-6 bg-white dark:bg-neutral-800 shadow rounded-lg">
+          </h1>
+          <Card className="p-6 bg-white dark:bg-neutral-800 shadow rounded-lg">
             <form onSubmit={handleSubmit} className="space-y-4">
-                {/* First Name */}
-                <div>
+              {/* Name Fields */}
+              <div>
                 <Label htmlFor="first_name">First Name</Label>
                 <Input
-                    id="first_name"
-                    value={data.first_name}
-                    onChange={(e) => setData("first_name", e.target.value)}
+                  id="first_name"
+                  value={data.first_name}
+                  onChange={(e) => setData("first_name", e.target.value)}
                 />
-                {errors.first_name && (
-                    <p className="text-sm text-red-600">{errors.first_name}</p>
-                )}
-                </div>
-
-                {/* Middle Name */}
-                <div>
+                {errors.first_name && <p className="text-sm text-red-600">{errors.first_name}</p>}
+              </div>
+              <div>
                 <Label htmlFor="middle_name">Middle Name</Label>
                 <Input
-                    id="middle_name"
-                    value={data.middle_name}
-                    onChange={(e) => setData("middle_name", e.target.value)}
+                  id="middle_name"
+                  value={data.middle_name}
+                  onChange={(e) => setData("middle_name", e.target.value)}
+                  placeholder="Optional"
                 />
-                {errors.middle_name && (
-                    <p className="text-sm text-red-600">{errors.middle_name}</p>
-                )}
-                </div>
-
-                {/* Last Name */}
-                <div>
+              </div>
+              <div>
                 <Label htmlFor="last_name">Last Name</Label>
                 <Input
-                    id="last_name"
-                    value={data.last_name}
-                    onChange={(e) => setData("last_name", e.target.value)}
+                  id="last_name"
+                  value={data.last_name}
+                  onChange={(e) => setData("last_name", e.target.value)}
                 />
-                {errors.last_name && (
-                    <p className="text-sm text-red-600">{errors.last_name}</p>
-                )}
-                </div>
-
-                {/* Suffix */}
-                <div>
+              </div>
+              <div>
                 <Label htmlFor="suffix">Suffix</Label>
                 <Input
-                    id="suffix"
-                    value={data.suffix}
-                    onChange={(e) => setData("suffix", e.target.value)}
+                  id="suffix"
+                  value={data.suffix}
+                  onChange={(e) => setData("suffix", e.target.value)}
+                  placeholder="Optional"
                 />
-                {errors.suffix && <p className="text-sm text-red-600">{errors.suffix}</p>}
-                </div>
-
-                {/* Contact */}
-                <div>
+              </div>
+              {/* Contact Info */}
+              <div>
                 <Label htmlFor="contact_no">Contact No</Label>
                 <Input
-                    id="contact_no"
-                    value={data.contact_no}
-                    onChange={(e) => setData("contact_no", e.target.value)}
+                  id="contact_no"
+                  value={data.contact_no}
+                  onChange={(e) => setData("contact_no", e.target.value)}
                 />
-                </div>
-
-                {/* Birthday */}
-                <div>
+              </div>
+              <div>
                 <Label htmlFor="birthdate">Birthdate</Label>
                 <Input
-                    id="birthdate"
-                    type="date"
-                    value={data.birthdate}
-                    onChange={(e) => setData("birthdate", e.target.value)}
+                  id="birthdate"
+                  type="date"
+                  value={data.birthdate}
+                  onChange={(e) => setData("birthdate", e.target.value)}
                 />
-                </div>
-
-                {/* Sex */}
-                <div>
+              </div>
+              <div>
                 <Label htmlFor="sex">Sex</Label>
                 <select
-                    id="sex"
-                    value={data.sex}
-                    onChange={(e) => setData("sex", e.target.value)}
-                    className="mt-1 block w-full border rounded p-2 bg-white dark:bg-neutral-700"
+                  id="sex"
+                  value={data.sex}
+                  onChange={(e) => setData("sex", e.target.value)}
+                  className="mt-1 block w-full border rounded p-2 bg-white dark:bg-neutral-700"
                 >
-                    <option value="">Select Sex</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                  <option value="">Select Sex</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
                 </select>
-                </div>
+              </div>
 
-                {/* Home Address */}
-                <div>
-                <h2 className="font-semibold mt-4 mb-2">Home Address</h2>
-                <Input
-                    placeholder="Purok"
-                    value={data.home_purok}
-                    onChange={(e) => setData("home_purok", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Barangay"
-                    value={data.home_barangay}
-                    onChange={(e) => setData("home_barangay", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Town"
-                    value={data.home_town}
-                    onChange={(e) => setData("home_town", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Province"
-                    value={data.home_province}
-                    onChange={(e) => setData("home_province", e.target.value)}
-                />
-                </div>
+              {/* Home Address */}
+              <h2 className="font-semibold mt-4">Home Address</h2>
+              <Label>Province</Label>
+              <select
+                className="w-full border p-2 rounded"
+                value={data.home_province_code}
+                onChange={(e) => {
+                  const selectedProvince = provinces.find(p => p.code === e.target.value);
+                  setHomeProvinceName(selectedProvince?.code || "");
+                  setData("home_province_name", selectedProvince?.name || "");
+                  setData("home_province_code", selectedProvince?.code || "");
+                  fetch(`https://psgc.gitlab.io/api/provinces/${e.target.value}/municipalities/`)
+                    .then(res => res.json())
+                    .then(setHomeMunicipalities);
+                }}
+              >
+                <option value="">Select Province</option>
+                {provinces.map(p => (
+                  <option key={p.code} value={p.code}>{p.name}</option>
+                ))}
+              </select>
+              <Label className="mt-2 block">Municipality</Label>
+              <select
+                className="w-full border p-2 rounded"
+                value={data.home_municipality_code}
+                onChange={(e) => {
+                  const selectedMunicipality = homeMunicipalities.find(m => m.code === e.target.value);
+                  setHomeMunicipalityName(selectedMunicipality?.code || "");
+                  setData("home_municipality_name", selectedMunicipality?.name || "");
+                  setData("home_municipality_code", selectedMunicipality?.code || "");
+                  if (selectedMunicipality) {
+                    fetch(`https://psgc.gitlab.io/api/municipalities/${selectedMunicipality.code}/barangays/`)
+                      .then(res => res.json())
+                      .then(setHomeBarangays);
+                  }
+                }}
+              >
+                <option value="">Select Municipality</option>
+                {homeMunicipalities.map(m => (
+                  <option key={m.code} value={m.code}>{m.name}</option>
+                ))}
+              </select>
+              
+              <Label className="mt-2 block">Barangay</Label>
+              <select
+                className="w-full border p-2 rounded"
+                value={data.home_barangay_code}
+                onChange={(e) => {
+                  const selectedBarangay = homeBarangays.find(b => b.code === e.target.value);
+                  setData("home_barangay_name", selectedBarangay?.name || "");
+                  setData("home_barangay_code", selectedBarangay?.code || "");
+                }}
+              >
+                <option value="">Select Barangay</option>
+                {homeBarangays.map(b => (
+                  <option key={b.code} value={b.code}>{b.name}</option>
+                ))}
+              </select>
 
-                {/* Present Address */}
-                <div>
-                <h2 className="font-semibold mt-4 mb-2">Present Address</h2>
-                <Input
-                    placeholder="Purok"
-                    value={data.present_purok}
-                    onChange={(e) => setData("present_purok", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Barangay"
-                    value={data.present_barangay}
-                    onChange={(e) => setData("present_barangay", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Town"
-                    value={data.present_town}
-                    onChange={(e) => setData("present_town", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Province"
-                    value={data.present_province}
-                    onChange={(e) => setData("present_province", e.target.value)}
-                />
-                </div>
+              <Label className="mt-2 block">Purok</Label>
+              <Input
+                placeholder="Purok"
+                value={data.home_purok}
+                onChange={(e) => setData("home_purok", e.target.value)}
+              />
 
-                {/* Guardian */}
-                <div>
-                <h2 className="font-semibold mt-4 mb-2">Guardian</h2>
-                <Input
-                    placeholder="Name"
-                    value={data.guardian_name}
-                    onChange={(e) => setData("guardian_name", e.target.value)}
-                    className="mb-2"
-                />
-                <Input
-                    placeholder="Contact No"
-                    value={data.guardian_contact}
-                    onChange={(e) => setData("guardian_contact", e.target.value)}
-                />
-                </div>
 
-                {/* Buttons */}
-                <div className="flex justify-end gap-2 mt-4">
-                <Button type="submit" disabled={processing}>
-                    {processing ? "Saving..." : "Save"}
+              {/* Present Address */}
+              <h2 className="font-semibold mt-4">Present Address</h2>
+              <Label>Province</Label>
+              <select
+                className="w-full border p-2 rounded"
+                value={data.present_province_code}
+                onChange={(e) => {
+                  const selectedProvince = provinces.find(p => p.code === e.target.value);
+                  setPresentProvinceName(selectedProvince?.code || "");
+                  setData("present_province_name", selectedProvince?.name || "");
+                  setData("present_province_code", selectedProvince?.code || "");
+                  fetch(`https://psgc.gitlab.io/api/provinces/${e.target.value}/municipalities/`)
+                    .then(res => res.json())
+                    .then(setPresentMunicipalities);
+                }}
+              >
+                <option value="">Select Province</option>
+                {provinces.map(p => (
+                  <option key={p.code} value={p.code}>{p.name}</option>
+                ))}
+              </select>
+              <Label className="mt-2 block">Municipality</Label>
+              <select
+                className="w-full border p-2 rounded"
+                value={data.present_municipality_code}
+                onChange={(e) => {
+                  const selectedMunicipality = presentMunicipalities.find(m => m.code === e.target.value);
+                  setPresentMunicipalityName(selectedMunicipality?.code || "");
+                  setData("present_municipality_name", selectedMunicipality?.name || "");
+                  setData("present_municipality_code", selectedMunicipality?.code || "");
+                  fetch(`https://psgc.gitlab.io/api/municipalities/${e.target.value}/barangays/`)
+                    .then(res => res.json())
+                    .then(setPresentBarangays);
+                }}
+              >
+                <option value="">Select Municipality</option>
+                {presentMunicipalities.map(m => (
+                  <option key={m.code} value={m.code}>{m.name}</option>
+                ))}
+              </select>
+              <Label className="mt-2 block">Barangay</Label>
+              <select
+                className="w-full border p-2 rounded"
+                value={data.present_barangay_code}
+                onChange={(e) => {
+                  const selectedBarangay = presentBarangays.find(b => b.code === e.target.value);
+                  setData("present_barangay_name", selectedBarangay?.name || "");
+                  setData("present_barangay_code", selectedBarangay?.code || "");
+                }}
+              >
+                <option value="">Select Barangay</option>
+                {presentBarangays.map(b => (
+                  <option key={b.code} value={b.code}>{b.name}</option>
+                ))}
+              </select>
+
+              <Label className="mt-2 block">Purok</Label>
+              <Input
+                placeholder="Purok"
+                value={data.present_purok}
+                onChange={(e) => setData("present_purok", e.target.value)}
+              />
+
+
+              {/* Guardian */}
+              <div>
+                <h2 className="font-semibold mt-4 mb-2">Parent/Guardian/Spouse</h2>
+                <Input
+                  placeholder="Name"
+                  value={data.guardian_name}
+                  onChange={(e) => setData("guardian_name", e.target.value)}
+                  className="mb-2"
+                />
+                <Input
+                  placeholder="Contact No"
+                  value={data.guardian_contact_no}
+                  onChange={(e) => setData("guardian_contact_no", e.target.value)}
+                />
+              </div>
+
+              {/* Signature */}
+              <div>
+                <Label>Signature</Label>
+                {signaturePreview && activeTab === "" && (
+                  <div className="mt-3 border rounded bg-white p-2 flex flex-col items-center gap-2">
+                    <img src={signaturePreview} alt="Signature preview" className="max-h-40 object-contain" />
+                    <Button type="button" variant="outline" onClick={() => setActiveTab("draw")}>Change</Button>
+                  </div>
+                )}
+
+                {activeTab !== "" && (
+                  <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="draw" className="mt-3">
+                    <TabsList className="w-full mb-2">
+                      <TabsTrigger value="draw" className="w-1/2">Draw</TabsTrigger>
+                      <TabsTrigger value="upload" className="w-1/2">Upload</TabsTrigger>
+                    </TabsList>
+                    {activeTab === "draw" && (
+                      <TabsContent value="draw" forceMount>
+                        <div className="border rounded-md bg-white">
+                          <canvas ref={signatureCanvasRef} className="w-full h-40 border" style={{ touchAction: "none" }} />
+                        </div>
+                        <div className="flex justify-end gap-2 mt-2">
+                          <Button type="button" variant="outline" onClick={clearSignature}>Clear</Button>
+                          <Button type="button" onClick={() => {
+                            if (signaturePadRef.current && !signaturePadRef.current.isEmpty()) {
+                              const sig = signaturePadRef.current.toDataURL();
+                              setDrawnSignature(sig);
+                              setSignaturePreview(sig);
+                              setData("signature", sig);
+                            }
+                            setActiveTab("");
+                          }}>Select</Button>
+                        </div>
+                      </TabsContent>
+                    )}
+                    {activeTab === "upload" && (
+                      <TabsContent value="upload" forceMount>
+                        <input type="file" accept="image/*" onChange={handleUploadSignature} className="mt-2" />
+                        <div className="flex justify-end gap-2 mt-2">
+                          <Button type="button" onClick={() => {
+                            if (uploadedSignature) {
+                              setSignaturePreview(uploadedSignature);
+                              setData("signature", uploadedSignature);
+                            }
+                            setActiveTab("");
+                          }}>Select</Button>
+                        </div>
+                      </TabsContent>
+                    )}
+                  </Tabs>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                <Button type="submit" disabled={processing || (!hasSelectedSignature && activeTab !== "")}>
+                  {processing ? "Saving..." : "Save"}
                 </Button>
-                </div>
+              </div>
             </form>
-            </Card>
+          </Card>
         </div>
       </div>
     </AppLayout>

@@ -17,24 +17,27 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
   const [showModal, setShowModal] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
-  useEffect(() => {
-    const  onProfilePage = window.location.pathname.includes('/profile');
+useEffect(() => {
+  const onProfilePage = window.location.pathname.includes('/profile');
 
-    if (auth?.user) {
-      const role = auth.user.user_role.name;
-      const isUserRole = ['Student', 'Staff', 'Faculty'].includes(role);
-        
-      if (
-        isUserRole &&
-        (auth.user.course_id === null ||
-          auth.user.year_id === null ||
-          auth.user.office_id === null) &&
-        !onProfilePage
-      ) {
-        setShowModal(true);
-      }
+  if (!auth?.user || onProfilePage) return;
+
+  const role = auth.user.user_role.name;
+
+  const exemptRoles = ['Admin', 'Nurse', 'Super Admin'];
+  const officeOnlyRoles = ['Staff', 'Faculty'];
+
+  if (exemptRoles.includes(role)) return;
+
+  if (officeOnlyRoles.includes(role)) {
+    if (!auth.user.office_id) setShowModal(true);
+  } else {
+    // student-like role (RCY members, new roles)
+    if (!auth.user.course_id || !auth.user.year_level_id || !auth.user.office_id) {
+      setShowModal(true);
     }
-  }, [auth]);
+  }
+}, [auth]);
 
   const handleContinue = () => {
     setRedirecting(true);

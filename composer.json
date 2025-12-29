@@ -17,7 +17,8 @@
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
         "setasign/fpdf": "^1.8",
-        "setasign/fpdi": "^2.6"
+        "setasign/fpdi": "^2.6",
+        "tightenco/ziggy": "^2.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

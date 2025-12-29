@@ -21,91 +21,78 @@ class ProfileController extends Controller
     /**
      * Show the user's profile settings page.
      */
-    public function edit(Request $request): Response
-    {
-        // return Inertia::render('settings/profile', [
-        //     'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-        //     'status' => $request->session()->get('status'),
-        // ]);
+   public function edit(Request $request): Response
+{
+    $user = $request->user()->load(['userRole', 'office']); // removed userInfo()
+    $offices = Office::all(['id', 'name']);
+    $courses = Course::all();
+    $roles = UserRole::whereIn('name', ['Staff', 'Student', 'Faculty'])->get();
+    $years = YearLevel::all(['id', 'name']);
 
-        $user = $request->user()->load(['userRole', 'office', 'userInfo']);
-        $offices = Office::all(['id', 'name']);
-        $courses = Course::all();
-        $roles = UserRole::whereIn('name', ['Staff', 'Student', 'Faculty'])->get();
-        $years = YearLevel::all(['id', 'name']);
-        
+    $component = match($user->userRole?->name) {
+        'Admin'   => 'admin/profile',
+        'Student' => 'user/profile',
+        'Staff'   => 'user/profile',
+        'Faculty' => 'user/profile',
+        'Nurse'   => 'nurse/profile',
+        default   => 'user/profile', 
+    };
 
-        $component = match($user->userRole?->name) {
-            'Admin'   => 'admin/profile',
-            'Student' => 'user/profile',
-            'Staff'   => 'user/profile',
-            'Faculty' => 'user/profile',
-            'Nurse'   => 'nurse/profile',
-            default   => 'user/profile', 
-        };
+    return Inertia::render($component, [
+        'user' => $user, // send user directly
+        'offices' => $offices,
+        'courses' => $courses,
+        'years' => $years,
+        'roles' => $roles,
+        'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+        'status' => $request->session()->get('status'),
+    ]);
+}
 
-            return Inertia::render($component, [
-                'user_info' => $user->userInfo,
-                'offices' => $offices,
-                'courses' => $courses,
-                'years' => $years,
-                'roles' => $roles,
-                'mustVerifyEmail' => $user instanceof MustVerifyEmail,
-                'status' => $request->session()->get('status'),
-            ]);
+public function update(ProfileUpdateRequest $request): RedirectResponse
+{
+    $user = auth()->user();
 
+    // Update directly on user table
+    $user->fill($request->safe()->only([
+        'first_name', 'middle_name', 'last_name', 'email', 'office_id', 'user_role_id', 'course_id', 'year_level_id'
+    ]));
+
+    if ($user->userRole?->name !== 'Student') {
+        $user->course_id = null;
+        $user->year_level_id = null;
     }
 
-    /**
-     * Update the user's profile settings.
-     */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
-    {
-        $user = auth()->user()->load('userInfo');
-
-
-        // Update User table
-        $user->fill($request->safe()->except('user_info'));
-
-        if ($user->userRole?->name !== 'Student') {
-            $user->course_id = null;
-            $user->year_level_id = null;
-        }
-
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
-        $user->save();
-
-        // Update UserInfo table
-        $user->userInfo()->update($request->input('user_info'));
-
-        // Redirect based on role
-        $userRoleName = $user->userRole->name;
-
-        // Create a Patient record if needed
-        if (in_array($userRoleName, ['Student', 'Staff', 'Faculty'])) {
-            if (!$user->patient) {
-                Patient::create([
-                    'user_id' => $user->id,
-                    'bp' => null,
-                    'rr' => null,
-                    'pr' => null,
-                    'temp' => null,
-                    'o2_sat' => null,
-            ]);
-        }
+    if ($user->isDirty('email')) {
+        $user->email_verified_at = null;
     }
 
-        return match($userRoleName) {
-            'Admin'   => to_route('admin.profile')->with('status', 'Profile updated successfully!'),
-            'Student' => to_route('user.profile')->with('status', 'Profile updated successfully!'),
-            'Staff'   => to_route('user.profile')->with('status', 'Profile updated successfully!'),
-            'Faculty' => to_route('user.profile')->with('status', 'Profile updated successfully!'),
-            'Nurse'   => to_route('nurse.profile')->with('status', 'Profile updated successfully!'),
-            default   => to_route('user.profile')->with('status', 'Profile updated successfully!'),
-        };
-    }
+    $user->save();
+    
+    $userRoleName = $user->userRole->name;
+
+    // Create Patient record if needed
+    // if (in_array($userRoleName, ['Student', 'Staff', 'Faculty']) && !$user->patient) {
+    //     Patient::create([
+    //         'user_id' => $user->id,
+    //         'bp' => null,
+    //         'rr' => null,
+    //         'pr' => null,
+    //         'temp' => null,
+    //         'o2_sat' => null,
+    //     ]);
+    // }
+
+    return match($userRoleName) {
+        'Admin'   => to_route('admin.profile')->with('status', 'Profile updated successfully!'),
+        //'Student' => to_route('user.profile')->with('status', 'Profile updated successfully!'),
+        //'Staff'   => to_route('user.profile')->with('status', 'Profile updated successfully!'),
+        //'Faculty' => to_route('user.profile')->with('status', 'Profile updated successfully!'),
+        'Nurse'   => to_route('nurse.profile')->with('status', 'Profile updated successfully!'),
+        default   => to_route('user.profile')->with('status', 'Profile updated successfully!'),
+    };
+}
+
 
 
     /**

@@ -20,17 +20,17 @@ export default function Forms() {
     <AppLayout>
       <Head title={`Clinic Forms - ${firstName} ${lastName}`} />
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 w-full">
         {/* Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold">Clinic Forms</h1>
         </div>
 
         {/* Patient Info */}
-        <Card className="p-4 bg-white dark:bg-neutral-800 shadow-sm">
+        <Card className="w-full p-6 bg-white dark:bg-neutral-800 shadow-sm">
           <h2 className="text-lg font-semibold mb-2">Patient Information</h2>
           {patient?.user ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <strong>Name:</strong> {firstName} {lastName}
               </div>
@@ -42,11 +42,7 @@ export default function Forms() {
                 {patient.user.user_info?.birthdate
                   ? new Date(patient.user.user_info.birthdate).toLocaleDateString(
                       "en-US",
-                      {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      }
+                      { month: "long", day: "numeric", year: "numeric" }
                     )
                   : "-"}
               </div>
@@ -65,15 +61,15 @@ export default function Forms() {
         </Card>
 
         {/* Forms Section */}
-        <Card className="p-4 bg-white dark:bg-neutral-800 shadow-sm">
+        <Card className="w-full p-6 bg-white dark:bg-neutral-800 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Available Forms</h2>
           {assignedForms?.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-3 p-4">
               {assignedForms.map((assignment) => (
                 <Button
                   key={assignment.id}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="w-full justify-center p-6"
                   onClick={() => handleOpenForm(assignment.form.id)}
                 >
                   {assignment.form.title}

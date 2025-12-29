@@ -70,9 +70,9 @@ type NavItem = {
 function clinicNav(role: string): NavItem[] {
   return [
     { title: "Dashboard", href: `/${role}/dashboard`, icon: LayoutGrid },
-    { title: "Files", href: `/${role}/files`, icon: LayoutGrid },
+    //{ title: "Files", href: `/${role}/files`, icon: LayoutGrid },
     { title: "Patients", href: `/${role}/patients`, icon: LayoutGrid },
-    { title: "DTR", href: `/${role}/dtr`, icon: LayoutGrid },
+    //{ title: "DTR", href: `/${role}/dtr`, icon: LayoutGrid },
     { title: "Events", href: `/${role}/events`, icon: LayoutGrid },
   ];
 }
@@ -106,15 +106,32 @@ const mainNavItems: NavItem[] =
                 { title: "All Assignments", href: "/admin/form-assignments" },
             ],
         },
-        { title: "Reports", href: "/admin/reports", icon: LayoutGrid },
         {
-          title: "Clinic",
-          icon: Users,
-          children: [
-            { title: "Personnel", href: "/admin/personnels" },
-            { title: "RCY", href: "/admin/rcy" },
-          ],
+            title: "Diseases",
+            icon: FileChartColumnIcon,
+            children: [
+            { title: "Disease Categories", href: "/admin/disease-categories" },
+            { title: "List of Diseases", href: "/admin/list-of-diseases" },
+            ],
         },
+        {
+            title: "Reports",
+            href: "/admin/reports",
+            icon: LayoutGrid,
+            },
+            {
+            title: "RCY",
+            children: [
+                {
+                title: "Positions",
+                href: "/admin/rcy/positions",
+                },
+                {
+                title: "Members",
+                href: "/admin/rcy/members",
+                },
+            ],
+        }
       ]
     : isHeadNurse
     ? [

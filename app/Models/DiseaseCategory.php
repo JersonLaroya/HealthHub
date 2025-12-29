@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class DiseaseCategory extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'created_by',
+    ];
+
+    /* ======================
+       Relationships
+    ====================== */
+
+    public function diseases()
+    {
+        return $this->hasMany(Disease::class, 'disease_category_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+}

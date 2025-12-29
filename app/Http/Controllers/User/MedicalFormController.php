@@ -10,15 +10,20 @@ use Inertia\Inertia;
 class MedicalFormController extends Controller
 {
     /**
-     * Display a list of assigned medical forms for the logged-in user.
+     * Display a paginated list of medical forms assigned to the logged-in patient.
      */
     public function index(Request $request)
     {
         $user = $request->user();
+        $patient = $user->patient; // may be null if not a patient
 
-        $assignments = FormAssignment::with('form', 'admin')
-            ->where('patient_id', $user->patient->id) // changed from user_id to patient_id
-            ->orderBy('created_at', 'desc')
+        if (!$patient) {
+            abort(403, 'You do not have access to medical forms.');
+        }
+
+        $assignments = FormAssignment::with(['form', 'admin'])
+            ->where('patient_id', $patient->id)
+            ->latest()
             ->paginate(10);
 
         return Inertia::render('user/medicalForms/Index', [
@@ -30,31 +35,54 @@ class MedicalFormController extends Controller
         ]);
     }
 
+    /**
+     * Display a specific assigned medical form.
+     */
     public function show($id, Request $request)
     {
-        $assignment = FormAssignment::with('form', 'admin')
-            ->where('patient_id', $request->user()->patient->id) // changed here
+        $patientId = optional($request->user()->patient)->id;
+
+        if (!$patientId) {
+            abort(403, 'You do not have access to medical forms.');
+        }
+
+        $assignment = FormAssignment::with(['form', 'admin'])
+            ->where('patient_id', $patientId)
             ->where('id', $id)
             ->firstOrFail();
 
         return Inertia::render('user/medicalForms/Show', [
             'assignment' => $assignment,
+            'fileUrl' => $assignment->form->file_path 
+                ? asset('storage/' . $assignment->form->file_path) 
+                : null,
         ]);
     }
 
+    /**
+     * Submit a completed medical form.
+     */
     public function submit(Request $request, FormAssignment $assignment)
     {
+        $patient = $request->user()->patient;
+
+        if (!$patient || $assignment->patient_id !== $patient->id) {
+            abort(403, 'Unauthorized to submit this form.');
+        }
+
         $validated = $request->validate([
             'responses' => 'required|array',
         ]);
 
-        // Create or update response
         $assignment->response()->updateOrCreate(
             [],
             ['data' => json_encode($validated['responses'])]
         );
 
-        $assignment->update(['status' => 'submitted', 'submitted_at' => now()]);
+        $assignment->update([
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
 
         return redirect()
             ->route('user.medical-forms.index')

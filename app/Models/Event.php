@@ -18,6 +18,7 @@ class Event extends Model
         'end_at',
         'created_by',
         'edited_by',
+        'image',
     ];
 
     public function creator()

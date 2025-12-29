@@ -4,35 +4,55 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Admin\UpdateConsultationRequest;
 use App\Http\Requests\StoreConsultationRequest;
-use App\Models\Patient;
+use App\Models\User;
 use App\Models\Consultation;
 use App\Models\RcyMember;
+use App\Models\VitalSign;
 use Illuminate\Support\Facades\Auth;
 
 class ConsultationController extends Controller
 {
     /**
-     * Store a new consultation for a patient.
+     * Store a new consultation for a user (patient).
      */
-    public function store(StoreConsultationRequest $request, Patient $patient)
+    public function store(StoreConsultationRequest $request, User $patient)
     {
-        $user = $request->user();
 
-        // Determine status
+        $authUser = $request->user();
+
         $status = 'approved';
-        if ($user->userRole->name === 'Student' && RcyMember::where('user_id', $user->id)->exists()) {
+        if ($authUser->userRole->name === 'Student'
+            && RcyMember::where('user_id', $authUser->id)->exists()) {
             $status = 'pending';
         }
 
-        $patient->consultations()->create([
+        // Create vital signs snapshot
+        $vitalSigns = VitalSign::create([
+            'user_id' => $patient->id,
+            'bp' => $request->bp,
+            'rr' => $request->rr,
+            'pr' => $request->pr,
+            'temp' => $request->temp,
+            'o2_sat' => $request->o2_sat,
+        ]);
+
+        // Create consultation
+        $consultation = Consultation::create([
+            'user_id' => $patient->id,
             'date' => $request->date,
             'time' => $request->time,
-            'vital_signs' => $request->vital_signs,
-            'chief_complaint' => $request->chief_complaint,
+            'vital_signs_id' => $vitalSigns->id,
+            'medical_complaint' => $request->medical_complaint,
             'management_and_treatment' => $request->management_and_treatment,
-            'submitted_by' => $user->id,
+            'created_by' => $authUser->id,
             'status' => $status,
         ]);
+
+
+        // Attach diseases (MULTIPLE)
+        if ($request->filled('disease_ids')) {
+            $consultation->diseases()->sync($request->disease_ids);
+        }
 
         return back()->with('success', 'Consultation added successfully.');
     }
@@ -40,19 +60,41 @@ class ConsultationController extends Controller
     /**
      * Update an existing consultation.
      */
-    public function update(UpdateConsultationRequest $request, Patient $patient, Consultation $consultation)
+    public function update(UpdateConsultationRequest $request, User $patient, Consultation $consultation)
     {
-        $consultation->update($request->validated());
+        $consultation->vitalSigns->update([
+            'bp' => $request->bp,
+            'rr' => $request->rr,
+            'pr' => $request->pr,
+            'temp' => $request->temp,
+            'o2_sat' => $request->o2_sat,
+        ]);
+
+        $consultation->update([
+            'date' => $request->date,
+            'time' => $request->time,
+            'medical_complaint' => $request->medical_complaint,
+            'management_and_treatment' => $request->management_and_treatment,
+        ]);
+
+        if ($request->filled('disease_ids')) {
+            $consultation->diseases()->sync($request->disease_ids);
+        }
 
         return back()->with('success', 'Consultation updated successfully.');
     }
 
+
     /**
-     * Delete consultation.
+     * Delete a consultation.
      */
-    public function destroy(Patient $patient, Consultation $consultation)
+    public function destroy(User $patient, Consultation $consultation)
     {
-        // Only admin or nurse can delete
+        // Make sure the consultation belongs to the patient
+        if ($consultation->user_id !== $patient->id) {
+            abort(404);
+        }
+
         $userRole = Auth::user()->userRole->name;
         if ($userRole !== 'Admin') {
             abort(403, 'Unauthorized');
@@ -62,4 +104,6 @@ class ConsultationController extends Controller
 
         return back()->with('success', 'Consultation deleted successfully.');
     }
+
+
 }

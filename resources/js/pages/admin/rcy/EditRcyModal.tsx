@@ -1,21 +1,19 @@
 import { useForm } from "@inertiajs/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export default function EditRcyModal({ open, onClose, positions, rcy }) {
   const { data, setData, put, processing, errors, reset } = useForm({
-    position_id: rcy?.position_id || "",
-    school_year: rcy?.school_year || "",
+    position_id: rcy?.user_role_id || "", // updated
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    put(`/admin/rcy/${rcy.id}`, {
+    put(`/admin/rcy/members/${rcy.id}`, {
       onSuccess: () => {
         toast.success("RCY updated", {
-          description: `${rcy.user?.user_info?.first_name} ${rcy.user?.user_info?.last_name} updated successfully.`,
+          description: `${rcy.first_name} ${rcy.last_name} updated successfully.`,
         });
         reset();
         onClose();
