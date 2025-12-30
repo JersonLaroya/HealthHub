@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
-import { useForm, router } from "@inertiajs/react";
+import { useForm } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { toast } from "sonner";
+
+// shadcn components
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-export default function AddDtr({ currentRole }: any) {
+export default function AddDtr({ diseases }: any) {
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
-  const { data, setData, post, reset, errors, processing } = useForm({
+  const { data, setData, post, reset, processing } = useForm({
     name: "",
     age: "",
     sex: "",
@@ -20,13 +24,21 @@ export default function AddDtr({ currentRole }: any) {
     management: "",
     dtr_date: getTodayDate(),
     dtr_time: getCurrentTime(),
+    bp: "",
+    rr: "",
+    pr: "",
+    temp: "",
+    o2_sat: "",
+    disease_ids: [],
   });
 
   const [patientQuery, setPatientQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [patientResults, setPatientResults] = useState([]);
+  const [patientResults, setPatientResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-
+  const [selectingDiseases, setSelectingDiseases] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  
   const calculateAge = (birthdate: string) => {
     const birth = new Date(birthdate);
     const today = new Date();
@@ -36,16 +48,16 @@ export default function AddDtr({ currentRole }: any) {
     return age;
   };
 
-  // Fetch patient results when searchTerm changes
+  console.log(data);
+
+  // Patient search
   useEffect(() => {
     if (!searchTerm) return;
-
     const timeout = setTimeout(async () => {
       if (searchTerm.length < 2) {
         setPatientResults([]);
         return;
       }
-
       setLoading(true);
       try {
         const res = await fetch(`/user/patients/search?q=${encodeURIComponent(searchTerm)}`);
@@ -57,175 +69,228 @@ export default function AddDtr({ currentRole }: any) {
         setLoading(false);
       }
     }, 500);
-
     return () => clearTimeout(timeout);
-  }, [searchTerm, currentRole]);
+  }, [searchTerm]);
 
-  // Clear patient info if input is empty
-  useEffect(() => {
-    if (patientQuery === "") {
-      setData({
-        ...data,
-        name: "",
-        age: "",
-        sex: "",
-        course_year_office: "",
-      });
-      setPatientResults([]);
-    }
-  }, [patientQuery]);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleAddDtr = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!data.name || !data.purpose || !data.management) {
       toast.error("Please fill in all required fields.");
       return;
     }
+if (!selectedPatientId) {
+      toast.error("Please select a patient from the search results.");
+      return;
+    }
 
-    post(`/user/rcy`, {
+    post(`/user/rcy/${selectedPatientId}`, {
       onSuccess: () => {
-        toast.success("DTR added successfully!");
+        toast.success("Consultation added successfully!");
         reset();
         setPatientQuery("");
         setSearchTerm("");
         setPatientResults([]);
       },
-      onError: () => {
-        toast.error("Failed to add DTR.");
-      },
+      onError: () => toast.error("Failed to add Consultation."),
     });
   };
 
   return (
     <AppLayout>
-      <h1 className="text-xl font-bold mb-4">Add DTR</h1>
+      <div className="p-6 flex justify-center">
+        <div className="w-full max-w-3xl space-y-6">
+            <h1 className="text-xl font-bold mb-4 text-left">Add Consultation</h1>
 
-      <Card className="p-6 max-w-lg mx-auto space-y-4">
-        <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-          {/* Patient Name Search */}
-          <div className="sm:col-span-2 relative">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Patient Name</label>
-            <Popover open={patientResults.length > 0}>
-              <PopoverTrigger asChild>
-                <div className="relative w-full">
-                  <Input
-                    type="text"
-                    value={patientQuery}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setPatientQuery(value);
-                      setSearchTerm(value); // triggers API search
-                      setData({ ...data, name: value });
-                    }}
-                    placeholder="Search patient..."
-                    autoComplete="off"
-                    required
-                  />
+            <div className="flex justify-center">
+              <Card className="w-full max-w-lg p-6 space-y-4 border border-gray-200 dark:border-neutral-700 shadow-md rounded-lg">
+                <form onSubmit={handleAddDtr} className="space-y-4">
+                  {/* Patient Search */}
+                  <div className="relative">
+                    <Label>Patient Name</Label>
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        value={patientQuery}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPatientQuery(value);
+                          setSearchTerm(value);
+                          setData({ ...data, name: value });
+                        }}
+                        placeholder="Search patient..."
+                        autoComplete="off"
+                        required
+                      />
 
-                  {/* Clear button */}
-                  {patientQuery && !loading && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPatientQuery("");
-                        setSearchTerm("");
-                        setPatientResults([]);
-                        setData({ ...data, name: "", age: "", sex: "", course_year_office: "" });
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 z-10"
-                    >
-                      ✕
-                    </button>
-                  )}
+                      {/* Clear button */}
+                      {patientQuery && !loading && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPatientQuery("");
+                            setSearchTerm("");
+                            setPatientResults([]);
+                            setData({ ...data, name: "", age: "", sex: "", course_year_office: "" });
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 z-10"
+                        >
+                          ✕
+                        </button>
+                      )}
 
-                  {/* Loading spinner */}
-                  {loading && (
-                    <div className="absolute right-8 top-1/2 -translate-y-1/2">
-                      <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                      </svg>
+                      {/* Loading spinner */}
+                      {loading && (
+                        <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                          <svg
+                            className="animate-spin h-4 w-4 text-gray-500"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                            />
+                          </svg>
+                        </div>
+                      )}
+
+                      {/* Search results dropdown */}
+                      {patientResults.length > 0 && (
+                        <div className="absolute z-10 w-full max-h-60 overflow-y-auto border mt-1 bg-white dark:bg-neutral-800">
+                          {patientResults.map((patient) => (
+                            <button
+                              key={patient.id}
+                              type="button"
+                              onClick={() => {
+                                setData({
+                                  ...data,
+                                  name: patient.name,
+                                  age: calculateAge(patient.birthdate),
+                                  sex: patient.sex,
+                                  course_year_office: patient.course ? `${patient.course} ${patient.yearLevel}` : patient.office,
+                                });
+                                setSelectedPatientId(patient.id);
+                                setPatientQuery(patient.name);
+                                setPatientResults([]);
+                              }}
+                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-neutral-700 text-sm"
+                            >
+                              {patient.name} - {patient.course ?? patient.office}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </PopoverTrigger>
+                  </div>
 
-              <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-h-60 overflow-y-auto p-0">
-                {patientResults.map((patient: any) => (
-                  <button
-                    key={patient.id}
-                    type="button"
-                    onClick={() => {
-                      setData({
-                        ...data,
-                        name: patient.name,
-                        age: calculateAge(patient.birthdate),
-                        sex: patient.sex,
-                        course_year_office: patient.course ? `${patient.course} ${patient.yearLevel}` : patient.office,
-                      });
-                      setPatientQuery(patient.name);
-                      setSearchTerm(""); // stop further searches
-                      setPatientResults([]);
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-neutral-700"
-                  >
-                    {patient.name} - {patient.course ?? patient.office}
-                  </button>
-                ))}
-                <div className="flex justify-end mb-1 pr-4">
-                  <button
-                    type="button"
-                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    onClick={() => setPatientResults([])}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                  {/* Age, Sex, Course/Office */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Age</Label>
+                      <Input value={data.age} onChange={(e) => setData("age", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Sex</Label>
+                      <Input value={data.sex} onChange={(e) => setData("sex", e.target.value)} />
+                    </div>
+                  </div>
 
-          {/* Age, Sex, Course/Office */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Age</label>
-              <Input type="text" value={data.age} onChange={(e) => setData({ ...data, age: e.target.value })} />
+                  <div>
+                    <Label>Course & Year / Office</Label>
+                    <Input value={data.course_year_office} onChange={(e) => setData("course_year_office", e.target.value)} />
+                  </div>
+
+                  {/* Date & Time */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Date</Label>
+                      <Input type="date" value={data.dtr_date} onChange={(e) => setData("dtr_date", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Time</Label>
+                      <Input type="time" value={data.dtr_time} onChange={(e) => setData("dtr_time", e.target.value)} />
+                    </div>
+                  </div>
+
+                  {/* Vital Signs */}
+                  <div className="border p-4 rounded-md bg-white dark:bg-neutral-800">
+                    <h2 className="text-sm font-semibold mb-2">Vital Signs</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="BP" value={data.bp} onChange={(e) => setData("bp", e.target.value)} />
+                      <Input placeholder="RR" value={data.rr} onChange={(e) => setData("rr", e.target.value)} />
+                      <Input placeholder="PR" value={data.pr} onChange={(e) => setData("pr", e.target.value)} />
+                      <Input placeholder="Temp (°C)" value={data.temp} onChange={(e) => setData("temp", e.target.value)} />
+                      <Input placeholder="O₂ Sat (%)" value={data.o2_sat} onChange={(e) => setData("o2_sat", e.target.value)} />
+                    </div>
+                  </div>
+
+                  {/* Purpose */}
+                  <div>
+                    <Label>Purpose</Label>
+                    <Textarea value={data.purpose} onChange={(e) => setData("purpose", e.target.value)} placeholder="Enter purpose" className="min-h-[100px] resize-y" />
+                  </div>
+
+                  {/* Diseases */}
+                  <div>
+                    <Label>Diseases</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 mb-1">
+                      {data.disease_ids.length > 0
+                        ? data.disease_ids
+                            .map((id) => diseases.find((d: any) => d.id === id)?.name)
+                            .filter(Boolean)
+                            .map((name: string) => (
+                              <span key={name} className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-sm">{name}</span>
+                            ))
+                        : <span className="text-gray-500 text-sm">No diseases selected</span>}
+                    </div>
+                    <Button type="button" size="sm" onClick={() => setSelectingDiseases(true)}>Select Diseases</Button>
+                  </div>
+
+                  {/* Management */}
+                  <div>
+                    <Label>Management</Label>
+                    <Textarea value={data.management} onChange={(e) => setData("management", e.target.value)} placeholder="Enter management" className="min-h-[100px] resize-y" />
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex justify-end gap-2 mt-2">
+                    <Button variant="outline" type="button" onClick={() => reset()}>Cancel</Button>
+                    <Button type="submit" disabled={processing}>{processing ? "Adding..." : "Add"}</Button>
+                  </div>
+                </form>
+              </Card>
             </div>
-            <div>
-              <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Sex</label>
-              <Input type="text" value={data.sex} onChange={(e) => setData({ ...data, sex: e.target.value })} />
-            </div>
-          </div>
 
-          <div>
-            <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Course & Year / Office</label>
-            <Input type="text" value={data.course_year_office} onChange={(e) => setData({ ...data, course_year_office: e.target.value })} />
+            {/* Diseases Modal */}
+            <Dialog open={selectingDiseases} onOpenChange={setSelectingDiseases}>
+              <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+                <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+                  {diseases.map((d: any) => (
+                    <label key={d.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        value={d.id}
+                        checked={data.disease_ids.includes(d.id)}
+                        onChange={(e) => {
+                          const id = d.id;
+                          setData("disease_ids", e.target.checked ? [...data.disease_ids, id] : data.disease_ids.filter(i => i !== id));
+                        }}
+                      />
+                      {d.name}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button variant="outline" onClick={() => setSelectingDiseases(false)}>Cancel</Button>
+                  <Button onClick={() => setSelectingDiseases(false)}>Done</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-
-          <div>
-            <label>Date</label>
-            <Input type="date" value={data.dtr_date} onChange={(e) => setData({ ...data, dtr_date: e.target.value })} required />
-          </div>
-
-          <div>
-            <label>Time</label>
-            <Input type="time" value={data.dtr_time} onChange={(e) => setData({ ...data, dtr_time: e.target.value })} required />
-          </div>
-
-          <div>
-            <label>Purpose</label>
-            <Input type="text" value={data.purpose} onChange={(e) => setData({ ...data, purpose: e.target.value })} required />
-          </div>
-
-          <div>
-            <label>Management</label>
-            <Input type="text" value={data.management} onChange={(e) => setData({ ...data, management: e.target.value })} required />
-          </div>
-
-          <Button type="submit" disabled={processing}>Add DTR</Button>
-        </form>
-      </Card>
+        </div>
     </AppLayout>
   );
 }

@@ -89,10 +89,12 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         offices: { id: number; name: string }[];
         courses: { id: number; name: string; office_id: number }[];
         years: { id: number; name: string }[];
-        roles: { id: number; name: string }[];
+        roles: { id: number; name: string, category: string }[];
     }>().props;
 
     const user = auth.user;
+
+    console.log("User data:", user);
 
    const { data, setData, put, processing, errors } = useForm({
         first_name: user.first_name || "",
@@ -105,13 +107,17 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         user_role_id: user.user_role_id ?? null,
     });
 
-
     const [roleId, setRoleId] = useState(user.user_role_id ?? "");
     const [officeId, setOfficeId] = useState(user.office_id ?? "");
     const [courseId, setCourseId] = useState(user.course_id ?? "");
     const [yearId, setYearId] = useState(user.year_level_id ?? "");
 
-    const roleName = roles.find((r) => r.id === Number(roleId))?.name;
+    const isRcy = roles.find(r => r.id === roleId)?.category === 'rcy';
+    const userRoleCategory = (auth.user.user_role as any)?.category;
+
+    const roleName = roles.find((r) => r.id === Number(data.user_role_id))?.name;
+
+    console.log("Selected Role ID:", roleName);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -209,33 +215,40 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Label htmlFor="user_role_id">Role</Label>
                                    {roles && roles.length > 0 ? (
                                     <select
-                                        defaultValue={Number(data.user_role_id) ?? null}
+                                        value={data.user_role_id ?? ""}
+                                        onClick={() => {
+                                            if (userRoleCategory === "rcy") {
+                                                toast.error("You can't change your role because you are an RCY member");
+                                            }
+                                        }}
                                         onChange={(e) => {
                                             const newRoleId = Number(e.target.value);
-                                            console.log(newRoleId);
-                                            setRoleId(newRoleId)
+                                            
+                                            // Prevent RCY from actually changing their role
+                                            if (userRoleCategory === "rcy") return;
 
-                                            const roleName = roles.find((r) => r.id === newRoleId)?.name;
-
-                                            // if (roleName === "Student") {
-                                            //     setOfficeId("");
-                                            // } 
-                                            // else {
-                                            //     // Staff/Faculty → clear course + year level (not needed)
-                                            //     setCourseId("");
-                                            //     setYearId("");
-                                            // }
+                                            setData("user_role_id", newRoleId);
+                                            setRoleId(newRoleId);
                                         }}
-                                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                        id='user_role_id'
-                                        name='user_role_id'
+                                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                        id="user_role_id"
+                                        name="user_role_id"
                                     >
                                         <option value="">-- Select Role --</option>
-                                        {roles.map((role) => (
-                                        <option key={role.id} value={role.id}>
-                                            {role.name}
-                                        </option>
-                                        ))}
+                                        {roles
+                                            .filter((role, index, self) => {
+                                                if (userRoleCategory === "rcy") {
+                                                // Only show Student once
+                                                return role.name === "Student" && self.findIndex(r => r.name === "Student") === index;
+                                                }
+                                                return true; // Non-RCY users see all roles
+                                            })
+                                            .map((role) => (
+                                                <option key={role.id} value={role.id}>
+                                                {role.name}
+                                                </option>
+                                            ))
+                                        }
                                     </select>
                                     ) : (
                                     <p className="text-sm text-gray-500">No Role available</p>
@@ -352,7 +365,9 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 <input type="hidden" name="user_role_id" value={data.user_role_id ?? ""} /> */}
 
                                 <div className="flex items-center gap-4">
-                                    <Button disabled={processing}>Save</Button>
+                                    <Button disabled={processing}>
+                                        {processing ? "Saving..." : "Save"}
+                                    </Button>
 
                                     {/* <Transition
                                         show={recentlySuccessful}
@@ -443,7 +458,9 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <Button disabled={processing}>Save password</Button>
+                                    <Button disabled={processing}>
+                                        {processing ? "Saving..." : "Save password"}
+                                    </Button>
 
                                     {/* <Transition
                                         show={recentlySuccessful}

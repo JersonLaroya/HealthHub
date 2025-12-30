@@ -128,8 +128,8 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
     return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
   };
 
-  const records = consultations?.data || [];
-
+  const records = (consultations?.data || []).filter(c => c.status === 'approved');
+  
   for (const c of records) {
     const dateFontSize = 8;
     const dateLines = wrapText(formatDateTime(c.date), columns[0].width - 4, dateFontSize);

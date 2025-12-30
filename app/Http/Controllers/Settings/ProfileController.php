@@ -26,8 +26,21 @@ class ProfileController extends Controller
     $user = $request->user()->load(['userRole', 'office']); // removed userInfo()
     $offices = Office::all(['id', 'name']);
     $courses = Course::all();
-    $roles = UserRole::whereIn('name', ['Staff', 'Student', 'Faculty'])->get();
+    $allRoles = UserRole::where('category', 'user')->get();
+    $currentRole = $user->userRole;
     $years = YearLevel::all(['id', 'name']);
+
+    // If the user is RCY, show as Student in the frontend
+    if ($currentRole && $currentRole->category === 'rcy') {
+        $currentRole->name = 'Student';
+    }
+    
+    // Make sure the current role is included even if it's RCY
+    if ($currentRole && $currentRole->category === 'rcy') {
+        $roles = collect([$currentRole])->merge($allRoles);
+    } else {
+        $roles = $allRoles;
+    }
 
     $component = match($user->userRole?->name) {
         'Admin'   => 'admin/profile',
@@ -44,6 +57,7 @@ class ProfileController extends Controller
         'courses' => $courses,
         'years' => $years,
         'roles' => $roles,
+        'currentRole' => $currentRole,
         'mustVerifyEmail' => $user instanceof MustVerifyEmail,
         'status' => $request->session()->get('status'),
     ]);
@@ -53,12 +67,18 @@ public function update(ProfileUpdateRequest $request): RedirectResponse
 {
     $user = auth()->user();
 
+    // If current role is RCY, prevent role change
+    if ($user->userRole?->category === 'rcy') {
+        $request->request->remove('user_role_id');
+    }
+
     // Update directly on user table
     $user->fill($request->safe()->only([
         'first_name', 'middle_name', 'last_name', 'email', 'office_id', 'user_role_id', 'course_id', 'year_level_id'
     ]));
 
-    if ($user->userRole?->name !== 'Student') {
+    // Only nullify course/year if the user is not a Student or RCY
+    if (!in_array($user->userRole?->category, ['user', 'rcy'])) {
         $user->course_id = null;
         $user->year_level_id = null;
     }
@@ -70,18 +90,6 @@ public function update(ProfileUpdateRequest $request): RedirectResponse
     $user->save();
     
     $userRoleName = $user->userRole->name;
-
-    // Create Patient record if needed
-    // if (in_array($userRoleName, ['Student', 'Staff', 'Faculty']) && !$user->patient) {
-    //     Patient::create([
-    //         'user_id' => $user->id,
-    //         'bp' => null,
-    //         'rr' => null,
-    //         'pr' => null,
-    //         'temp' => null,
-    //         'o2_sat' => null,
-    //     ]);
-    // }
 
     return match($userRoleName) {
         'Admin'   => to_route('admin.profile')->with('status', 'Profile updated successfully!'),

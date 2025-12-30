@@ -57,8 +57,9 @@ class PatientController extends Controller
 
         $consultations = $patient->consultations()
             ->with(['diseases', 'vitalSigns'])
-            ->orderBy('date')
-            ->orderBy('time')
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->orderBy('date', 'asc')
+            ->orderBy('time', 'asc')
             ->paginate(10)
             ->withQueryString();
 

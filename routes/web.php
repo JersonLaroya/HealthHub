@@ -19,6 +19,7 @@ use App\Http\Controllers\User\MedicalFormController;
 use App\Http\Controllers\User\PersonalInfoController;
 use App\Http\Controllers\User\RcyController;
 use App\Http\Middleware\ExcludeRolesMiddleware;
+use App\Http\Middleware\RcyRoleMiddleware;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
  
@@ -155,7 +156,7 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-//For DTR
+
 Route::middleware(['auth'])->group(function () {
     // Admin
     Route::prefix('admin')->middleware('role:Admin')->group(function () {
@@ -185,10 +186,10 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // RCY
-    Route::prefix('user')->middleware('role:Student')->group(function () {
-            Route::get('/rcy', [RcyController::class, 'create'])->name('rcy.add');
-            Route::post('/rcy', [RcyController::class, 'store'])->name('rcy.store');
-            Route::get('/patients/search', [RcyController::class, 'searchPatients'])->name('patients.search');
+    Route::prefix('user')->middleware(['auth', RcyRoleMiddleware::class])->group(function () {
+        Route::get('/rcy', [RcyController::class, 'create'])->name('rcy.add');
+        Route::post('/rcy/{patient}', [RcyController::class, 'store'])->name('rcy.store');
+        Route::get('/patients/search', [RcyController::class, 'searchPatients'])->name('patients.search');
     });
 });
 
@@ -205,6 +206,7 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('admin.patients.forms');
         Route::get('/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('admin.forms.patient.response');
         Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('admin.patients.consultations.destroy');
+        Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('admin.patients.consultations.approve');
     });
 
     // Nurse
@@ -215,6 +217,7 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
         Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('nurse.patients.forms');
         Route::get('/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('nurse.forms.patient.response');
+        Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('nurse.patients.consultations.approve');
     });
 });
 

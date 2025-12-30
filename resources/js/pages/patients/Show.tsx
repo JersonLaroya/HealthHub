@@ -34,6 +34,8 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
   const [schoolYear, setSchoolYear] = useState(currentSchoolYear);
   const [selectingDiseases, setSelectingDiseases] = useState(false);
   const [selectingDiseasesEdit, setSelectingDiseasesEdit] = useState(false);
+  const [approvingId, setApprovingId] = useState(null);
+  const [expandedComplaints, setExpandedComplaints] = useState({});
 
   const { data, setData, put, processing, errors } = useForm({
     user_id: patient.id || "",
@@ -292,6 +294,7 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                 <th className="p-2 text-left border-b">Chief Complaint</th>
                 <th className="p-2 text-left border-b">Disease</th>
                 <th className="p-2 text-left border-b">Management & Treatment</th>
+                <th className="p-2 text-left border-b">Status</th>
                 {auth.user?.user_role?.name?.toLowerCase() === 'admin' && (
                   <th className="p-2 text-left border-b">Actions</th>
                 )}
@@ -333,7 +336,27 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
 
                       <td className="p-2 border-b align-top">
                         <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.medical_complaint  || ""}
+                          {c.medical_complaint ? (
+                            <>
+                              {(expandedComplaints[c.id] ? c.medical_complaint : c.medical_complaint.slice(0, 20))}
+
+                                {c.medical_complaint.length > 20 && (
+                                  <button
+                                    className="ml-1 text-blue-600 text-sm underline"
+                                    onClick={() =>
+                                      setExpandedComplaints((prev) => ({
+                                        ...prev,
+                                        [c.id]: !prev[c.id],
+                                      }))
+                                    }
+                                  >
+                                    {expandedComplaints[c.id] ? "See less" : "See more"}
+                                  </button>
+                                )}
+                            </>
+                          ) : (
+                            "-"
+                          )}
                         </div>
                       </td>
 
@@ -347,13 +370,73 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
 
                       <td className="p-2 border-b align-top">
                         <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.management_and_treatment || ""}
+                          {c.management_and_treatment ? (
+                            <>
+                              {expandedComplaints[`management_${c.id}`] 
+                                ? c.management_and_treatment
+                                : `${c.management_and_treatment.slice(0, 20)}`} {/* truncated to 20 chars */}
+                              {c.management_and_treatment.length > 20 && (
+                                <button
+                                  className="ml-1 text-blue-600 text-sm underline"
+                                  onClick={() =>
+                                    setExpandedComplaints((prev) => ({
+                                      ...prev,
+                                      [`management_${c.id}`]: !prev[`management_${c.id}`],
+                                    }))
+                                  }
+                                >
+                                  {expandedComplaints[`management_${c.id}`] ? "See less" : "See more"}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            "-"
+                          )}
                         </div>
+                      </td>
+
+                      <td className="p-2 border-b">
+                        {c.status === 'pending' ? (
+                          <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                            Approved
+                          </span>
+                        )}
                       </td>
 
                       {auth.user?.user_role?.name?.toLowerCase() === 'admin' && (
                         <td className="p-2 border-b align-bottom">
                           <div className="flex gap-2 justify-start items-end h-full min-h-[100%]">
+                            <Button
+                              size="sm"
+                              className="w-full sm:w-auto px-2 sm:px-3"
+                              disabled={c.status === 'approved' || approvingId === c.id}
+                              onClick={() => {
+                                setApprovingId(c.id); // start approving
+
+                                router.patch(
+                                  `/admin/patients/${patient.id}/consultations/${c.id}/approve`,
+                                  {},
+                                  {
+                                    preserveScroll: true,
+                                    onSuccess: () => {
+                                      toast.success("Consultation approved.");
+                                    },
+                                    onError: () => {
+                                      toast.error("Failed to approve consultation.");
+                                    },
+                                    onFinish: () => {
+                                      setApprovingId(null); // reset state
+                                    },
+                                  }
+                                );
+                              }}
+                            >
+                              {c.status === 'approved' ? 'Approved' : approvingId === c.id ? 'Approving...' : 'Approve'}
+                            </Button>
                             <Button size="sm" onClick={() => openEditConsultation(c)}>Edit</Button>
                             <Button
                               size="sm"

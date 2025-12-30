@@ -105,5 +105,24 @@ class ConsultationController extends Controller
         return back()->with('success', 'Consultation deleted successfully.');
     }
 
+    public function approve($patientId, Consultation $consultation)
+    {
+        // Only allow Admin or Nurse
+        $role = auth()->user()->userRole->name;
+        if (!in_array($role, ['Admin', 'Nurse'])) {
+            abort(403);
+        }
+
+        if ($consultation->status === 'approved') {
+            return back()->with('info', 'Consultation is already approved.');
+        }
+
+        $consultation->update([
+            'status' => 'approved',
+        ]);
+
+        return back()->with('success', 'Consultation approved.');
+    }
+
 
 }

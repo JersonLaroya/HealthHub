@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
+import path from 'path';
 
 export default defineConfig({
     plugins: [
@@ -17,15 +18,11 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
-//     server: {
-//     host: '0.0.0.0',          // Allow access from other devices
-//     port: 5173,
-//     cors: true,               // ✅ Enable CORS for dev server
-//     hmr: {
-//       host: '192.168.1.6',    // 👈 your LAN IP address
-//       protocol: 'ws',
-//     },
-//   },
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, 'resources/js'),
+        },
+    },
     esbuild: {
         jsx: 'automatic',
     },

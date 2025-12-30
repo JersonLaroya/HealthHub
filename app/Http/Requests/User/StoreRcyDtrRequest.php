@@ -10,13 +10,12 @@ class StoreRcyDtrRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      */
-    public function authorize(): bool
-    {
-        $userId = auth()->id();
-
-        // Check if the user exists in the rcy_members table
-        return DB::table('rcy_members')->where('user_id', $userId)->exists();
-    }
+    // public function authorize(): bool
+    // {
+    //     $user = auth()->user();
+    //     // Allow if the user has an RCY role
+    //     return $user && $user->userRole?->category === 'rcy';
+    // }
 
     /**
      * Get the validation rules that apply to the request.
