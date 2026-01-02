@@ -25,15 +25,15 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
     form.getTextField("birthdate").setText("");
   }
 
-  form.getTextField("blood_type").setText(patient.vital_sign.blood_type ?? "");
+  form.getTextField("blood_type").setText(patient.vital_sign?.blood_type ?? "");
   form.getTextField("course_office").setText(patient.course?.code ?? "");
   form.getTextField("school_year").setText(`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
   form.getTextField("contact_number1").setText(patient.contact_no ?? "");
-  form.getTextField("bp").setText(patient.vital_sign.bp ?? "");
-  form.getTextField("rr").setText(patient.vital_sign.rr ?? "");
-  form.getTextField("pr").setText(patient.vital_sign.pr ?? "");
-  form.getTextField("temp").setText(patient.vital_sign.temp ?? "");
-  form.getTextField("o2_sat").setText(patient.vital_sign.o2_sat ?? "");
+  form.getTextField("bp").setText(patient.vital_sign?.bp ?? "");
+  form.getTextField("rr").setText(patient.vital_sign?.rr ?? "");
+  form.getTextField("pr").setText(patient.vital_sign?.pr ?? "");
+  form.getTextField("temp").setText(patient.vital_sign?.temp ?? "");
+  form.getTextField("o2_sat").setText(patient.vital_sign?.o2_sat ?? "");
 
   form.getTextField("name2").setText(patient.guardian_name ?? "");
   form.getTextField("contact_number2").setText(patient.guardian_contact_no ?? "");

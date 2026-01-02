@@ -221,7 +221,7 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
               <strong>Role:</strong> {patient?.user_role?.name || "-"}
             </div>
             <div className="col-span-1 sm:col-span-2">
-              <strong>Blood Type:</strong> {patient.vital_sign.blood_type || "-"}
+              <strong>Blood Type:</strong> {patient.vital_sign?.blood_type || "-"}
             </div>
             <div className="col-span-1 flex items-center gap-2">
               <strong>School Year:</strong>
@@ -273,14 +273,14 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
           {/* VITAL SIGNS */}
           <div className="flex flex-col lg:flex-row text-sm text-center items-center divide-y lg:divide-y-0 lg:divide-x divide-gray-300 dark:divide-neutral-600">
             <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">Initial Vital Signs</label></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">BP</label><p>{patient.vital_sign.bp || "-"}</p></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">RR</label><p>{patient.vital_sign.rr || "-"}</p></div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">PR</label><p>{patient.vital_sign.pr || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">BP</label><p>{patient.vital_sign?.bp || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">RR</label><p>{patient.vital_sign?.rr || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">PR</label><p>{patient.vital_sign?.pr || "-"}</p></div>
             <div className="flex-1 py-2 lg:py-0">
               <label className="font-semibold block mb-0.5">Temp</label>
-              <p>{patient.vital_sign?.temp ? `${patient.vital_sign.temp}°C` : "-"}</p>
+              <p>{patient.vital_sign?.temp ? `${patient.vital_sign?.temp}°C` : "-"}</p>
             </div>
-            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">O2 Sat</label><p>{patient.vital_sign.o2_sat || "-"}</p></div>
+            <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">O2 Sat</label><p>{patient.vital_sign?.o2_sat || "-"}</p></div>
           </div>
         </Card>
 

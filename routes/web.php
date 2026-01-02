@@ -8,10 +8,10 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\FormAssignmentController;
-use App\Http\Controllers\FormController;
 use App\Http\Controllers\FormResponseController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPdfController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
@@ -51,7 +51,7 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])->prefix('user')->name
 
     // Medical Forms page
     Route::get('/medical-forms', [MedicalFormController::class, 'index'])->name('medical-forms.index');
-    Route::get('/medical-forms/{id}', [MedicalFormController::class, 'show'])->name('medical-forms.show');
+    Route::get('/medical-forms/{slug}', [MedicalFormController::class, 'show'])->name('medical-forms.show');
     Route::post('/medical-forms/{assignment}/submit', [MedicalFormController::class, 'submit'])->name('medical-forms.submit');
 
     Route::get('/records', function () {
@@ -96,10 +96,10 @@ Route::middleware(['role:Admin'])
 
 
 
-        Route::get('/forms', [FormController::class, 'index'])->name('forms.index');
-        Route::post('/forms', [FormController::class, 'store'])->name('forms.store');
-        Route::put('/forms/{form}', [FormController::class, 'update'])->name('forms.update');
-        Route::delete('/forms/{form}', [FormController::class, 'destroy'])->name('forms.destroy');
+        Route::get('/forms', [ServiceController::class, 'index'])->name('forms.index');
+        Route::post('/forms', [ServiceController::class, 'store'])->name('forms.store');
+        Route::put('/forms/{form}', [ServiceController::class, 'update'])->name('forms.update');
+        Route::delete('/forms/{form}', [ServiceController::class, 'destroy'])->name('forms.destroy');
 
         Route::get('/form-assignments', [FormAssignmentController::class, 'index'])->name('form-assignments.index');
         Route::get('/form-assignments/create', [FormAssignmentController::class, 'create'])->name('form-assignments.create');

@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Form extends Model
+class Service extends Model
 {
     use HasFactory;
 
@@ -14,11 +14,9 @@ class Form extends Model
         'slug',
         'description',
         'file_path',
-        'is_active',
     ];
 
-    public function assignments()
-    {
-        return $this->hasMany(FormAssignment::class);
-    }
+    protected $casts = [
+        'form_schema' => 'array',
+    ];
 }

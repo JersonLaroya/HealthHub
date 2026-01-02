@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Admin\UpdateConsultationRequest;
 use App\Http\Requests\StoreConsultationRequest;
+use App\Models\Record;
+use App\Models\Service;
 use App\Models\User;
 use App\Models\Consultation;
 use App\Models\RcyMember;
@@ -17,7 +19,6 @@ class ConsultationController extends Controller
      */
     public function store(StoreConsultationRequest $request, User $patient)
     {
-
         $authUser = $request->user();
 
         $status = 'approved';
@@ -48,10 +49,20 @@ class ConsultationController extends Controller
             'status' => $status,
         ]);
 
-
         // Attach diseases (MULTIPLE)
         if ($request->filled('disease_ids')) {
             $consultation->diseases()->sync($request->disease_ids);
+        }
+
+        // --- NEW: Create record for this consultation form ---
+        $service = Service::where('slug', 'clinic-consultation-record-form')->first();
+        if ($service) {
+            Record::create([
+                'user_id' => $patient->id,
+                'consultation_id' => $consultation->id,
+                'service_id' => $service->id,
+                'response_data' => json_encode([]), // empty response initially
+            ]);
         }
 
         return back()->with('success', 'Consultation added successfully.');
@@ -100,6 +111,10 @@ class ConsultationController extends Controller
             abort(403, 'Unauthorized');
         }
 
+        // Delete related records
+        Record::where('consultation_id', $consultation->id)->delete();
+
+        // Delete consultation
         $consultation->delete();
 
         return back()->with('success', 'Consultation deleted successfully.');

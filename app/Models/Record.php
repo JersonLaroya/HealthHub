@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Record extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'consultation_id',
+        'service_id',
+        'lab_result_id',
+        'response_data',
+    ];
+
+    protected $casts = [
+        'response_data' => 'array',
+    ];
+
+    // Relationships
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function consultation()
+    {
+        return $this->belongsTo(Consultation::class);
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function labResult()
+    {
+        return $this->belongsTo(LabResult::class);
+    }
+}

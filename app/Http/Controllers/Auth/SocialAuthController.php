@@ -43,9 +43,7 @@ class SocialAuthController extends Controller
                 'first_name' => $firstName,
                 'middle_name' => null,
                 'last_name' => $lastName,
-                'sex' => 'M', // or 'F' default
                 'birthdate' => now(), // temporary placeholder
-                'contact_no' => 'N/A', // placeholder
             ]);
         } else {
             // Update existing user's Google tokens

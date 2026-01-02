@@ -4,30 +4,47 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\FormAssignment;
+use App\Models\Service;
 use Inertia\Inertia;
 
 class MedicalFormController extends Controller
 {
-    /**
-     * Display a paginated list of medical forms assigned to the logged-in patient.
-     */
     public function index(Request $request)
     {
         $user = $request->user();
-        $patient = $user->patient; // may be null if not a patient
+        $category = optional($user->userRole)->category;
 
-        if (!$patient) {
+        if (!in_array($category, ['user', 'rcy'])) {
             abort(403, 'You do not have access to medical forms.');
         }
 
-        $assignments = FormAssignment::with(['form', 'admin'])
-            ->where('patient_id', $patient->id)
-            ->latest()
-            ->paginate(10);
+        // Fetch all services from DB ordered by slug
+        $services = Service::where('slug', '!=', 'clinic-consultation-record-form')
+            ->orderBy('slug', 'desc')
+            ->get()
+            ->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'title' => $service->title,
+                    'slug' => $service->slug,
+                    'description' => $service->description,
+                ];
+            });
 
         return Inertia::render('user/medicalForms/Index', [
-            'assignments' => $assignments,
+            'patient' => [
+                'name' => $user->name,
+                'birthdate' => $user->birthdate,
+                'sex' => $user->sex,
+                'course' => $user->course,
+                'year' => $user->yearLevel,
+                'office' => $user->office,
+                'category' => $category,
+                'user_role' => $user->userRole,
+            ],
+            'assignments' => [
+                'data' => $services, // pass sorted services
+            ],
             'breadcrumbs' => [
                 ['title' => 'Dashboard', 'href' => route('user.dashboard')],
                 ['title' => 'Medical Forms'],
@@ -35,57 +52,38 @@ class MedicalFormController extends Controller
         ]);
     }
 
-    /**
-     * Display a specific assigned medical form.
-     */
-    public function show($id, Request $request)
+    // New method to show a specific form
+     public function show($slug, Request $request)
     {
-        $patientId = optional($request->user()->patient)->id;
+        $user = $request->user();
+        $category = optional($user->userRole)->category;
 
-        if (!$patientId) {
+        if (!in_array($category, ['user', 'rcy'])) {
             abort(403, 'You do not have access to medical forms.');
         }
 
-        $assignment = FormAssignment::with(['form', 'admin'])
-            ->where('patient_id', $patientId)
-            ->where('id', $id)
-            ->firstOrFail();
-
-        return Inertia::render('user/medicalForms/Show', [
-            'assignment' => $assignment,
-            'fileUrl' => $assignment->form->file_path 
-                ? asset('storage/' . $assignment->form->file_path) 
-                : null,
-        ]);
-    }
-
-    /**
-     * Submit a completed medical form.
-     */
-    public function submit(Request $request, FormAssignment $assignment)
-    {
-        $patient = $request->user()->patient;
-
-        if (!$patient || $assignment->patient_id !== $patient->id) {
-            abort(403, 'Unauthorized to submit this form.');
+        // Handle Lab Results separately
+        if ($slug === 'laboratory-results') {
+            $service = (object) [
+                'title' => 'Laboratory Results',
+                'slug' => 'laboratory-results',
+                'description' => null,
+            ];
+        } else {
+            // Fetch from Service table
+            $service = Service::where('slug', $slug)->firstOrFail();
         }
 
-        $validated = $request->validate([
-            'responses' => 'required|array',
+        return Inertia::render('user/medicalForms/ShowForm', [
+            'service' => $service,
+            'patient' => [
+                'name' => $user->name,
+                'birthdate' => $user->birthdate,
+                'sex' => $user->sex,
+                'course' => $user->course,
+                'year' => $user->yearLevel,
+                'office' => $user->office,
+            ],
         ]);
-
-        $assignment->response()->updateOrCreate(
-            [],
-            ['data' => json_encode($validated['responses'])]
-        );
-
-        $assignment->update([
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
-
-        return redirect()
-            ->route('user.medical-forms.index')
-            ->with('success', 'Form submitted successfully!');
     }
 }

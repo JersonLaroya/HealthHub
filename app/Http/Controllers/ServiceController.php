@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Form;
+use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
-class FormController extends Controller
+class ServiceController extends Controller
 {
     public function index()
     {
-        $forms = Form::latest()->paginate(10);
+        $forms = Service::latest()->paginate(10);
         return inertia('admin/forms/Index', ['forms' => $forms]);
     }
 
@@ -19,13 +20,12 @@ class FormController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'file' => 'required|file|mimes:pdf|max:10240', // max 10MB
+            'file' => 'required|file|mimes:pdf|max:10240',
         ]);
 
-        $file = $request->file('file');
-        $path = $file->store('forms', 'public'); // stored in storage/app/public/forms
+        $path = $request->file('file')->store('forms', 'public');
 
-        Form::create([
+        Service::create([
             'title' => $request->title,
             'slug' => Str::slug($request->title),
             'description' => $request->description,
@@ -35,9 +35,8 @@ class FormController extends Controller
         return redirect()->back()->with('success', 'Form created successfully!');
     }
 
-    public function update(Request $request, Form $form)
+    public function update(Request $request, Service $form)
     {
-        
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -45,9 +44,12 @@ class FormController extends Controller
         ]);
 
         if ($request->hasFile('file')) {
-            if ($form->file_path && file_exists(public_path('storage/' . $form->file_path))) {
-                unlink(public_path('storage/' . $form->file_path));
+            // delete old file from public storage
+            if ($form->file_path && Storage::disk('public')->exists($form->file_path)) {
+                Storage::disk('public')->delete($form->file_path);
             }
+
+            // store new file
             $validated['file_path'] = $request->file('file')->store('forms', 'public');
         }
 
@@ -56,10 +58,10 @@ class FormController extends Controller
         return back()->with('success', 'Form updated successfully.');
     }
 
-    public function destroy(Form $form)
+    public function destroy(Service $form)
     {
-        if ($form->file_path && \Storage::disk('public')->exists($form->file_path)) {
-            \Storage::disk('public')->delete($form->file_path);
+        if ($form->file_path && Storage::disk('public')->exists($form->file_path)) {
+            Storage::disk('public')->delete($form->file_path);
         }
 
         $form->delete();

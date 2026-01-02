@@ -83,16 +83,16 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
     birthdate: formatDate(personalInfo?.birthdate),
     sex: personalInfo?.sex || "",
 
-    home_province_name: personalInfo?.homeAddress?.province || "",
-    home_province_code: personalInfo?.homeAddress?.provinceCode || "",
+    home_province_name: personalInfo?.homeAddress?.province || defaultProvince.name,
+    home_province_code: personalInfo?.homeAddress?.provinceCode || defaultProvince.code,
     home_municipality_name: personalInfo?.homeAddress?.town || "",
     home_municipality_code: personalInfo?.homeAddress?.municipalityCode || "",
     home_barangay_name: personalInfo?.homeAddress?.barangay || "",
     home_barangay_code: personalInfo?.homeAddress?.barangayCode || "",
     home_purok: personalInfo?.homeAddress?.purok || "",
 
-    present_province_name: personalInfo?.presentAddress?.province || "",
-    present_province_code: personalInfo?.presentAddress?.provinceCode || "",
+    present_province_name: personalInfo?.presentAddress?.province || defaultProvince.name,
+    present_province_code: personalInfo?.presentAddress?.provinceCode || defaultProvince.code,
     present_municipality_name: personalInfo?.presentAddress?.town || "",
     present_municipality_code: personalInfo?.presentAddress?.municipalityCode || "",
     present_barangay_name: personalInfo?.presentAddress?.barangay || "",
@@ -113,9 +113,9 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
   const [presentBarangays, setPresentBarangays] = useState<any[]>([]);
 
   // Store selected codes
-  const [homeProvinceCode, setHomeProvinceCode] = useState(personalInfo?.homeAddress?.provinceCode || "");
+  const [homeProvinceCode, setHomeProvinceCode] = useState(personalInfo?.homeAddress?.provinceCode || defaultProvince.code);
   const [homeMunicipalityCode, setHomeMunicipalityCode] = useState(personalInfo?.homeAddress?.municipalityCode || "");
-  const [presentProvinceCode, setPresentProvinceCode] = useState(personalInfo?.presentAddress?.provinceCode || "");
+  const [presentProvinceCode, setPresentProvinceCode] = useState(personalInfo?.presentAddress?.provinceCode || defaultProvince.code);
   const [presentMunicipalityCode, setPresentMunicipalityCode] = useState(personalInfo?.presentAddress?.municipalityCode || "");
 
   // Load provinces
@@ -331,7 +331,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.home_province_code}
                 onChange={(e) => {
                   const selectedProvince = provinces.find(p => p.code === e.target.value);
-                  setHomeProvinceName(selectedProvince?.code || "");
+                  //setHomeProvinceName(selectedProvince?.code || "");
                   setData("home_province_name", selectedProvince?.name || "");
                   setData("home_province_code", selectedProvince?.code || "");
                   fetch(`https://psgc.gitlab.io/api/provinces/${e.target.value}/municipalities/`)
@@ -350,7 +350,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.home_municipality_code}
                 onChange={(e) => {
                   const selectedMunicipality = homeMunicipalities.find(m => m.code === e.target.value);
-                  setHomeMunicipalityName(selectedMunicipality?.code || "");
+                  //setHomeMunicipalityName(selectedMunicipality?.code || "");
                   setData("home_municipality_name", selectedMunicipality?.name || "");
                   setData("home_municipality_code", selectedMunicipality?.code || "");
                   if (selectedMunicipality) {
@@ -398,7 +398,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.present_province_code}
                 onChange={(e) => {
                   const selectedProvince = provinces.find(p => p.code === e.target.value);
-                  setPresentProvinceName(selectedProvince?.code || "");
+                  setPresentProvinceName(selectedProvince?.code);
                   setData("present_province_name", selectedProvince?.name || "");
                   setData("present_province_code", selectedProvince?.code || "");
                   fetch(`https://psgc.gitlab.io/api/provinces/${e.target.value}/municipalities/`)
@@ -417,7 +417,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.present_municipality_code}
                 onChange={(e) => {
                   const selectedMunicipality = presentMunicipalities.find(m => m.code === e.target.value);
-                  setPresentMunicipalityName(selectedMunicipality?.code || "");
+                  //setPresentMunicipalityName(selectedMunicipality?.code || "");
                   setData("present_municipality_name", selectedMunicipality?.name || "");
                   setData("present_municipality_code", selectedMunicipality?.code || "");
                   fetch(`https://psgc.gitlab.io/api/municipalities/${e.target.value}/barangays/`)
