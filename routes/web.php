@@ -52,7 +52,20 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])->prefix('user')->name
     // Medical Forms page
     Route::get('/medical-forms', [MedicalFormController::class, 'index'])->name('medical-forms.index');
     Route::get('/medical-forms/{slug}', [MedicalFormController::class, 'show'])->name('medical-forms.show');
-    Route::post('/medical-forms/{assignment}/submit', [MedicalFormController::class, 'submit'])->name('medical-forms.submit');
+    Route::get('/medical-forms/{slug}/download', [MedicalFormController::class, 'download'])->name('medical-forms.download');
+
+    // Preenrollment
+    Route::get('/fill-forms/pre-enrollment-health-form/fill', [MedicalFormController::class, 'fillPreenrollment'])
+        ->name('fill-forms.pre-enrollment-health-form.fill');
+
+    // Preemployment
+    Route::get('/fill-forms/pre-employment-health-form/fill', [MedicalFormController::class, 'fillPreemployment'])
+        ->name('fill-forms.pre-employment-health-form.fill');
+
+    // Athlete
+    Route::get('/fill-forms/athlete-medical/fill', [MedicalFormController::class, 'fillAthlete'])
+        ->name('fill-forms.athlete-medical.fill');
+
 
     Route::get('/records', function () {
         return Inertia::render('user/records');

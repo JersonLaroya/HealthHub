@@ -31,6 +31,32 @@ export default function ShowForm({ service, patient }: Props) {
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
+  const handleFillForm = (serviceSlug: string) => {
+    // map slug to your TSX page routes
+    let path = '';
+
+    console.log('Filling form for slug:', serviceSlug);
+
+    switch (serviceSlug) {
+      case 'pre-enrollment-health-form':
+        path = '/user/fill-forms/pre-enrollment-health-form/fill';
+        break;
+      case 'pre-employment-health-form':
+        path = '/user/fill-forms/pre-employment-health-form/fill';
+        break;
+      case 'athlete-medical':
+        path = '/user/fill-forms/athlete-medical/fill';
+        break;
+      default:
+        console.error('Unknown form slug:', serviceSlug);
+        return;
+    }
+
+    // redirect to the proper page
+    window.location.href = path;
+  };
+
+
   return (
     <AppLayout>
       <Head title={service.title} />
@@ -73,7 +99,7 @@ export default function ShowForm({ service, patient }: Props) {
           <div className="p-6 border rounded-lg shadow-md bg-white dark:bg-neutral-800 text-center">
             <Button
               variant="default"
-              onClick={() => window.location.href = `/user/medical-forms/${service.slug}/fill`}
+              onClick={() => handleFillForm(service.slug)}
             >
               Fill up {service.title}
             </Button>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Service;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MedicalFormController extends Controller
 {
@@ -86,4 +87,57 @@ class MedicalFormController extends Controller
             ],
         ]);
     }
+
+    public function fillPreenrollment()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/PreEnrollmentForm', [
+            'patient' => [
+                'name' => $user->name,
+                'first_name' => $user->first_name,
+                'middle_name' => $user->middle_name,
+                'last_name' => $user->last_name,
+                'sex' => $user->sex,
+                'birthdate' => $user->birthdate,
+                'signature' => $user->signature,
+            ],
+        ]);
+    }
+
+    public function fillPreemployment()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/PreEmploymentForm', [
+            'patient' => [
+                'name' => $user->name,
+                'sex' => $user->sex,
+                'birthdate' => $user->birthdate,
+            ],
+        ]);
+    }
+
+    public function fillAthlete()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/AthleteForm', [
+            'patient' => [
+                'name' => $user->name,
+                'sex' => $user->sex,
+                'birthdate' => $user->birthdate,
+            ],
+        ]);
+    }
+
+    public function download($slug)
+    {
+        $service = Service::where('slug', $slug)->firstOrFail();
+
+        // logic to generate PDF (using pdflib or dompdf)
+        $pdf = Pdf::loadView('pdf.forms', ['service' => $service]);
+        return $pdf->download($service->title . '.pdf');
+    }
+
 }
