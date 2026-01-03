@@ -32,27 +32,26 @@ export default function ShowForm({ service, patient }: Props) {
   };
 
   const handleFillForm = (serviceSlug: string) => {
-    // map slug to your TSX page routes
-    let path = '';
+  let path = '';
 
-    console.log('Filling form for slug:', serviceSlug);
-
-    switch (serviceSlug) {
+  switch (serviceSlug) {
       case 'pre-enrollment-health-form':
-        path = '/user/fill-forms/pre-enrollment-health-form/fill';
+        path = '/user/fill-forms/pre-enrollment-health-form/page-1';
         break;
+
       case 'pre-employment-health-form':
-        path = '/user/fill-forms/pre-employment-health-form/fill';
+        path = '/user/fill-forms/pre-employment-health-form/page-1';
         break;
+
       case 'athlete-medical':
-        path = '/user/fill-forms/athlete-medical/fill';
+        path = '/user/fill-forms/athlete-medical/page-1';
         break;
+
       default:
         console.error('Unknown form slug:', serviceSlug);
         return;
     }
 
-    // redirect to the proper page
     window.location.href = path;
   };
 

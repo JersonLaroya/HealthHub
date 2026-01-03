@@ -6,7 +6,7 @@ interface Props {
   patient: {
     first_name?: string;
     last_name?: string;
-    middle_initial?: string;
+    middle_name?: string;
     birthdate?: string; // YYYY-MM-DD
     signature?: string;
   };
@@ -36,15 +36,23 @@ export default function PreenrollmentPage1({ patient }: Props) {
     name: fullName,
     birthdate: formatBirthdate(),
 
-    data_privacy_consent: false,
-    assessment_consent: false,
+    check_box_consent1: false,
+    check_box_consent2: false,
 
-    signature_printed: `${printedName}  ${todayFormatted}`,
+    printed_name: `${printedName}  ${todayFormatted}`,
+    signature_image: patient.signature || null,
   });
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
-    form.post('/user/medical-forms/preenrollment/page-1');
+
+    sessionStorage.setItem(
+      'preenrollment_page_1',
+      JSON.stringify(form.data)
+    );
+
+    window.location.href =
+        '/user/fill-forms/pre-enrollment-health-form/page-2';
   };
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
@@ -101,9 +109,9 @@ export default function PreenrollmentPage1({ patient }: Props) {
           <div className="flex items-start justify-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={form.data.data_privacy_consent}
+              checked={form.data.check_box_consent1}
               onChange={e =>
-                form.setData('data_privacy_consent', e.target.checked)
+                form.setData('check_box_consent1', e.target.checked)
               }
               className="mt-1"
             />
@@ -121,9 +129,9 @@ export default function PreenrollmentPage1({ patient }: Props) {
             <div className="flex items-start justify-center gap-2 mt-1 text-sm">
               <input
                 type="checkbox"
-                checked={form.data.assessment_consent}
+                checked={form.data.check_box_consent2}
                 onChange={e =>
-                  form.setData('assessment_consent', e.target.checked)
+                  form.setData('check_box_consent2', e.target.checked)
                 }
                 className="mt-1"
               />
@@ -151,7 +159,7 @@ export default function PreenrollmentPage1({ patient }: Props) {
 
               <input
                 className={lineInput + ' text-center uppercase'}
-                value={form.data.signature_printed}
+                value={form.data.printed_name}
                 readOnly
               />
 

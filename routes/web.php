@@ -55,8 +55,38 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])->prefix('user')->name
     Route::get('/medical-forms/{slug}/download', [MedicalFormController::class, 'download'])->name('medical-forms.download');
 
     // Preenrollment
-    Route::get('/fill-forms/pre-enrollment-health-form/fill', [MedicalFormController::class, 'fillPreenrollment'])
-        ->name('fill-forms.pre-enrollment-health-form.fill');
+    Route::prefix('fill-forms/pre-enrollment-health-form')
+    ->name('fill-forms.pre-enrollment.')
+    ->group(function () {
+
+        Route::get('/page-1', [MedicalFormController::class, 'preenrollmentPage1'])
+            ->name('page-1');
+
+        Route::get('/page-2', [MedicalFormController::class, 'preenrollmentPage2'])
+            ->name('page-2');
+
+        Route::get('/page-3', [MedicalFormController::class, 'preenrollmentPage3'])
+            ->name('page-3');
+
+        Route::get('/page-4', [MedicalFormController::class, 'preenrollmentPage4'])
+            ->name('page-4');
+
+        Route::get('/page-5', [MedicalFormController::class, 'preenrollmentPage5'])
+            ->name('page-5');
+
+        Route::get('/page-6', [MedicalFormController::class, 'preenrollmentPage6'])
+            ->name('page-6');
+
+        Route::get('/page-7', [MedicalFormController::class, 'preenrollmentPage7'])
+            ->name('page-7');
+
+        Route::get('/preview', [MedicalFormController::class, 'previewPreEnrollmentPDF'])
+            ->name('preview');
+    });
+
+    Route::get('/medical-forms/{slug}/template', [MedicalFormController::class, 'getFormTemplate'])
+            ->name('user.medical-forms.template');
+
 
     // Preemployment
     Route::get('/fill-forms/pre-employment-health-form/fill', [MedicalFormController::class, 'fillPreemployment'])

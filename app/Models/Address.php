@@ -28,4 +28,9 @@ class Address extends Model
         return $this->belongsTo(Barangay::class);
     }
 
+    public function getFullAddressAttribute()
+    {
+        return "{$this->street}, {$this->barangay->name}, {$this->barangay->municipality->name}, {$this->barangay->municipality->province->name}";
+    }
+
 }
