@@ -96,6 +96,9 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])->prefix('user')->name
     Route::get('/fill-forms/athlete-medical/fill', [MedicalFormController::class, 'fillAthlete'])
         ->name('fill-forms.athlete-medical.fill');
 
+    // Submit Form
+    Route::post('/submit/{formType}', [MedicalFormController::class, 'submitForm'])
+        ->name('submit.form');
 
     Route::get('/records', function () {
         return Inertia::render('user/records');

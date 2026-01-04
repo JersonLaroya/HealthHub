@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
 
 interface Props {
   patient: {
@@ -43,17 +44,27 @@ export default function PreenrollmentPage1({ patient }: Props) {
     signature_image: patient.signature || null,
   });
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem('preenrollment_page_1');
+    if (saved) {
+      form.setData({
+        ...form.data,
+        ...JSON.parse(saved),
+      });
+    } else if (patient.signature) {
+      form.setData('signature_image', patient.signature);
+    }
+  }, [patient.signature]);
+
+  const [saving, setSaving] = useState(false);
+
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
-
-    sessionStorage.setItem(
-      'preenrollment_page_1',
-      JSON.stringify(form.data)
-    );
-
-    window.location.href =
-        '/user/fill-forms/pre-enrollment-health-form/page-2';
+    setSaving(true);
+    sessionStorage.setItem('preenrollment_page_1', JSON.stringify(form.data));
+    window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-2';
   };
+
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
 
@@ -171,7 +182,9 @@ export default function PreenrollmentPage1({ patient }: Props) {
 
           {/* NEXT */}
           <div className="flex justify-end">
-            <Button type="submit">Next</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Continuing...' : 'Next'}
+            </Button>
           </div>
         </form>
       </div>

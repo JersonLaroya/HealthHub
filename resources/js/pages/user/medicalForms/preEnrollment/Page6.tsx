@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface Props {
   patient: {
@@ -26,45 +27,46 @@ const hereditaryDiseases = [
 ];
 
 export default function PreenrollmentPage6({ patient }: Props) {
+
+  const normalizeHereditary = (data: any) => {
+    if (!data.family.hereditary) {
+      data.family.hereditary = hereditaryDiseases.map(d => ({
+        disease: d,
+        answer: '',
+        relation: ''
+      }));
+    } else if (!Array.isArray(data.family.hereditary)) {
+      // Convert old object structure to array
+      data.family.hereditary = Object.entries(data.family.hereditary).map(
+        ([disease, info]) => ({
+          disease,
+          answer: info.answer || '',
+          relation: info.relation || '',
+        })
+      );
+    }
+    return data;
+  };
+
   const savedData = sessionStorage.getItem('preenrollment_page_6');
 
   const form = useForm(
     savedData
-      ? JSON.parse(savedData)
+      ? normalizeHereditary(JSON.parse(savedData))
       : {
           family: {
-            mother: {
-              status: '',
-              age_alive: '',
-              diseases: '',
-              medications: '',
-              age_death: '',
-              cause_death: '',
-            },
-            father: {
-              status: '',
-              age_alive: '',
-              diseases: '',
-              medications: '',
-              age_death: '',
-              cause_death: '',
-            },
+            mother: { status: '', age_alive: '', diseases: '', medications: '', age_death: '', cause_death: '' },
+            father: { status: '', age_alive: '', diseases: '', medications: '', age_death: '', cause_death: '' },
             siblings_count: '',
             siblings_illnesses: '',
-            spouse: {
-              status: '',
-              age_alive: '',
-              diseases: '',
-              medications: '',
-              age_death: '',
-              cause_death: '',
-            },
+            spouse: { status: '', age_alive: '', diseases: '', medications: '', age_death: '', cause_death: '' },
             children_count: '',
             children_health_problems: '',
-            hereditary: hereditaryDiseases.reduce((acc, d) => {
-              acc[d] = { answer: '', relation: '' };
-              return acc;
-            }, {} as Record<string, { answer: string; relation: string }>),
+            hereditary: hereditaryDiseases.map(d => ({
+              disease: d,
+              answer: '',
+              relation: ''
+            })),
           },
           social_history: {
             alcohol_use: { answer: '', details: '' },
@@ -76,16 +78,16 @@ export default function PreenrollmentPage6({ patient }: Props) {
         }
   );
 
+
   const lineInput =
     'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 text-sm';
+  const [savingNext, setSavingNext] = useState(false);
+  const [savingPrev, setSavingPrev] = useState(false);
 
-  const isMarried = patient.civil_status?.toLowerCase() === 'married';
-
-  const submitPage = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitPage = (e?: React.MouseEvent | React.FormEvent) => {
+    e?.preventDefault();
     sessionStorage.setItem('preenrollment_page_6', JSON.stringify(form.data));
-    window.location.href =
-      '/user/fill-forms/pre-enrollment-health-form/page-7';
+    window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-7';
   };
 
   return (
@@ -235,6 +237,121 @@ export default function PreenrollmentPage6({ patient }: Props) {
           />
         </div>
 
+        {/* SIBLINGS */}
+        <div className="space-y-2 mt-4">
+          <p className="font-medium">How many siblings do you have?</p>
+          <input
+            className={lineInput}
+            placeholder="Number of siblings"
+            value={form.data.family.siblings_count}
+            onChange={(e) =>
+              form.setData('family.siblings_count', e.target.value)
+            }
+          />
+
+          <p className="font-medium mt-2">Any illnesses?</p>
+          <input
+            className={lineInput}
+            placeholder="Illnesses of siblings"
+            value={form.data.family.siblings_illnesses}
+            onChange={(e) =>
+              form.setData('family.siblings_illnesses', e.target.value)
+            }
+          />
+        </div>
+
+        {/* SPOUSE & CHILDREN */}
+        <div className="space-y-4 mt-4">
+          <h2 className="font-medium">
+            Answer the following questions IF YOU ARE MARRIED:
+          </h2>
+
+          {/* SPOUSE */}
+          <p className="font-medium mt-2">Spouse:</p>
+          <div className="flex gap-4">
+            {['Alive', 'Deceased'].map((s) => (
+              <label key={s} className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  checked={form.data.family.spouse.status === s}
+                  onChange={() =>
+                    form.setData('family.spouse.status', s)
+                  }
+                />
+                {s}
+              </label>
+            ))}
+          </div>
+
+          {form.data.family.spouse.status === 'Alive' && (
+            <input
+              className={lineInput}
+              placeholder="Current age"
+              value={form.data.family.spouse.age_alive}
+              onChange={(e) =>
+                form.setData('family.spouse.age_alive', e.target.value)
+              }
+            />
+          )}
+
+          {form.data.family.spouse.status === 'Deceased' && (
+            <>
+              <input
+                className={lineInput}
+                placeholder="Age at time of death"
+                value={form.data.family.spouse.age_death}
+                onChange={(e) =>
+                  form.setData('family.spouse.age_death', e.target.value)
+                }
+              />
+              <input
+                className={lineInput}
+                placeholder="Cause of death"
+                value={form.data.family.spouse.cause_death}
+                onChange={(e) =>
+                  form.setData('family.spouse.cause_death', e.target.value)
+                }
+              />
+            </>
+          )}
+
+          <input
+            className={lineInput}
+            placeholder="Diseases"
+            value={form.data.family.spouse.diseases}
+            onChange={(e) =>
+              form.setData('family.spouse.diseases', e.target.value)
+            }
+          />
+          <input
+            className={lineInput}
+            placeholder="Maintenance medications"
+            value={form.data.family.spouse.medications}
+            onChange={(e) =>
+              form.setData('family.spouse.medications', e.target.value)
+            }
+          />
+
+          {/* CHILDREN */}
+          <p className="font-medium mt-2">Children:</p>
+          <input
+            className={lineInput}
+            placeholder="Number of children"
+            value={form.data.family.children_count}
+            onChange={(e) =>
+              form.setData('family.children_count', e.target.value)
+            }
+          />
+          <input
+            className={lineInput}
+            placeholder="Health problems"
+            value={form.data.family.children_health_problems}
+            onChange={(e) =>
+              form.setData('family.children_health_problems', e.target.value)
+            }
+          />
+        </div>
+
         {/* HEREDITARY TABLE */}
         <div className="overflow-x-auto">
           <p className="font-medium mb-2">
@@ -251,36 +368,33 @@ export default function PreenrollmentPage6({ patient }: Props) {
               </tr>
             </thead>
             <tbody>
-              {hereditaryDiseases.map((d) => (
-                <tr key={d}>
-                  <td className="border px-2 py-1">{d}</td>
+              {form.data.family.hereditary.map((item, index) => (
+                <tr key={index}>
+                  <td className="border px-2 py-1">{item.disease}</td>
                   <td className="border text-center">
                     <input
                       type="radio"
-                      checked={form.data.family.hereditary[d].answer === 'Yes'}
+                      checked={item.answer === 'Yes'}
                       onChange={() =>
-                        form.setData(`family.hereditary.${d}.answer`, 'Yes')
+                        form.setData(`family.hereditary.${index}.answer`, 'Yes')
                       }
                     />
                   </td>
                   <td className="border text-center">
                     <input
                       type="radio"
-                      checked={form.data.family.hereditary[d].answer === 'No'}
+                      checked={item.answer === 'No'}
                       onChange={() =>
-                        form.setData(`family.hereditary.${d}.answer`, 'No')
+                        form.setData(`family.hereditary.${index}.answer`, 'No')
                       }
                     />
                   </td>
                   <td className="border px-2">
                     <input
                       className={lineInput}
-                      value={form.data.family.hereditary[d].relation}
+                      value={item.relation}
                       onChange={(e) =>
-                        form.setData(
-                          `family.hereditary.${d}.relation`,
-                          e.target.value
-                        )
+                        form.setData(`family.hereditary.${index}.relation`, e.target.value)
                       }
                     />
                   </td>
@@ -480,19 +594,25 @@ export default function PreenrollmentPage6({ patient }: Props) {
         <div className="flex justify-between mt-6">
           <Button
             variant="secondary"
+            disabled={savingPrev || savingNext}
             onClick={() => {
-              sessionStorage.setItem(
-                'preenrollment_page_6',
-                JSON.stringify(form.data)
-              );
-              window.location.href =
-                '/user/fill-forms/pre-enrollment-health-form/page-5';
+              setSavingPrev(true);
+              sessionStorage.setItem('preenrollment_page_6', JSON.stringify(form.data));
+              window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-5';
             }}
           >
-            Previous
+            {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
 
-          <Button onClick={submitPage}>Next</Button>
+          <Button
+            disabled={savingNext || savingPrev}
+            onClick={(e) => {
+              setSavingNext(true);
+              submitPage(e);
+            }}
+          >
+            {savingNext ? 'Continuing…' : 'Next'}
+          </Button>
         </div>
       </div>
     </AppLayout>

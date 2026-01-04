@@ -2,7 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Props {
   patient: {
@@ -11,10 +11,39 @@ interface Props {
     middle_name?: string;
     signature?: string;
   };
+  alreadySubmitted: boolean;
 }
 
-export default function PreenrollmentPage7({ patient }: Props) {
-  const [loading, setLoading] = useState(false); // <-- spinner state
+export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props) {
+
+  // Redirect immediately if already submitted
+  useEffect(() => {
+    if (alreadySubmitted) {
+       window.location.href = '/user/medical-forms/pre-enrollment-health-form';
+    }
+  }, [alreadySubmitted]);
+
+  // Add countdown state
+  const [countdown, setCountdown] = useState(30);
+  const [submitDisabled, setSubmitDisabled] = useState(true);
+
+// Run countdown if not already submitted
+  useEffect(() => {
+    if (alreadySubmitted) return; // skip countdown
+
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setSubmitDisabled(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [alreadySubmitted]);
 
   const middleInitial = patient.middle_name
     ? `${patient.middle_name.charAt(0).toUpperCase()}.`
@@ -29,28 +58,41 @@ export default function PreenrollmentPage7({ patient }: Props) {
 
   const savedData = sessionStorage.getItem('preenrollment_page_7');
 
-  const form = useForm(
-    savedData
-      ? JSON.parse(savedData)
-      : {
-          printed_name: `${printedName}  ${todayFormatted}`,
-          signature_image: patient.signature || null,
-        }
-  );
+  const form = useForm({
+    responses: {
+      page1: JSON.parse(sessionStorage.getItem('preenrollment_page_1') || '{}'),
+      page2: JSON.parse(sessionStorage.getItem('preenrollment_page_2') || '{}'),
+      page3: JSON.parse(sessionStorage.getItem('preenrollment_page_3') || '{}'),
+      page4: JSON.parse(sessionStorage.getItem('preenrollment_page_4') || '{}'),
+      page5: JSON.parse(sessionStorage.getItem('preenrollment_page_5') || '{}'),
+      page6: JSON.parse(sessionStorage.getItem('preenrollment_page_6') || '{}'),
+    },
+  });
 
-  const savePageData = () => {
-    sessionStorage.setItem('preenrollment_page_7', JSON.stringify(form.data));
-  };
+
+  const [savingPrev, setSavingPrev] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false); 
+  const serviceSlug = 'pre-enrollment-health-form';
 
   const submitPage = (e: React.FormEvent) => {
-    e.preventDefault();
-    savePageData();
-    window.location.href = '/user/fill-forms/pre-enrollment-health-form/complete';
-  };
+      e.preventDefault();
+      setSubmitting(true);
+
+      console.log('responses before post', form.data.responses);
+
+      // Post the form state
+      form.post('/user/submit/pre-enrollment-health-form', {
+        onSuccess: () => {
+          sessionStorage.clear(); // clear session if needed
+          // no window.location.href here
+        },
+        onFinish: () => setSubmitting(false),
+      });
+    };
 
   // PREVIEW PDF
   const previewPdf = async () => {
-    savePageData();
     setLoading(true); // start spinner
 
     const allData = {
@@ -60,7 +102,6 @@ export default function PreenrollmentPage7({ patient }: Props) {
       page4: JSON.parse(sessionStorage.getItem('preenrollment_page_4') || '{}'),
       page5: JSON.parse(sessionStorage.getItem('preenrollment_page_5') || '{}'),
       page6: JSON.parse(sessionStorage.getItem('preenrollment_page_6') || '{}'),
-      page7: JSON.parse(sessionStorage.getItem('preenrollment_page_7') || '{}'),
     };
 
     try {
@@ -68,13 +109,14 @@ export default function PreenrollmentPage7({ patient }: Props) {
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      window.open(url, '_blank');
+      window.open(url, '_blank'); // open PDF in new tab
     } catch (err) {
       console.error('Failed to generate PDF preview:', err);
     } finally {
       setLoading(false); // stop spinner
     }
   };
+
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
 
@@ -118,7 +160,7 @@ export default function PreenrollmentPage7({ patient }: Props) {
 
             <input
               className={`${lineInput} text-center uppercase`}
-              value={form.data.printed_name}
+              value={`${printedName}  ${todayFormatted}`}
               readOnly
             />
 
@@ -128,28 +170,35 @@ export default function PreenrollmentPage7({ patient }: Props) {
           </div>
         </div>
 
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-center mt-4">
+          ⚠️ Please preview your response first to ensure all information is correct.
+        </div>
+
         <div className="flex justify-between mt-10">
           <Button
             variant="secondary"
+            disabled={savingPrev || submitting}
             onClick={() => {
-              savePageData();
+              setSavingPrev(true);
               window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-6';
             }}
           >
-            Previous
+            {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
 
           <div className="flex gap-3 items-center">
             <Button variant="outline" onClick={previewPdf} disabled={loading}>
-              {loading ? 'Generating PDF...' : 'Preview PDF'}
+              {loading ? 'Previewing PDF…' : 'Preview PDF'}
             </Button>
 
-            {loading && (
-              <div className="ml-2 animate-spin border-2 border-t-2 border-gray-500 rounded-full w-5 h-5"></div>
-            )}
-
-            <Button onClick={submitPage} disabled={loading}>
-              Finish
+            <Button
+              onClick={(e) => {
+                setSubmitting(true);
+                submitPage(e);
+              }}
+              disabled={submitting || savingPrev || submitDisabled}
+            >
+              {submitDisabled ? `Submit (${countdown}s)` : submitting ? 'Submitting…' : 'Submit'}
             </Button>
           </div>
         </div>

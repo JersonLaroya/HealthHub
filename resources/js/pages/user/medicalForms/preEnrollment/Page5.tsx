@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface Props {
   patient: {
@@ -10,34 +11,55 @@ interface Props {
 
 export default function PreenrollmentPage5({ patient }: Props) {
   const savedData = sessionStorage.getItem('preenrollment_page_5');
+  let parsedData = savedData ? JSON.parse(savedData) : {};
 
-  const form = useForm({
-  ...(
-    savedData
-      ? {
-          ...JSON.parse(savedData),
-          immunization: Array.isArray(JSON.parse(savedData).immunization)
-            ? JSON.parse(savedData).immunization
-            : [
-                '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
-              ],
-        }
-      : {
-          immunization: ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-          femaleHealth: ['', '', '', '', '', '', '', '', '', false, ''],
-        }
-  ),
-});
+  const femaleHealth = parsedData.femaleHealth
+  ? Array.isArray(parsedData.femaleHealth)
+    ? {
+        menstruationAge: parsedData.femaleHealth[0] || '',
+        menstruationRegularity: parsedData.femaleHealth[1] || '',
+        menstruationDuration: parsedData.femaleHealth[2] || '',
+        menstruationFlow: parsedData.femaleHealth[3] || '',
+        dysmenorrhea: parsedData.femaleHealth[4] || '',
+        lastMenstrualPeriod: parsedData.femaleHealth[5] || '',
+        breastTrouble: parsedData.femaleHealth[6] || '',
+        breastDetails: parsedData.femaleHealth[7] || '',
+        pregnantNow: parsedData.femaleHealth[8] || '',
+        haveChildren: parsedData.femaleHealth[9] || false,
+        numberOfChildren: parsedData.femaleHealth[10] || '',
+      }
+    : parsedData.femaleHealth
+  : {
+      menstruationAge: '',
+      menstruationRegularity: '',
+      menstruationDuration: '',
+      menstruationFlow: '',
+      dysmenorrhea: '',
+      lastMenstrualPeriod: '',
+      breastTrouble: '',
+      breastDetails: '',
+      pregnantNow: '',
+      haveChildren: false,
+      numberOfChildren: '',
+    };
+
+    const form = useForm({
+      ...parsedData,
+      immunization: parsedData.immunization ?? Array(15).fill(''),
+      femaleHealth, // normalized object
+    });
 
   const lineInput =
     'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 text-sm';
+    const [savingNext, setSavingNext] = useState(false);
+    const [savingPrev, setSavingPrev] = useState(false);
 
-  const submitPage = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitPage = (e?: React.MouseEvent | React.FormEvent) => {
+    e?.preventDefault();
     sessionStorage.setItem('preenrollment_page_5', JSON.stringify(form.data));
-    window.location.href =
-      '/user/fill-forms/pre-enrollment-health-form/page-6';
+    window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-6';
   };
+
 
   return (
     <AppLayout>
@@ -122,9 +144,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
               <label>Menstruation: Age of onset</label>
               <input
                 className={lineInput}
-                value={form.data.femaleHealth[0]} // menstruationAge
+                value={form.data.femaleHealth.menstruationAge}
                 onChange={(e) =>
-                  form.setData('femaleHealth.0', e.target.value)
+                  form.setData('femaleHealth', {
+                    ...form.data.femaleHealth,
+                    menstruationAge: e.target.value,
+                  })
                 }
               />
             </div>
@@ -136,9 +161,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
                   <label key={opt} className="flex items-center gap-1">
                     <input
                       type="radio"
-                      checked={form.data.femaleHealth[1] === opt} // menstruationRegularity
+                      checked={form.data.femaleHealth.menstruationRegularity === opt}
                       onChange={() =>
-                        form.setData('femaleHealth.1', opt)
+                        form.setData('femaleHealth', {
+                          ...form.data.femaleHealth,
+                          menstruationRegularity: opt,
+                        })
                       }
                     />
                     {opt}
@@ -151,9 +179,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
               <label>Duration (days)</label>
               <input
                 className={lineInput}
-                value={form.data.femaleHealth[2]} // menstruationDuration
+                value={form.data.femaleHealth.menstruationDuration}
                 onChange={(e) =>
-                  form.setData('femaleHealth.2', e.target.value)
+                  form.setData('femaleHealth', {
+                    ...form.data.femaleHealth,
+                    menstruationDuration: e.target.value,
+                  })
                 }
               />
             </div>
@@ -165,9 +196,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
                   <label key={flow} className="flex items-center gap-1">
                     <input
                       type="radio"
-                      checked={form.data.femaleHealth[3] === flow} // menstruationFlow
+                      checked={form.data.femaleHealth.menstruationFlow === flow}
                       onChange={() =>
-                        form.setData('femaleHealth.3', flow)
+                        form.setData('femaleHealth', {
+                          ...form.data.femaleHealth,
+                          menstruationFlow: flow,
+                        })
                       }
                     />
                     {flow}
@@ -183,9 +217,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
                   <label key={opt} className="flex items-center gap-1">
                     <input
                       type="radio"
-                      checked={form.data.femaleHealth[4] === opt} // dysmenorrhea
+                      checked={form.data.femaleHealth.dysmenorrhea === opt}
                       onChange={() =>
-                        form.setData('femaleHealth.4', opt)
+                        form.setData('femaleHealth', {
+                          ...form.data.femaleHealth,
+                          dysmenorrhea: opt,
+                        })
                       }
                     />
                     {opt}
@@ -198,9 +235,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
               <label>Last menstrual period (month and year)</label>
               <input
                 className={lineInput}
-                value={form.data.femaleHealth[5]} // lastMenstrualPeriod
+                value={form.data.femaleHealth.lastMenstrualPeriod}
                 onChange={(e) =>
-                  form.setData('femaleHealth.5', e.target.value)
+                  form.setData('femaleHealth', {
+                    ...form.data.femaleHealth,
+                    lastMenstrualPeriod: e.target.value,
+                  })
                 }
               />
             </div>
@@ -212,9 +252,15 @@ export default function PreenrollmentPage5({ patient }: Props) {
                   <label key={opt} className="flex items-center gap-1">
                     <input
                       type="radio"
-                      checked={form.data.femaleHealth[6] === opt} // breastTrouble
+                      checked={form.data.femaleHealth.breastTrouble === opt}
                       onChange={() =>
-                        form.setData('femaleHealth.6', opt)
+                        form.setData('femaleHealth', {
+                          ...form.data.femaleHealth,
+                          breastTrouble: opt,
+                          breastDetails: opt === 'Yes'
+                            ? form.data.femaleHealth.breastDetails
+                            : '',
+                        })
                       }
                     />
                     {opt}
@@ -222,13 +268,15 @@ export default function PreenrollmentPage5({ patient }: Props) {
                 ))}
               </div>
 
-              {form.data.femaleHealth[6] === 'Yes' && (
+              {form.data.femaleHealth.breastTrouble === 'Yes' && (
                 <input
                   className={lineInput + ' mt-1'}
-                  placeholder="If so, give details"
-                  value={form.data.femaleHealth[7]} // breastDetails
+                  value={form.data.femaleHealth.breastDetails}
                   onChange={(e) =>
-                    form.setData('femaleHealth.7', e.target.value)
+                    form.setData('femaleHealth', {
+                      ...form.data.femaleHealth,
+                      breastDetails: e.target.value,
+                    })
                   }
                 />
               )}
@@ -241,9 +289,12 @@ export default function PreenrollmentPage5({ patient }: Props) {
                   <label key={opt} className="flex items-center gap-1">
                     <input
                       type="radio"
-                      checked={form.data.femaleHealth[8] === opt} // pregnantNow
+                      checked={form.data.femaleHealth.pregnantNow === opt}
                       onChange={() =>
-                        form.setData('femaleHealth.8', opt)
+                        form.setData('femaleHealth', {
+                          ...form.data.femaleHealth,
+                          pregnantNow: opt,
+                        })
                       }
                     />
                     {opt}
@@ -256,21 +307,30 @@ export default function PreenrollmentPage5({ patient }: Props) {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={form.data.femaleHealth[9]} // haveChildren
+                  checked={form.data.femaleHealth.haveChildren}
                   onChange={(e) =>
-                    form.setData('femaleHealth.9', e.target.checked)
+                    form.setData('femaleHealth', {
+                      ...form.data.femaleHealth,
+                      haveChildren: e.target.checked,
+                      numberOfChildren: e.target.checked
+                        ? form.data.femaleHealth.numberOfChildren
+                        : '',
+                    })
                   }
                 />
                 Do you have children?
               </label>
 
-              {form.data.femaleHealth[9] && (
+              {form.data.femaleHealth.haveChildren && (
                 <input
                   className={lineInput + ' mt-1'}
-                  placeholder="How many?"
-                  value={form.data.femaleHealth[10]} // numberOfChildren
+                  value={form.data.femaleHealth.numberOfChildren}
+                  placeholder="Number of children (e.g., 3)"
                   onChange={(e) =>
-                    form.setData('femaleHealth.10', e.target.value)
+                    form.setData('femaleHealth', {
+                      ...form.data.femaleHealth,
+                      numberOfChildren: e.target.value,
+                    })
                   }
                 />
               )}
@@ -287,19 +347,25 @@ export default function PreenrollmentPage5({ patient }: Props) {
         <div className="flex justify-between mt-6">
           <Button
             variant="secondary"
+            disabled={savingPrev || savingNext}
             onClick={() => {
-              sessionStorage.setItem(
-                'preenrollment_page_5',
-                JSON.stringify(form.data)
-              );
-              window.location.href =
-                '/user/fill-forms/pre-enrollment-health-form/page-4';
+              setSavingPrev(true);
+              sessionStorage.setItem('preenrollment_page_5', JSON.stringify(form.data));
+              window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-4';
             }}
           >
-            Previous
+            {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
 
-          <Button onClick={submitPage}>Next</Button>
+          <Button
+            disabled={savingNext || savingPrev}
+            onClick={(e) => {
+              setSavingNext(true);
+              submitPage(e);
+            }}
+          >
+            {savingNext ? 'Continuing…' : 'Next'}
+          </Button>
         </div>
       </div>
     </AppLayout>

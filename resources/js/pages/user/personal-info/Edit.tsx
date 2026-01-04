@@ -173,7 +173,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
       if (ctx) ctx.scale(ratio, ratio);
 
       signaturePadRef.current?.off();
-      const signaturePad = new SignaturePad(canvas, { backgroundColor: "rgb(255,255,255)" });
+      const signaturePad = new SignaturePad(canvas);
       signaturePadRef.current = signaturePad;
 
       if (drawnSignature) {

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Record;
+use Auth;
 use Illuminate\Http\Request;
 use App\Models\Service;
 use Inertia\Inertia;
@@ -64,7 +66,7 @@ class MedicalFormController extends Controller
             abort(403, 'You do not have access to medical forms.');
         }
 
-        // Handle Lab Results separately
+        // Fetch service from DB or handle special cases
         if ($slug === 'laboratory-results') {
             $service = (object) [
                 'title' => 'Laboratory Results',
@@ -72,9 +74,19 @@ class MedicalFormController extends Controller
                 'description' => null,
             ];
         } else {
-            // Fetch from Service table
             $service = Service::where('slug', $slug)->firstOrFail();
         }
+
+        // Fetch all records of this user for this service (or all services if you want)
+        $records = Record::where('user_id', $user->id)
+            ->get(['service_id', 'created_at'])
+            ->map(function ($record) {
+                return [
+                    'service_id' => $record->service_id,
+                    'slug'       => optional($record->service)->slug ?? null,
+                    'created_at' => $record->created_at->toDateTimeString(),
+                ];
+            });
 
         return Inertia::render('user/medicalForms/ShowForm', [
             'service' => $service,
@@ -86,6 +98,7 @@ class MedicalFormController extends Controller
                 'year' => $user->yearLevel,
                 'office' => $user->office,
             ],
+            'records' => $records, // <-- pass the records to frontend
         ]);
     }
 
@@ -119,8 +132,8 @@ class MedicalFormController extends Controller
             'contact_no'      => $user->contact_no,
             'signature'       => $user->signature,
             'guardian_name'   => $user->guardian_name,
-            'course'          => $user->course?->name ?? null,
-            'year'            => $user->yearLevel?->name ?? null,
+            'course'          => $user->course?->code ?? null,
+            'year'            => $user->yearLevel?->level ?? null,
             'office'          => $user->office?->name ?? null,
             'category'        => optional($user->userRole)->category,
             'user_role'       => $user->userRole,
@@ -187,8 +200,16 @@ class MedicalFormController extends Controller
     {
         $user = auth()->user();
 
+        $service = Service::where('slug', 'pre-enrollment-health-form')->first();
+
+        // Check if the user has already submitted this form
+        $alreadySubmitted = Record::where('user_id', $user->id)
+            ->where('service_id', $service->id)
+            ->exists();
+
         return Inertia::render('user/medicalForms/preEnrollment/Page7', [
             'patient' => $this->patientPayload($user),
+            'alreadySubmitted' => $alreadySubmitted,
         ]);
     }
 
@@ -236,32 +257,97 @@ class MedicalFormController extends Controller
         ]);
     }
 
-public function getFormTemplate($slug)
-{
-    $service = Service::where('slug', $slug)->first();
+    public function submitForm(Request $request, string $formType)
+    {
+        // Allowed form types
+        if (!in_array($formType, ['athlete-medical', 'pre-enrollment-health-form', 'pre-employment-health-form'])) {
+            abort(404);
+        }
 
-    if (!$service || !$service->file_path) {
-        return response('PDF template not found', 404);
+        $request->validate([
+            'responses' => 'required|array',
+        ]);
+
+        // Find service by slug
+        $service = Service::where('slug', $formType)->first();
+
+        if (!$service) {
+            abort(404, 'Service not found.');
+        }
+
+        Record::create([
+            'user_id'        => Auth::id(),
+            'service_id'     => $service->id,
+            'consultation_id'=> null,
+            'lab_result_id'  => null,
+            'response_data'  => $request->responses,
+        ]);
+
+        // Redirect to the show page with a success message
+        return redirect()->route('user.medical-forms.show', $formType)
+                        ->with('toast', [
+                            'title' => 'Form submitted',
+                            'message' => 'Your responses have been successfully saved!',
+                            'type' => 'success', // optional: success, error, info
+                        ]);
     }
+    
+    public function getFormTemplate($slug)
+    {
+        $service = Service::where('slug', $slug)->first();
 
-    // Use the 'public' disk
-    if (!\Storage::disk('public')->exists($service->file_path)) {
-        \Log::warning("PDF file missing on server: slug={$slug}, path={$service->file_path}");
-        return response('PDF template not found on server', 404);
+        if (!$service || !$service->file_path) {
+            return response('PDF template not found', 404);
+        }
+
+        // Use the 'public' disk
+        if (!\Storage::disk('public')->exists($service->file_path)) {
+            \Log::warning("PDF file missing on server: slug={$slug}, path={$service->file_path}");
+            return response('PDF template not found on server', 404);
+        }
+
+        $pdfBytes = \Storage::disk('public')->get($service->file_path);
+
+        return response($pdfBytes)->header('Content-Type', 'application/pdf');
     }
-
-    $pdfBytes = \Storage::disk('public')->get($service->file_path);
-
-    return response($pdfBytes)->header('Content-Type', 'application/pdf');
-}
 
     public function download($slug)
     {
+        $user = auth()->user();
+
         $service = Service::where('slug', $slug)->firstOrFail();
 
-        // logic to generate PDF (using pdflib or dompdf)
-        $pdf = Pdf::loadView('pdf.forms', ['service' => $service]);
-        return $pdf->download($service->title . '.pdf');
+        // Get the user's saved record for this service
+        $record = Record::where('user_id', $user->id)
+            ->where('service_id', $service->id)
+            ->latest() // in case multiple submissions
+            ->first();
+
+        if (!$record) {
+            \Log::warning("Download failed: no saved form found", [
+                'user_id' => $user->id,
+                'service_slug' => $slug,
+            ]);
+            abort(404, 'No saved form found.');
+        }
+
+        $responses = $record->response_data;
+
+         // Log the responses for debugging
+        \Log::info("Download JSON data", [
+            'user_id' => $user->id,
+            'service_slug' => $slug,
+            'responses' => $responses,
+        ]);
+
+        // Return JSON for frontend PDF-lib (if you want to generate client-side)
+        return response()->json([
+            'responses' => $responses,
+            'service' => [
+                'title' => $service->title,
+                'slug' => $service->slug,
+            ],
+        ]);
     }
 
 }

@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { useEffect } from 'react';
+import { useState } from 'react';
 
 interface Props {
   patient: {
@@ -64,24 +65,35 @@ export default function PreenrollmentPage2({ patient }: Props) {
     landlord: '',
     landlord_contact: '',
     landlord_address: '',
-    picture_2x2: null as File | null,
+    picture_2x2: null as string | null,
   });
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem('preenrollment_page_2');
+    if (saved) {
+      form.setData(JSON.parse(saved));
+    }
+  }, []);
+
+
       // inside your component
-useEffect(() => {
-  console.log('Live Form Data:', form.data);
-}, [form.data]);
+    useEffect(() => {
+      console.log('Live Form Data:', form.data);
+    }, [form.data]);
 
   const lineInput =
     'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
 
+  const [savingNext, setSavingNext] = useState(false);
+  const [savingPrev, setSavingPrev] = useState(false);
+
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
-
+    setSavingNext(true); // show "Continuing…"
     sessionStorage.setItem('preenrollment_page_2', JSON.stringify(form.data));
-    window.location.href =
-      '/user/fill-forms/pre-enrollment-health-form/page-3';
+    window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-3';
   };
+
 
   return (
     <AppLayout>
@@ -121,16 +133,31 @@ useEffect(() => {
           </div>
 
           <div className="w-40 text-center flex-shrink-0">
-            <div className="border h-40 flex items-center justify-center text-xs">
-              2x2 Picture
+            <div className="border h-40 flex items-center justify-center text-xs overflow-hidden">
+              {form.data.picture_2x2 ? (
+                <img
+                  src={form.data.picture_2x2}
+                  alt="2x2 Preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                '2x2 Picture'
+              )}
             </div>
             <input
               type="file"
               accept="image/*"
               className="mt-2 text-xs"
-              onChange={(e) =>
-                form.setData('picture_2x2', e.target.files?.[0] || null)
-              }
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                  form.setData('picture_2x2', reader.result);
+                };
+                reader.readAsDataURL(file);
+              }}
             />
           </div>
         </div>
@@ -295,22 +322,22 @@ useEffect(() => {
           </div>
 
           {/* NAVIGATION */}
-          <div className="flex flex-col sm:flex-row justify-between gap-2">
+          <div className="flex justify-between mt-6">
             <Button
               type="button"
               variant="secondary"
+              disabled={savingPrev || savingNext} // disable if either is saving
               onClick={() => {
-                sessionStorage.setItem(
-                  'preenrollment_page_2',
-                  JSON.stringify(form.data)
-                );
-                window.location.href =
-                  '/user/fill-forms/pre-enrollment-health-form/page-1';
+                setSavingPrev(true); // show "Going back…"
+                sessionStorage.setItem('preenrollment_page_2', JSON.stringify(form.data));
+                window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-1';
               }}
             >
-              Previous
+              {savingPrev ? 'Going back…' : 'Previous'}
             </Button>
-            <Button type="submit">Next</Button>
+            <Button type="submit" disabled={savingNext || savingPrev}>
+              {savingNext ? 'Continuing…' : 'Next'}
+            </Button>
           </div>
         </form>
       </div>

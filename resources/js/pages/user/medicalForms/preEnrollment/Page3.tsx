@@ -1,6 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+
 
 interface Props {
   patient: {
@@ -66,7 +68,19 @@ export default function PreenrollmentPage3({ patient }: Props) {
     }, {} as Record<string, { yes: boolean; no: boolean; remarks: string }>),
   });
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem('preenrollment_page_3');
+    if (saved) {
+      form.setData(JSON.parse(saved));
+    }
+  }, []);
+
+
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
+
+  const [savingNext, setSavingNext] = useState(false);
+  const [savingPrev, setSavingPrev] = useState(false);
+
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,18 +264,29 @@ export default function PreenrollmentPage3({ patient }: Props) {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex flex-col sm:flex-row justify-between gap-2">
+        <div className="flex justify-between mt-6">
           <Button
             type="button"
             variant="secondary"
+            disabled={savingPrev || savingNext}
             onClick={() => {
+              setSavingPrev(true);
               sessionStorage.setItem('preenrollment_page_3', JSON.stringify(form.data));
               window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-2';
             }}
           >
-            Previous
+            {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
-          <Button type="submit" onClick={submitPage}>Next</Button>
+          <Button
+            type="button"
+            disabled={savingNext || savingPrev}
+            onClick={(e) => {
+              setSavingNext(true);
+              submitPage(e); // call the function directly
+            }}
+          >
+            {savingNext ? 'Continuing…' : 'Next'}
+          </Button>
         </div>
       </div>
     </AppLayout>

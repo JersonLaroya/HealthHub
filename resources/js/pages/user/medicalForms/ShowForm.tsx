@@ -1,6 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
+import { useState } from 'react';
 
 interface Props {
   service: {
@@ -20,10 +22,39 @@ interface Props {
 }
 
 export default function ShowForm({ service, patient }: Props) {
-  const handleOpenPdf = (patient: any, serviceSlug: string) => {
-    window.open(`/user/medical-forms/${serviceSlug}/download`, '_blank');
+  const { records } = usePage().props;
+
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleOpenPdf = async (serviceSlug: string) => {
+    try {
+      setIsDownloading(true); // start loading
+
+      // Fetch data from backend
+      const res = await fetch(`/user/medical-forms/${serviceSlug}/download`);
+      if (!res.ok) return alert('No saved form found');
+
+      const { responses } = await res.json();
+      console.log('Fetched responses for PDF generation:', responses);
+
+      // Generate PDF using PDF-lib
+      const pdfBytes = await fillPreEnrollmentForm(responses, serviceSlug);
+
+      // Trigger download
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${serviceSlug}.pdf`;
+      link.click();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate PDF');
+    } finally {
+      setIsDownloading(false); // stop loading
+    }
   };
 
+  
   // Format birthdate nicely
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
@@ -55,6 +86,8 @@ export default function ShowForm({ service, patient }: Props) {
     window.location.href = path;
   };
 
+  // Check if user already submitted this form
+  const isAlreadySubmitted = records?.some((r: any) => r.slug === service.slug);
 
   return (
     <AppLayout>
@@ -65,11 +98,12 @@ export default function ShowForm({ service, patient }: Props) {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold">{service.title}</h1>
           {service.id && (
-            <Button
+             <Button
               variant="default"
-              onClick={() => handleOpenPdf(patient, service.slug)}
+              onClick={() => handleOpenPdf(service.slug)}
+              disabled={isDownloading} // disable while downloading
             >
-              Download PDF
+              {isDownloading ? 'Downloading...' : 'Download PDF'}
             </Button>
           )}
         </div>
@@ -99,12 +133,14 @@ export default function ShowForm({ service, patient }: Props) {
             <Button
               variant="default"
               onClick={() => handleFillForm(service.slug)}
+              disabled={isAlreadySubmitted}
             >
-              Fill up {service.title}
+              {isAlreadySubmitted ? 'Already Submitted' : `Fill up ${service.title}`}
             </Button>
           </div>
         </div>
       </div>
+
     </AppLayout>
   );
 }

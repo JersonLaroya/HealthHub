@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
 
 interface Props {
   patient: {
@@ -77,6 +78,13 @@ export default function PreenrollmentPage4({ patient }: Props) {
     : '';
   const fullName = `${patient.last_name}, ${patient.first_name} ${middleInitial}`.trim();
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem('preenrollment_page_4');
+    if (saved) {
+      form.setData(JSON.parse(saved));
+    }
+  }, []);
+
   const form = useForm({
     diseases: diseaseProblemsPage4.reduce((acc, d) => {
       acc[d] = false;
@@ -106,6 +114,8 @@ export default function PreenrollmentPage4({ patient }: Props) {
   });
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
+  const [savingNext, setSavingNext] = useState(false);
+  const [savingPrev, setSavingPrev] = useState(false);
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -438,18 +448,29 @@ export default function PreenrollmentPage4({ patient }: Props) {
 
 
         {/* Navigation Buttons */}
-        <div className="flex flex-col sm:flex-row justify-between gap-2 mt-4">
+        <div className="flex justify-between mt-6">
           <Button
             type="button"
             variant="secondary"
+            disabled={savingPrev || savingNext}
             onClick={() => {
+              setSavingPrev(true);
               sessionStorage.setItem('preenrollment_page_4', JSON.stringify(form.data));
               window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-3';
             }}
           >
-            Previous
+            {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
-          <Button type="submit" onClick={submitPage}>Next</Button>
+          <Button
+            type="button"
+            disabled={savingNext || savingPrev}
+            onClick={(e) => {
+              setSavingNext(true);
+              submitPage(e);
+            }}
+          >
+            {savingNext ? 'Continuing…' : 'Next'}
+          </Button>
         </div>
       </div>
     </AppLayout>
