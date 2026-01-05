@@ -89,17 +89,18 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         offices: { id: number; name: string }[];
         courses: { id: number; name: string; office_id: number }[];
         years: { id: number; name: string }[];
-        roles: { id: number; name: string, category: string }[];
+        roles: { id: number; name: string }[];
     }>().props;
 
     const user = auth.user;
+    const { isRcy } = usePage<{ isRcy: boolean }>().props;
+    console.log("roles: ",roles);
 
-    console.log("User data:", user);
-
-   const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, put, processing, errors } = useForm({
         first_name: user.first_name || "",
         middle_name: user.middle_name || "",
         last_name: user.last_name || "",
+
         email: user.email ?? '',
         office_id: user.office_id ?? null,
         course_id: user.course_id ?? null,
@@ -107,17 +108,15 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         user_role_id: user.user_role_id ?? null,
     });
 
+    console.log(data);
+
+
     const [roleId, setRoleId] = useState(user.user_role_id ?? "");
     const [officeId, setOfficeId] = useState(user.office_id ?? "");
     const [courseId, setCourseId] = useState(user.course_id ?? "");
     const [yearId, setYearId] = useState(user.year_level_id ?? "");
 
-    const isRcy = roles.find(r => r.id === roleId)?.category === 'rcy';
-    const userRoleCategory = (auth.user.user_role as any)?.category;
-
-    const roleName = roles.find((r) => r.id === Number(data.user_role_id))?.name;
-
-    console.log("Selected Role ID:", roleName);
+    const roleName = roles.find((r) => r.id === Number(roleId))?.name;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -145,33 +144,33 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="first_name"
                                         name="first_name"
-                                        defaultValue={data.first_name}
+                                        defaultValue={data.first_name || ""}
                                         placeholder="First Name"
                                     />
                                     <InputError message={errors.first_name} />
-                                    </div>
+                                </div>
 
-                                    <div className="grid gap-2">
+                                <div className="grid gap-2">
                                     <Label htmlFor="middle_name">Middle Name</Label>
                                     <Input
                                         id="middle_name"
                                         name="middle_name"
-                                        defaultValue={data.middle_name}
+                                        defaultValue={data.middle_name || ""}
                                         placeholder="Middle Name"
                                     />
                                     <InputError message={errors.middle_name} />
-                                    </div>
+                                </div>
 
-                                    <div className="grid gap-2">
+                                <div className="grid gap-2">
                                     <Label htmlFor="last_name">Last Name</Label>
                                     <Input
                                         id="last_name"
                                         name="last_name"
-                                        defaultValue={data.last_name}
+                                        defaultValue={data.last_name || ""}
                                         placeholder="Last Name"
                                     />
                                     <InputError message={errors.last_name} />
-                                    </div>
+                                </div>
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Email address</Label>
@@ -213,49 +212,48 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="user_role_id">Role</Label>
-                                   {roles && roles.length > 0 ? (
-                                    <select
-                                        value={data.user_role_id ?? ""}
-                                        onClick={() => {
-                                            if (userRoleCategory === "rcy") {
-                                                toast.error("You can't change your role because you are an RCY member");
-                                            }
-                                        }}
-                                        onChange={(e) => {
-                                            const newRoleId = Number(e.target.value);
-                                            
-                                            // Prevent RCY from actually changing their role
-                                            if (userRoleCategory === "rcy") return;
 
-                                            setData("user_role_id", newRoleId);
+                                    {!isRcy ? (
+                                        roles && roles.length > 0 ? (
+                                        <select
+                                            defaultValue={roleId}
+                                            onChange={(e) => {
+                                            const newRoleId = Number(e.target.value);
                                             setRoleId(newRoleId);
-                                        }}
-                                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                        id="user_role_id"
-                                        name="user_role_id"
-                                    >
-                                        <option value="">-- Select Role --</option>
-                                        {roles
-                                            .filter((role, index, self) => {
-                                                if (userRoleCategory === "rcy") {
-                                                // Only show Student once
-                                                return role.name === "Student" && self.findIndex(r => r.name === "Student") === index;
-                                                }
-                                                return true; // Non-RCY users see all roles
-                                            })
-                                            .map((role) => (
-                                                <option key={role.id} value={role.id}>
+                                            }}
+                                            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                            id="user_role_id"
+                                            name="user_role_id"
+                                        >
+                                            <option value="">-- Select Role --</option>
+                                            {roles.map((role) => (
+                                            <option key={role.id} value={role.id}>
                                                 {role.name}
-                                                </option>
-                                            ))
-                                        }
-                                    </select>
+                                            </option>
+                                            ))}
+                                        </select>
+                                        ) : (
+                                        <p className="text-sm text-gray-500">No Role available</p>
+                                        )
                                     ) : (
-                                    <p className="text-sm text-gray-500">No Role available</p>
+                                        <>
+                                            {/* RCY dropdown (hardcoded "Student") */}
+                                            <select
+                                                value="1"
+                                                disabled
+                                                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm cursor-not-allowed focus:outline-none"
+                                            >
+                                                <option value="1">Student</option>
+                                            </select>
+                                            <p className="mt-1 text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded border border-yellow-300">
+                                                Your role cannot be changed because you are an RCY member.
+                                            </p>
+                                        </>
                                     )}
-                                    {/* <input type="hidden" name="user_role_id" value={data.role_id ?? ""} /> */}
+
                                     <InputError className="mt-2" message={errors.role_id} />
-                                </div>
+                                    </div>
+
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="office_id">Office</Label>
@@ -296,7 +294,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <InputError className="mt-2" message={errors.office_id} />
                                 </div>
 
-                                {roleName === "Student" && (
+                                {(roleName === "Student" || isRcy) && (
                                     <>
                                         <div className="grid gap-2">
                                             <Label htmlFor="course_id">Course</Label>
@@ -358,16 +356,13 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     </>
                                 )}
 
-
                                 {/* <input type="hidden" name="office_id" value={data.office_id ?? ""} /> */}
                                 {/* <input type="hidden" name="course_id" value={data.course_id ?? ""} />
                                 <input type="hidden" name="year_level_id" value={data.year_level_id ?? ""} />
                                 <input type="hidden" name="user_role_id" value={data.user_role_id ?? ""} /> */}
 
                                 <div className="flex items-center gap-4">
-                                    <Button disabled={processing}>
-                                        {processing ? "Saving..." : "Save"}
-                                    </Button>
+                                    <Button disabled={processing}>Save</Button>
 
                                     {/* <Transition
                                         show={recentlySuccessful}
@@ -458,9 +453,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <Button disabled={processing}>
-                                        {processing ? "Saving..." : "Save password"}
-                                    </Button>
+                                    <Button disabled={processing}>Save password</Button>
 
                                     {/* <Transition
                                         show={recentlySuccessful}

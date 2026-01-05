@@ -384,7 +384,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
 
               <Label className="mt-2 block">Purok</Label>
               <Input
-                placeholder="Purok"
+                placeholder="ex. Purok 1"
                 value={data.home_purok}
                 onChange={(e) => setData("home_purok", e.target.value)}
               />
@@ -448,7 +448,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
 
               <Label className="mt-2 block">Purok</Label>
               <Input
-                placeholder="Purok"
+                placeholder="ex. Purok 1"
                 value={data.present_purok}
                 onChange={(e) => setData("present_purok", e.target.value)}
               />

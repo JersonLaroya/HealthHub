@@ -213,6 +213,24 @@ class MedicalFormController extends Controller
         ]);
     }
 
+    public function preemploymentPage1()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/preEmployment/Page1', [
+            'patient' => $this->patientPayload($user),
+        ]);
+    }
+
+    public function preemploymentPage2()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/preEmployment/Page2', [
+            'patient' => $this->patientPayload($user),
+        ]);
+    }
+
     public function previewPreEnrollmentPDF(Request $request)
     {
         // The data comes from the `data` query param (from page7)
@@ -229,32 +247,6 @@ class MedicalFormController extends Controller
         return response()->json($allPagesData);
 
         // OR if you want server-side PDF, you can integrate PDF-lib with Laravel Vite build
-    }
-
-    public function fillPreemployment()
-    {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/PreEmploymentForm', [
-            'patient' => [
-                'name' => $user->name,
-                'sex' => $user->sex,
-                'birthdate' => $user->birthdate,
-            ],
-        ]);
-    }
-
-    public function fillAthlete()
-    {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/AthleteForm', [
-            'patient' => [
-                'name' => $user->name,
-                'sex' => $user->sex,
-                'birthdate' => $user->birthdate,
-            ],
-        ]);
     }
 
     public function submitForm(Request $request, string $formType)
