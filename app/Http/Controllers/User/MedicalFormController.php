@@ -231,6 +231,41 @@ class MedicalFormController extends Controller
         ]);
     }
 
+    public function preemploymentPage3()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/preEmployment/Page3', [
+            'patient' => $this->patientPayload($user),
+        ]);
+    }
+
+    public function preemploymentPage4()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('user/medicalForms/preEmployment/Page4', [
+            'patient' => $this->patientPayload($user),
+        ]);
+    }
+
+    public function preemploymentPage5()
+    {
+        $user = auth()->user();
+
+        $service = Service::where('slug', 'pre-enrollment-health-form')->first();
+
+        // Check if the user has already submitted this form
+        $alreadySubmitted = Record::where('user_id', $user->id)
+            ->where('service_id', $service->id)
+            ->exists();
+
+        return Inertia::render('user/medicalForms/preEmployment/Page5', [
+            'patient' => $this->patientPayload($user),
+            'alreadySubmitted' => $alreadySubmitted,
+        ]);
+    }
+
     public function previewPreEnrollmentPDF(Request $request)
     {
         // The data comes from the `data` query param (from page7)
@@ -248,6 +283,18 @@ class MedicalFormController extends Controller
 
         // OR if you want server-side PDF, you can integrate PDF-lib with Laravel Vite build
     }
+
+    public function previewPreEmploymentPDF(Request $request)
+{
+    $allPagesData = json_decode($request->query('data'), true);
+
+    if (!$allPagesData) {
+        abort(400, 'No data provided for PDF.');
+    }
+
+    return response()->json($allPagesData);
+}
+
 
     public function submitForm(Request $request, string $formType)
     {

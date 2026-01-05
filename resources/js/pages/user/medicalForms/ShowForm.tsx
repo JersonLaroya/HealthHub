@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
+import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
 import { useState } from 'react';
 
 interface Props {
@@ -38,7 +39,16 @@ export default function ShowForm({ service, patient }: Props) {
       console.log('Fetched responses for PDF generation:', responses);
 
       // Generate PDF using PDF-lib
-      const pdfBytes = await fillPreEnrollmentForm(responses, serviceSlug);
+      let pdfBytes;
+
+      if (serviceSlug === 'pre-enrollment-health-form') {
+        pdfBytes = await fillPreEnrollmentForm(responses, serviceSlug);
+      } else if (serviceSlug === 'pre-employment-health-form') {
+        pdfBytes = await fillPreEmploymentForm(responses, serviceSlug);
+      } else {
+        alert('Unsupported form type');
+        return;
+      }
 
       // Trigger download
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
