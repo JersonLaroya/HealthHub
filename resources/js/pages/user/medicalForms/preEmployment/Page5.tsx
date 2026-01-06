@@ -1,8 +1,10 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
+import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 interface Props {
   patient: {
@@ -19,9 +21,36 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
   // Redirect immediately if already submitted
   useEffect(() => {
     if (alreadySubmitted) {
-      window.location.href = '/user/medical-forms/pre-employment-health-form';
+      const t = setTimeout(() => {
+        router.visit('/user/medical-forms/pre-employment-health-form', {
+          replace: true,
+        });
+      }, 1500); // give Sonner time
+
+      return () => clearTimeout(t);
     }
   }, [alreadySubmitted]);
+
+  const { toast: flashToast } = usePage().props as any;
+
+    useEffect(() => {
+  if (!flashToast) return;
+
+  switch (flashToast.type) {
+      case 'error':
+        toast.error(flashToast.title, { description: flashToast.message });
+        break;
+      case 'info':
+        toast.info(flashToast.title, { description: flashToast.message });
+        break;
+      case 'warning':
+        toast.warning(flashToast.title, { description: flashToast.message });
+        break;
+      default:
+        toast.success(flashToast.title, { description: flashToast.message });
+    }
+  }, [flashToast]);
+
 
   const middleInitial = patient.middle_name
     ? `${patient.middle_name.charAt(0).toUpperCase()}.`
@@ -32,6 +61,9 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
   const today = new Date();
   const todayFormatted = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
 
+  const savedPage5 = JSON.parse(
+    sessionStorage.getItem('preemployment_page_5') || '{}'
+  );
     const form = useForm({
     responses: {
         page1: JSON.parse(sessionStorage.getItem('preemployment_page_1') || '{}'),
@@ -50,23 +82,13 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             tobaccoVapeDetails: '',
             otherConditions: '',
             otherConditionsDetails: '',
+            ...savedPage5.socialHistory,
         },
         },
     },
     });
 
-  // Load saved data
-    useEffect(() => {
-        const saved = sessionStorage.getItem('preemployment_page_5');
-        if (saved) {
-            form.setData('responses.page5', {
-            ...form.data.responses.page5,
-            ...JSON.parse(saved),
-            });
-        }
-    }, []);
-
-  const [countdown, setCountdown] = useState(30);
+  const [countdown, setCountdown] = useState(10);
   const [submitDisabled, setSubmitDisabled] = useState(true);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [savingPrev, setSavingPrev] = useState(false);
@@ -132,6 +154,11 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
     form.post('/user/submit/pre-employment-health-form', {
         onSuccess: () => {
         sessionStorage.clear();
+        // Redirect using router from @inertiajs/react
+        // router.visit('/user/medical-forms/pre-employment-health-form', {
+        //     replace: true,
+        //     preserveState: false,
+        // });
         },
         onFinish: () => setSubmitting(false),
     });
@@ -361,7 +388,9 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
                 'preemployment_page_5',
                 JSON.stringify(form.data.responses.page5)
                 );
-                window.location.href = '/user/fill-forms/pre-employment-health-form/page-4';
+                router.visit('/user/fill-forms/pre-employment-health-form/page-4', {
+                  preserveState: false,
+                });
               }}
             >
               {savingPrev ? 'Going back…' : 'Previous'}

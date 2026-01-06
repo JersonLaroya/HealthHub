@@ -1,8 +1,10 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
 import { useEffect, useState } from 'react';
+import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 interface Props {
   patient: {
@@ -19,9 +21,36 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
   // Redirect immediately if already submitted
   useEffect(() => {
     if (alreadySubmitted) {
-       window.location.href = '/user/medical-forms/pre-enrollment-health-form';
+      const t = setTimeout(() => {
+        router.visit('/user/medical-forms/pre-enrollment-health-form', {
+          replace: true,
+        });
+      }, 1500); // give Sonner time
+
+      return () => clearTimeout(t);
     }
   }, [alreadySubmitted]);
+
+  const { toast: flashToast } = usePage().props as any;
+
+    useEffect(() => {
+  if (!flashToast) return;
+
+  switch (flashToast.type) {
+      case 'error':
+        toast.error(flashToast.title, { description: flashToast.message });
+        break;
+      case 'info':
+        toast.info(flashToast.title, { description: flashToast.message });
+        break;
+      case 'warning':
+        toast.warning(flashToast.title, { description: flashToast.message });
+        break;
+      default:
+        toast.success(flashToast.title, { description: flashToast.message });
+    }
+  }, [flashToast]);
+
 
   // Add countdown state
   const [countdown, setCountdown] = useState(30);

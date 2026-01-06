@@ -253,13 +253,14 @@ class MedicalFormController extends Controller
     {
         $user = auth()->user();
 
-        $service = Service::where('slug', 'pre-enrollment-health-form')->first();
+        $service = Service::where('slug', 'pre-employment-health-form')->first();
 
         // Check if the user has already submitted this form
         $alreadySubmitted = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
             ->exists();
 
+        
         return Inertia::render('user/medicalForms/preEmployment/Page5', [
             'patient' => $this->patientPayload($user),
             'alreadySubmitted' => $alreadySubmitted,
@@ -298,8 +299,11 @@ class MedicalFormController extends Controller
 
     public function submitForm(Request $request, string $formType)
     {
-        // Allowed form types
-        if (!in_array($formType, ['athlete-medical', 'pre-enrollment-health-form', 'pre-employment-health-form'])) {
+        if (!in_array($formType, [
+            'athlete-medical',
+            'pre-enrollment-health-form',
+            'pre-employment-health-form',
+        ])) {
             abort(404);
         }
 
@@ -307,30 +311,24 @@ class MedicalFormController extends Controller
             'responses' => 'required|array',
         ]);
 
-        // Find service by slug
-        $service = Service::where('slug', $formType)->first();
-
-        if (!$service) {
-            abort(404, 'Service not found.');
-        }
+        $service = Service::where('slug', $formType)->firstOrFail();
 
         Record::create([
-            'user_id'        => Auth::id(),
-            'service_id'     => $service->id,
-            'consultation_id'=> null,
-            'lab_result_id'  => null,
-            'response_data'  => $request->responses,
+            'user_id'         => Auth::id(),
+            'service_id'      => $service->id,
+            'consultation_id' => null,
+            'lab_result_id'   => null,
+            'response_data'   => $request->responses,
         ]);
 
-        // Redirect to the show page with a success message
-        return redirect()->route('user.medical-forms.show', $formType)
-                        ->with('toast', [
-                            'title' => 'Form submitted',
-                            'message' => 'Your responses have been successfully saved!',
-                            'type' => 'success', // optional: success, error, info
-                        ]);
+        return redirect()->back()->with('toast', [
+            'title' => 'Form submitted',
+            'message' => 'Your responses have been successfully saved.',
+            'type' => 'success',
+        ]);
+
     }
-    
+  
     public function getFormTemplate($slug)
     {
         $service = Service::where('slug', $slug)->first();

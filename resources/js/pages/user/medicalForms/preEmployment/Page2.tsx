@@ -138,7 +138,7 @@ export default function PreemploymentPage2({ patient }: Props) {
               <label className="font-semibold">Age:</label>
               <input className={lineInput} value={form.data.age || ''} readOnly />
             </div>
-            <div className="col-span-full flex flex-wrap items-center gap-2">
+            <div className="col-span-full flex flex-wrap items-center gap-2 mt-5">
               <span className="font-semibold">Civil Status:</span>
               {['Single', 'Married', 'Widowed', 'Legally Separated'].map((status) => (
                 <label key={status} className="flex items-center gap-1">
@@ -152,7 +152,7 @@ export default function PreemploymentPage2({ patient }: Props) {
                 </label>
               ))}
             </div>
-            <div>
+            <div className="col-span-full flex flex-wrap items-center gap-2 mt-5">
               <label className="font-semibold">Birthplace:</label>
               <input
                 className={lineInput}
@@ -160,7 +160,7 @@ export default function PreemploymentPage2({ patient }: Props) {
                 onChange={(e) => form.setData('birthplace', e.target.value)}
               />
             </div>
-            <div>
+            <div className="col-span-full flex flex-wrap items-center gap-2 mt-5">
               <label className="font-semibold">Home Address:</label>
               <input
                 className={lineInput}
@@ -169,7 +169,7 @@ export default function PreemploymentPage2({ patient }: Props) {
                 onChange={(e) => form.setData('home_address', e.target.value)}
               />
             </div>
-            <div>
+            <div className="col-span-full flex flex-wrap items-center gap-2 mt-5">
               <label className="font-semibold">Contact No.:</label>
               <input
                 className={lineInput}
@@ -184,7 +184,7 @@ export default function PreemploymentPage2({ patient }: Props) {
             <h2 className="text-sm sm:text-base font-semibold">PERSONAL HISTORY</h2>
 
             {/* Allergies & Medications */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center text-sm my-5">
             {/* Allergies */}
             <div>
                 <label className="flex items-center gap-1">
