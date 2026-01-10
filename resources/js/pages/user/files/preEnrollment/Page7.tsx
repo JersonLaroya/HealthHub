@@ -22,7 +22,7 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
   useEffect(() => {
     if (alreadySubmitted) {
       const t = setTimeout(() => {
-        router.visit('/user/medical-forms/pre-enrollment-health-form', {
+        router.visit('/user/files/pre-enrollment-health-form', {
           replace: true,
         });
       }, 1500); // give Sonner time
@@ -30,6 +30,7 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
       return () => clearTimeout(t);
     }
   }, [alreadySubmitted]);
+  console.log('alreadySubmitted', alreadySubmitted);
 
   const { toast: flashToast } = usePage().props as any;
 

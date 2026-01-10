@@ -7,7 +7,7 @@ export async function fillPreEmploymentForm(allPagesData: any, slug: string) {
   if (!slug) throw new Error('Service slug is required to fetch PDF template.');
 
   // Fetch PDF template
-  const pdfBytes = await fetch(`/user/medical-forms/${slug}/template`)
+  const pdfBytes = await fetch(`/user/files/${slug}/template`)
     .then(res => {
       if (!res.ok) throw new Error('Failed to fetch PDF template');
       return res.arrayBuffer();

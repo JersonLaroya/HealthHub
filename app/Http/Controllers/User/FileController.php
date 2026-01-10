@@ -11,7 +11,7 @@ use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 
-class MedicalFormController extends Controller
+class FileController extends Controller
 {
     public function index(Request $request)
     {
@@ -19,10 +19,9 @@ class MedicalFormController extends Controller
         $category = optional($user->userRole)->category;
 
         if (!in_array($category, ['user', 'rcy'])) {
-            abort(403, 'You do not have access to medical forms.');
+            abort(403, 'You do not have access to files.');
         }
 
-        // Fetch all services from DB ordered by slug
         $services = Service::where('slug', '!=', 'clinic-consultation-record-form')
             ->orderBy('slug', 'desc')
             ->get()
@@ -35,7 +34,7 @@ class MedicalFormController extends Controller
                 ];
             });
 
-        return Inertia::render('user/medicalForms/Index', [
+        return Inertia::render('user/files/Index', [
             'patient' => [
                 'name' => $user->name,
                 'birthdate' => $user->birthdate,
@@ -47,26 +46,24 @@ class MedicalFormController extends Controller
                 'user_role' => $user->userRole,
             ],
             'assignments' => [
-                'data' => $services, // pass sorted services
+                'data' => $services,
             ],
             'breadcrumbs' => [
                 ['title' => 'Dashboard', 'href' => route('user.dashboard')],
-                ['title' => 'Medical Forms'],
+                ['title' => 'Files'],
             ],
         ]);
     }
 
-    // New method to show a specific form
-     public function show($slug, Request $request)
+    public function show($slug, Request $request)
     {
         $user = $request->user();
         $category = optional($user->userRole)->category;
 
         if (!in_array($category, ['user', 'rcy'])) {
-            abort(403, 'You do not have access to medical forms.');
+            abort(403, 'You do not have access to files.');
         }
 
-        // Fetch service from DB or handle special cases
         if ($slug === 'laboratory-results') {
             $service = (object) [
                 'title' => 'Laboratory Results',
@@ -77,7 +74,6 @@ class MedicalFormController extends Controller
             $service = Service::where('slug', $slug)->firstOrFail();
         }
 
-        // Fetch all records of this user for this service (or all services if you want)
         $records = Record::where('user_id', $user->id)
             ->get(['service_id', 'created_at'])
             ->map(function ($record) {
@@ -88,7 +84,7 @@ class MedicalFormController extends Controller
                 ];
             });
 
-        return Inertia::render('user/medicalForms/ShowForm', [
+        return Inertia::render('user/files/ShowForm', [
             'service' => $service,
             'patient' => [
                 'name' => $user->name,
@@ -98,7 +94,7 @@ class MedicalFormController extends Controller
                 'year' => $user->yearLevel,
                 'office' => $user->office,
             ],
-            'records' => $records, // <-- pass the records to frontend
+            'records' => $records,
         ]);
     }
 
@@ -109,7 +105,6 @@ class MedicalFormController extends Controller
             'presentAddress.barangay.municipality.province',
         ]);
 
-        // Helper function to build address
         $formatAddress = function ($address) {
             if (!$address) return null;
 
@@ -144,70 +139,56 @@ class MedicalFormController extends Controller
 
     public function preenrollmentPage1()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEnrollment/Page1', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEnrollment/Page1', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preenrollmentPage2()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEnrollment/Page2', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEnrollment/Page2', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preenrollmentPage3()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEnrollment/Page3', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEnrollment/Page3', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preenrollmentPage4()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEnrollment/Page4', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEnrollment/Page4', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preenrollmentPage5()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEnrollment/Page5', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEnrollment/Page5', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preenrollmentPage6()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEnrollment/Page6', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEnrollment/Page6', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preenrollmentPage7()
     {
         $user = auth()->user();
-
         $service = Service::where('slug', 'pre-enrollment-health-form')->first();
 
-        // Check if the user has already submitted this form
         $alreadySubmitted = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
             ->exists();
 
-        return Inertia::render('user/medicalForms/preEnrollment/Page7', [
+        return Inertia::render('user/files/preEnrollment/Page7', [
             'patient' => $this->patientPayload($user),
             'alreadySubmitted' => $alreadySubmitted,
         ]);
@@ -215,77 +196,73 @@ class MedicalFormController extends Controller
 
     public function preemploymentPage1()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEmployment/Page1', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEmployment/Page1', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preemploymentPage2()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEmployment/Page2', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEmployment/Page2', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preemploymentPage3()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEmployment/Page3', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEmployment/Page3', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preemploymentPage4()
     {
-        $user = auth()->user();
-
-        return Inertia::render('user/medicalForms/preEmployment/Page4', [
-            'patient' => $this->patientPayload($user),
+        return Inertia::render('user/files/preEmployment/Page4', [
+            'patient' => $this->patientPayload(auth()->user()),
         ]);
     }
 
     public function preemploymentPage5()
     {
         $user = auth()->user();
-
         $service = Service::where('slug', 'pre-employment-health-form')->first();
 
-        // Check if the user has already submitted this form
         $alreadySubmitted = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
             ->exists();
 
-        
-        return Inertia::render('user/medicalForms/preEmployment/Page5', [
+        return Inertia::render('user/files/preEmployment/Page5', [
             'patient' => $this->patientPayload($user),
             'alreadySubmitted' => $alreadySubmitted,
         ]);
     }
 
-    public function previewPreEnrollmentPDF(Request $request)
+    public function athletePage1()
     {
-        // The data comes from the `data` query param (from page7)
-        $allPagesData = json_decode($request->query('data'), true);
-
-        if (!$allPagesData) {
-            abort(400, 'No data provided for PDF.');
-        }
-
-        // Use your JS utility (preEnrollmentPDF.ts) via a Node build or run frontend side? 
-        // In Laravel, you can generate PDF server-side using something like barryvdh/laravel-dompdf,
-        // or keep PDF-lib in frontend. Here, we can simply return the JSON so frontend JS can generate PDF:
-
-        return response()->json($allPagesData);
-
-        // OR if you want server-side PDF, you can integrate PDF-lib with Laravel Vite build
+        return Inertia::render('user/files/athlete/Page1', [
+            'patient' => $this->patientPayload(auth()->user()),
+        ]);
     }
 
-    public function previewPreEmploymentPDF(Request $request)
+    public function athletePage2() { return Inertia::render('user/files/athlete/Page2', ['patient' => $this->patientPayload(auth()->user())]); }
+    public function athletePage3() { return Inertia::render('user/files/athlete/Page3', ['patient' => $this->patientPayload(auth()->user())]); }
+    public function athletePage4() { return Inertia::render('user/files/athlete/Page4', ['patient' => $this->patientPayload(auth()->user())]); }
+    public function athletePage5() { return Inertia::render('user/files/athlete/Page5', ['patient' => $this->patientPayload(auth()->user())]); }
+    public function athletePage6() { return Inertia::render('user/files/athlete/Page6', ['patient' => $this->patientPayload(auth()->user())]); }
+    public function athletePage7() {
+        $user = auth()->user();
+        $service = Service::where('slug', 'athlete-medical')->first();
+        $alreadySubmitted = Record::where('user_id', $user->id)->where('service_id', $service->id)->exists();
+
+        return Inertia::render('user/files/athlete/Page7', [
+            'patient' => $this->patientPayload($user),
+            'alreadySubmitted' => $alreadySubmitted,
+        ]);
+    }
+
+
+
+    public function previewPDF(Request $request)
 {
     $allPagesData = json_decode($request->query('data'), true);
 
@@ -321,7 +298,9 @@ class MedicalFormController extends Controller
             'response_data'   => $request->responses,
         ]);
 
-        return redirect()->back()->with('toast', [
+        return redirect()->route('user.files.confirmation', [
+            'slug' => $formType,
+        ])->with('toast', [
             'title' => 'Form submitted',
             'message' => 'Your responses have been successfully saved.',
             'type' => 'success',

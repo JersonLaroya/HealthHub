@@ -141,7 +141,24 @@ export default function PreenrollmentPage2({ patient }: Props) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                '2x2 Picture'
+                <div className="relative w-full h-full overflow-hidden rounded-md">
+                  {/* Fake scenery background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-300 via-sky-300 to-lime-200" />
+
+                  {/* Soft hills */}
+                  <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-emerald-500/40 to-transparent rounded-t-full blur-sm" />
+
+                  {/* Sky glow */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/30 rounded-full blur-2xl" />
+
+                  {/* Dark overlay for contrast */}
+                  <div className="absolute inset-0 bg-black/20" />
+
+                  {/* Label */}
+                  <span className="relative z-10 flex items-center justify-center w-full h-full text-sm font-semibold text-white tracking-wide">
+                    2×2 Picture
+                  </span>
+                </div>
               )}
             </div>
             <input

@@ -22,7 +22,7 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
   useEffect(() => {
     if (alreadySubmitted) {
       const t = setTimeout(() => {
-        router.visit('/user/medical-forms/pre-employment-health-form', {
+        router.visit('/user/files/pre-employment-health-form', {
           replace: true,
         });
       }, 1500); // give Sonner time
@@ -88,7 +88,7 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
     },
     });
 
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(60);
   const [submitDisabled, setSubmitDisabled] = useState(true);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [savingPrev, setSavingPrev] = useState(false);

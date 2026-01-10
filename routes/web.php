@@ -15,6 +15,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\User\FileController;
 use App\Http\Controllers\User\MedicalFormController;
 use App\Http\Controllers\User\PersonalInfoController;
 use App\Http\Controllers\User\RcyController;
@@ -40,97 +41,109 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 // Routes for User
-Route::middleware(['auth', ExcludeRolesMiddleware::class])->prefix('user')->name('user.')->group(function () {
+Route::middleware(['auth', ExcludeRolesMiddleware::class])
+    ->prefix('user')
+    ->name('user.')
+    ->group(function () {
+
     Route::get('/dashboard', function () {
         return Inertia::render('user/dashboard');
     })->name('dashboard');
 
     // Personal Information page (view & update)
-    Route::get('/personal-info', [PersonalInfoController::class, 'edit'])->name('personal-info.edit');
-    Route::put('/personal-info', [PersonalInfoController::class, 'update'])->name('personal-info.update');
+    Route::get('/personal-info', [PersonalInfoController::class, 'edit'])
+        ->name('personal-info.edit');
+    Route::put('/personal-info', [PersonalInfoController::class, 'update'])
+        ->name('personal-info.update');
 
-    // Medical Forms page
-    Route::get('/medical-forms', [MedicalFormController::class, 'index'])->name('medical-forms.index');
-    Route::get('/medical-forms/{slug}', [MedicalFormController::class, 'show'])->name('medical-forms.show');
-    Route::get('/medical-forms/{slug}/download', [MedicalFormController::class, 'download'])->name('medical-forms.download');
+    // =========================
+    // Files page
+    // =========================
+    Route::get('/files', [FileController::class, 'index'])
+        ->name('files.index');
 
-    // Preenrollment
+    Route::get('/files/{slug}', [FileController::class, 'show'])
+        ->name('files.show');
+
+    Route::get('/files/{slug}/download', [FileController::class, 'download'])
+        ->name('files.download');
+
+    Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate'])
+        ->name('files.template');
+
+    // =========================
+    // Pre-enrollment
+    // =========================
     Route::prefix('fill-forms/pre-enrollment-health-form')
-    ->name('fill-forms.pre-enrollment.')
-    ->group(function () {
+        ->name('fill-forms.pre-enrollment.')
+        ->group(function () {
 
-        Route::get('/page-1', [MedicalFormController::class, 'preenrollmentPage1'])
-            ->name('page-1');
+        Route::get('/page-1', [FileController::class, 'preenrollmentPage1'])->name('page-1');
+        Route::get('/page-2', [FileController::class, 'preenrollmentPage2'])->name('page-2');
+        Route::get('/page-3', [FileController::class, 'preenrollmentPage3'])->name('page-3');
+        Route::get('/page-4', [FileController::class, 'preenrollmentPage4'])->name('page-4');
+        Route::get('/page-5', [FileController::class, 'preenrollmentPage5'])->name('page-5');
+        Route::get('/page-6', [FileController::class, 'preenrollmentPage6'])->name('page-6');
+        Route::get('/page-7', [FileController::class, 'preenrollmentPage7'])->name('page-7');
 
-        Route::get('/page-2', [MedicalFormController::class, 'preenrollmentPage2'])
-            ->name('page-2');
-
-        Route::get('/page-3', [MedicalFormController::class, 'preenrollmentPage3'])
-            ->name('page-3');
-
-        Route::get('/page-4', [MedicalFormController::class, 'preenrollmentPage4'])
-            ->name('page-4');
-
-        Route::get('/page-5', [MedicalFormController::class, 'preenrollmentPage5'])
-            ->name('page-5');
-
-        Route::get('/page-6', [MedicalFormController::class, 'preenrollmentPage6'])
-            ->name('page-6');
-
-        Route::get('/page-7', [MedicalFormController::class, 'preenrollmentPage7'])
-            ->name('page-7');
-
-        Route::get('/preview', [MedicalFormController::class, 'previewPreEnrollmentPDF'])
+        Route::get('/preview', [FileController::class, 'previewPDF'])
             ->name('preview');
     });
 
-    // Premnrollment
+    // =========================
+    // Pre-employment
+    // =========================
     Route::prefix('fill-forms/pre-employment-health-form')
-    ->name('fill-forms.pre-employment.')
-    ->group(function () {
+        ->name('fill-forms.pre-employment.')
+        ->group(function () {
 
-        Route::get('/page-1', [MedicalFormController::class, 'preemploymentPage1'])
-            ->name('page-1');
+        Route::get('/page-1', [FileController::class, 'preemploymentPage1'])->name('page-1');
+        Route::get('/page-2', [FileController::class, 'preemploymentPage2'])->name('page-2');
+        Route::get('/page-3', [FileController::class, 'preemploymentPage3'])->name('page-3');
+        Route::get('/page-4', [FileController::class, 'preemploymentPage4'])->name('page-4');
+        Route::get('/page-5', [FileController::class, 'preemploymentPage5'])->name('page-5');
+        Route::get('/page-6', [FileController::class, 'preemploymentPage6'])->name('page-6');
+        Route::get('/page-7', [FileController::class, 'preemploymentPage7'])->name('page-7');
 
-        Route::get('/page-2', [MedicalFormController::class, 'preemploymentPage2'])
-            ->name('page-2');
-
-        Route::get('/page-3', [MedicalFormController::class, 'preemploymentPage3'])
-            ->name('page-3');
-
-        Route::get('/page-4', [MedicalFormController::class, 'preemploymentPage4'])
-            ->name('page-4');
-
-        Route::get('/page-5', [MedicalFormController::class, 'preemploymentPage5'])
-            ->name('page-5');
-
-        Route::get('/page-6', [MedicalFormController::class, 'preemploymentPage6'])
-            ->name('page-6');
-
-        Route::get('/page-7', [MedicalFormController::class, 'preemploymentPage7'])
-            ->name('page-7');
-
-        Route::get('/preview', [MedicalFormController::class, 'previewPreEnrollmentPDF'])
+        Route::get('/preview', [FileController::class, 'previewPDF'])
             ->name('preview');
     });
 
-    Route::get('/medical-forms/{slug}/template', [MedicalFormController::class, 'getFormTemplate'])
-            ->name('user.medical-forms.template');
-
-
+    // =========================
     // Athlete
-    Route::get('/fill-forms/athlete-medical/fill', [MedicalFormController::class, 'fillAthlete'])
-        ->name('fill-forms.athlete-medical.fill');
+    // =========================
+    Route::prefix('fill-forms/athlete-medical')
+        ->name('fill-forms.athlete-medical.')
+        ->group(function () {
+
+        Route::get('/page-1', [FileController::class, 'athletePage1'])->name('page-1');
+        Route::get('/page-2', [FileController::class, 'athletePage2'])->name('page-2');
+        Route::get('/page-3', [FileController::class, 'athletePage3'])->name('page-3');
+        Route::get('/page-4', [FileController::class, 'athletePage4'])->name('page-4');
+        Route::get('/page-5', [FileController::class, 'athletePage5'])->name('page-5');
+        Route::get('/page-6', [FileController::class, 'athletePage6'])->name('page-6');
+        Route::get('/page-7', [FileController::class, 'athletePage7'])->name('page-7');
+
+        Route::get('/preview', [FileController::class, 'previewPDF'])
+            ->name('preview');
+    });
 
     // Submit Form
-    Route::post('/submit/{formType}', [MedicalFormController::class, 'submitForm'])
+    Route::post('/submit/{formType}', [FileController::class, 'submitForm'])
         ->name('submit.form');
+    
+    Route::get('/files/{slug}/confirmation', function ($slug) {
+        return Inertia::render('user/files/Confirmation', [
+            'slug' => $slug,
+        ]);
+    })->name('files.confirmation');
 
     Route::get('/records', function () {
         return Inertia::render('user/records');
     })->name('records');
 
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+    Route::get('/profile', [ProfileController::class, 'edit'])
+        ->name('profile');
 });
 
 // Routes for Admin

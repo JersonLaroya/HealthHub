@@ -32,7 +32,7 @@ export default function ShowForm({ service, patient }: Props) {
       setIsDownloading(true); // start loading
 
       // Fetch data from backend
-      const res = await fetch(`/user/medical-forms/${serviceSlug}/download`);
+      const res = await fetch(`/user/files/${serviceSlug}/download`);
       if (!res.ok) return alert('No saved form found');
 
       const { responses } = await res.json();
