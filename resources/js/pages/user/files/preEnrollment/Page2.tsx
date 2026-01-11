@@ -169,6 +169,12 @@ export default function PreenrollmentPage2({ patient }: Props) {
                 const file = e.target.files?.[0];
                 if (!file) return;
 
+                const maxSizeMB = 3;
+                if (file.size / 1024 / 1024 > maxSizeMB) {
+                  alert(`File is too large! Max size is ${maxSizeMB}MB.`);
+                  return;
+                }
+                
                 const reader = new FileReader();
                 reader.onload = () => {
                   form.setData('picture_2x2', reader.result);

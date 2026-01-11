@@ -23,6 +23,10 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from 'sonner';
 
+import SignaturePad from "signature_pad";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+
 import { useForm } from "@inertiajs/react";
 
 function PasswordField({ id, name, placeholder }: { id: string; name: string; placeholder: string }) {
@@ -60,24 +64,60 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
 
+    const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const signaturePadRef = useRef<SignaturePad | null>(null);
+
+    const [activeTab, setActiveTab] = useState("draw");
+    const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+
+
     useEffect(() => {
         if (status) {
             toast.success(status);
         }
     }, [status]);
 
+    useEffect(() => {
+    if (activeTab !== "draw") return;
+
+        const canvas = signatureCanvasRef.current;
+        if (!canvas) return;
+
+        // wait for tab to render
+        requestAnimationFrame(() => {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+
+            const ctx = canvas.getContext("2d");
+            if (ctx) ctx.scale(ratio, ratio);
+
+            signaturePadRef.current?.off();
+            signaturePadRef.current = new SignaturePad(canvas);
+        });
+    }, [activeTab, signaturePreview]);
+
+    useEffect(() => {
+    if (data.signature) {
+        setSignaturePreview(data.signature);
+    }
+    }, []);
+
+
     const { auth } = usePage<{ auth: { user: { 
-    id: number;
-    first_name: string;
-    middle_name?: string;
-    last_name: string;
-    email: string;
-    email_verified_at: string | null;
-    user_role: { id: number; name: string };
-    // office?: string;
-    // course?: string;
-    // year?: string;
-} } }>().props;
+        id: number;
+        first_name: string;
+        middle_name?: string;
+        last_name: string;
+        email: string;
+        email_verified_at: string | null;
+        user_role: { id: number; name: string };
+        signature?: string | null;
+        // office?: string;
+        // course?: string;
+        // year?: string;
+    } } }>().props;
 
 const user = auth.user;
 
@@ -86,6 +126,7 @@ const { data, setData, put, processing, errors } = useForm({
     middle_name: user.middle_name || "",
     last_name: user.last_name || "",
     email: user.email || "",
+    signature: user.signature || "",
 });
 
 
@@ -153,6 +194,91 @@ const { data, setData, put, processing, errors } = useForm({
                                     />
                                     <InputError message={errors.email} />
                                 </div>
+
+                                {/* Signature */}
+                                <div className="grid gap-2">
+                                <Label>Signature</Label>
+
+                                {signaturePreview && (
+                                    <div className="border rounded p-3 flex flex-col items-center gap-2">
+                                    <img
+                                        src={signaturePreview}
+                                        alt="Signature"
+                                        className="max-h-32 object-contain"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setSignaturePreview(null)}
+                                    >
+                                        Change signature
+                                    </Button>
+                                    </div>
+                                )}
+
+                                {!signaturePreview && (
+                                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                                    <TabsList className="w-full">
+                                        <TabsTrigger value="draw" className="w-1/2">Draw</TabsTrigger>
+                                        <TabsTrigger value="upload" className="w-1/2">Upload</TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="draw">
+                                        <div className="border rounded bg-white">
+                                        <canvas
+                                            ref={signatureCanvasRef}
+                                            className="w-full h-32"
+                                            style={{ touchAction: "none" }}
+                                        />
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 mt-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => signaturePadRef.current?.clear()}
+                                        >
+                                            Clear
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                            if (!signaturePadRef.current?.isEmpty()) {
+                                                const sig = signaturePadRef.current.toDataURL();
+                                                setSignaturePreview(sig);
+                                                setData("signature", sig);
+                                            }
+                                            }}
+                                        >
+                                            Select
+                                        </Button>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="upload">
+                                        <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            const reader = new FileReader();
+                                            reader.onload = () => {
+                                            const base64 = reader.result as string;
+                                            setSignaturePreview(base64);
+                                            setData("signature", base64);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }}
+                                        />
+                                    </TabsContent>
+                                    </Tabs>
+                                )}
+                                </div>
+
+                                <input type="hidden" name="signature" value={data.signature} />
 
                                 {mustVerifyEmail && auth.user.email_verified_at === null && (
                                     <div>

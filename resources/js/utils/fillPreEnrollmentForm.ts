@@ -609,6 +609,19 @@ form.getTextField('physical_deformities').setText(allPagesData.page4?.physical_d
     }
   }
 
+  ////////////////////////////////
+  //  TO BE FILLED-OUT BY CLINIC PERSONNEL ONLY. 
+  ////////////////////////////////
+  form.getTextField('clinic_personnel_cbc')?.setText(allPagesData.cbc || '');
+  form.getTextField('clinic_personnel_urinalysis')?.setText(allPagesData.urinalysis || '');
+  form.getTextField('clinic_personnel_chest_x_ray')?.setText(allPagesData.chest_xray || '');
+  form.getTextField('clinic_personnel_stool_exam')?.setText(allPagesData.stool_exam || '');
+  form.getTextField('clinic_personnel_hbsag')?.setText(allPagesData.hbsag || '');
+  form.getTextField('clinic_personnel_neuropsychiatric')?.setText(allPagesData.neuropsychiatric_exam || '');
+  form.getTextField('clinic_personnel_drug_test')?.setText(allPagesData.drug_test || '');
+  form.getTextField('clinic_personnel_ishihara')?.setText(allPagesData.ishihara_test || '');
+  form.getTextField('clinic_personnel_remarks')?.setText(allPagesData.remarks || '');
+
   // Flatten all fields
   // ----------------------
   form.flatten();

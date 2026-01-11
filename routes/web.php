@@ -291,6 +291,7 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}/files', [PatientController::class, 'files'])->name('admin.patients.files');
         Route::get('/patients/{patient}/files/{slug}', [PatientController::class, 'showFile'])->name('admin.patients.showFiles');
         Route::get('/patients/{patient}/files/{slug}/records/{record}',[PatientController::class, 'viewRecord'])->name('admin.patients.records.view');
+        Route::put('/patients/{patient}/files/{slug}/records/{record}',[PatientController::class, 'updateRecord'])->name('admin.records.update');
 
         Route::delete('/patients/{patient}/files/{slug}/records/{record}', [PatientController::class, 'deleteRecord'])->name('admin.patients.records.delete');
         Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('admin.patients.consultations.destroy');

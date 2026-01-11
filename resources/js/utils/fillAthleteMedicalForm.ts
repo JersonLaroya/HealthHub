@@ -481,6 +481,121 @@ const page6 = allPagesData.page6;
 form.getTextField('civil_status')?.setText(page6.civil_status || '');
 form.getTextField('sex')?.setText(page6.sex || '');
 
+/////////////
+//  TO BE FILLED OUT BY PHYSICIAN
+////////////
+if(allPagesData.vitalSigns) {
+  form.getTextField('bp')?.setText(allPagesData.vitalSigns.bp || '');
+  form.getTextField('pr')?.setText(allPagesData.vitalSigns.pr || '');
+  form.getTextField('rr')?.setText(allPagesData.vitalSigns.rr || '');
+  form.getTextField('temp')?.setText(allPagesData.vitalSigns.temp || '');
+  form.getTextField('02_sat')?.setText(allPagesData.vitalSigns.o2sat || '');
+
+  form.getTextField('height')?.setText(allPagesData.anthropometry.height || '');
+  form.getTextField('weight')?.setText(allPagesData.anthropometry.weight || '');
+  form.getTextField('bmi')?.setText(allPagesData.anthropometry.bmi || '');
+
+  const generalHealth = allPagesData.generalHealth || '';
+
+  form.getCheckBox('health_appearance_excellent')?.uncheck();
+  form.getCheckBox('health_appearance_good')?.uncheck();
+  form.getCheckBox('health_appearance_fair')?.uncheck();
+  form.getCheckBox('health_appearance_poor')?.uncheck();
+
+  switch (generalHealth.toLowerCase()) {
+    case 'excellent':
+      form.getCheckBox('health_appearance_excellent')?.check();
+      break;
+    case 'good':
+      form.getCheckBox('health_appearance_good')?.check();
+      break;
+    case 'fair':
+      form.getCheckBox('health_appearance_fair')?.check();
+      break;
+    case 'poor':
+      form.getCheckBox('health_appearance_poor')?.check();
+      break;
+    default:
+      // none checked if value is missing/unknown
+      break;
+  }
+
+  // ----------------------
+  // Organ Systems Checkboxes & Findings
+  // ----------------------
+  const organSystems = allPagesData.organ_systems || {};
+
+  const mapping: Record<string, { normal: string; abnormal: string; findings: string }> = {
+    skin: { normal: 'check_box_normal_skin', abnormal: 'check_box_abnormal_skin', findings: 'abnormal_findings_skin' },
+    head_scalp: { normal: 'check_box_normal_head', abnormal: 'check_box_abnormal_head', findings: 'abnormal_findings_head' },
+    eyes: { normal: 'check_box_normal_eyes', abnormal: 'check_box_abnormal_eyes', findings: 'abnormal_findings_eyes' },
+    ears: { normal: 'check_box_normal_ears', abnormal: 'check_box_abnormal_ears', findings: 'abnormal_findings_ears' },
+    nose: { normal: 'check_box_normal_nose', abnormal: 'check_box_abnormal_nose', findings: 'abnormal_findings_nose' },
+    mouth_oropharynx: { normal: 'check_box_normal_mouth', abnormal: 'check_box_abnormal_mouth', findings: 'abnormal_findings_mouth' },
+    neck: { normal: 'check_box_normal_neck', abnormal: 'check_box_abnormal_neck', findings: 'abnormal_findings_neck' },
+    heart: { normal: 'check_box_normal_heart', abnormal: 'check_box_abnormal_heart', findings: 'abnormal_findings_heart' },
+    lungs: { normal: 'check_box_normal_lungs', abnormal: 'check_box_abnormal_lungs', findings: 'abnormal_findings_lungs' },
+    back_spine: { normal: 'check_box_normal_back', abnormal: 'check_box_abnormal_back', findings: 'abnormal_findings_back' },
+    abdomen: { normal: 'check_box_normal_abdomen', abnormal: 'check_box_abnormal_abdomen', findings: 'abnormal_findings_abdomen' },
+    extremities: { normal: 'check_box_normal_extremities', abnormal: 'check_box_abnormal_extremities', findings: 'abnormal_findings_extremities' },
+    genito_urinary: { normal: 'check_box_normal_genito_urinary', abnormal: 'check_box_abnormal_genito_urinary', findings: 'abnormal_findings_genito_urinary' },
+    neurologic: { normal: 'check_box_normal_neurologic', abnormal: 'check_box_abnormal_neurologic', findings: 'abnormal_findings_neurologic' },
+  };
+
+  for (const [key, fields] of Object.entries(mapping)) {
+    const system = organSystems[key];
+    if (!system) continue;
+
+    // Uncheck both first
+    form.getCheckBox(fields.normal)?.uncheck();
+    form.getCheckBox(fields.abnormal)?.uncheck();
+
+    if (system.status?.toLowerCase() === 'normal') {
+      form.getCheckBox(fields.normal)?.check();
+    } else if (system.status?.toLowerCase() === 'abnormal') {
+      form.getCheckBox(fields.abnormal)?.check();
+    }
+
+    form.getTextField(fields.findings)?.setText(system.findings || '');
+  }
+
+  form.getTextField('assessment1')?.setText(allPagesData.assessment || '');
+  form.getTextField('recommendations1')?.setText(allPagesData.recommendation || '');
+
+  const clearance = allPagesData.clearance || {};
+
+  // No Participation
+  if (clearance.no) {
+    form.getCheckBox('check_box_no_participation')?.check();
+  } else {
+    form.getCheckBox('check_box_no_participation')?.uncheck();
+  }
+
+  // Limited Participation
+  if (clearance.limited) {
+    form.getCheckBox('check_box_limited_participation')?.check();
+    form.getTextField('limited_participation')?.setText(clearance.limited_detail || '');
+  } else {
+    form.getCheckBox('check_box_limited_participation')?.uncheck();
+    form.getTextField('limited_participation')?.setText('');
+  }
+
+  // Cleared After Evaluation
+  if (clearance.evaluation) {
+    form.getCheckBox('check_box_cleared_evaluation')?.check();
+    form.getTextField('cleared_after_evaluation')?.setText(clearance.evaluation_detail || '');
+  } else {
+    form.getCheckBox('check_box_cleared_evaluation')?.uncheck();
+    form.getTextField('cleared_after_evaluation')?.setText('');
+  }
+
+  // Full Clearance
+  if (clearance.full) {
+    form.getCheckBox('check_box_full_clearance')?.check();
+  } else {
+    form.getCheckBox('check_box_full_clearance')?.uncheck();
+  }
+}
 
   // Flatten all fields
   // ----------------------

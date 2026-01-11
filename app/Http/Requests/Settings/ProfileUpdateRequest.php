@@ -32,6 +32,7 @@ class ProfileUpdateRequest extends FormRequest
         'user_role_id'   => ['nullable', 'integer', 'exists:user_roles,id'],
         'course_id'      => ['nullable', 'integer', 'exists:courses,id'],
         'year_level_id'  => ['nullable', 'integer', 'exists:year_levels,id'],
+        'signature' => ['nullable', 'string'],
     ];
 
     if (in_array($this->user()->userRole?->name, ['Student', 'Staff', 'Faculty'])) {

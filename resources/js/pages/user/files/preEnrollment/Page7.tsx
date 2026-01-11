@@ -88,6 +88,18 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
 
   const savedData = sessionStorage.getItem('preenrollment_page_7');
 
+  const emptyPage7 = {
+    cbc: "",
+    urinalysis: "",
+    chest_xray: "",
+    stool_exam: "",
+    hbsag: "",
+    neuropsychiatric_exam: "",
+    drug_test: "",
+    ishihara_test: "",
+    remarks: "",
+  };
+
   const form = useForm({
     responses: {
       page1: JSON.parse(sessionStorage.getItem('preenrollment_page_1') || '{}'),
@@ -96,6 +108,15 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
       page4: JSON.parse(sessionStorage.getItem('preenrollment_page_4') || '{}'),
       page5: JSON.parse(sessionStorage.getItem('preenrollment_page_5') || '{}'),
       page6: JSON.parse(sessionStorage.getItem('preenrollment_page_6') || '{}'),
+      cbc: "",
+      urinalysis: "",
+      chest_xray: "",
+      stool_exam: "",
+      hbsag: "",
+      neuropsychiatric_exam: "",
+      drug_test: "",
+      ishihara_test: "",
+      remarks: "",
     },
   });
 
@@ -132,6 +153,17 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
       page4: JSON.parse(sessionStorage.getItem('preenrollment_page_4') || '{}'),
       page5: JSON.parse(sessionStorage.getItem('preenrollment_page_5') || '{}'),
       page6: JSON.parse(sessionStorage.getItem('preenrollment_page_6') || '{}'),
+      page7: JSON.parse(sessionStorage.getItem('preenrollment_page_7') || '{}'),
+
+      cbc: form.data.responses.cbc,
+      urinalysis: form.data.responses.urinalysis,
+      chest_xray: form.data.responses.chest_xray,
+      stool_exam: form.data.responses.stool_exam,
+      hbsag: form.data.responses.hbsag,
+      neuropsychiatric_exam: form.data.responses.neuropsychiatric_exam,
+      drug_test: form.data.responses.drug_test,
+      ishihara_test: form.data.responses.ishihara_test,
+      remarks: form.data.responses.remarks,
     };
 
     try {

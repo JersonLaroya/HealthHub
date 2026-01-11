@@ -296,18 +296,30 @@ export default function AthletePage5({ patient }: Props) {
         </div>
 
         {/* Sex & Sports */}
-        <div className="flex gap-4 mt-2">
-          <div className="w-1/4 flex items-center gap-2">Sex: 
+        <div className="flex flex-wrap gap-4 mt-2">
+        {/* Sex */}
+        <div className="flex flex-1 min-w-[150px] items-center gap-2">
+            <span>Sex:</span>
             <label className="inline-flex items-center gap-1">
-              <input type="checkbox" checked={form.data.sex === 'Male'} readOnly /> Male
+            <input type="checkbox" checked={form.data.sex === 'Male'} readOnly />
+            Male
             </label>
             <label className="inline-flex items-center gap-1">
-              <input type="checkbox" checked={form.data.sex === 'Female'} readOnly /> Female
+            <input type="checkbox" checked={form.data.sex === 'Female'} readOnly />
+            Female
             </label>
-          </div>
-          <div className="w-3/4">
-            Sports: <input type="text" className={lineInput} value={form.data.sport_event} readOnly />
-          </div>
+        </div>
+
+        {/* Sports */}
+        <div className="flex-1 min-w-[200px]">
+            <span>Sports:</span>
+            <input
+            type="text"
+            className={`${lineInput} w-full`}
+            value={form.data.sport_event}
+            readOnly
+            />
+        </div>
         </div>
 
         {/* Horizontal line */}

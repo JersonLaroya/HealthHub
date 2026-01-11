@@ -176,6 +176,7 @@ class PatientController extends Controller
             ->get([
                 'id',
                 'created_at',
+                'response_data',
             ]);
 
         return Inertia::render('patients/ShowFile', [
@@ -210,6 +211,22 @@ public function viewRecord(User $patient, string $slug, Record $record)
         'responses' => $record->response_data,
     ]);
 }
+
+public function updateRecord(User $patient, string $slug, Record $record, Request $request)
+{
+    abort_if($record->user_id !== $patient->id, 403);
+
+    $request->validate([
+        'responses' => 'required|array',
+    ]);
+
+    $record->update([
+        'response_data' => $request->responses,
+    ]);
+
+    return back()->with('success', 'Record updated successfully.');
+}
+
 
 
     public function deleteRecord(User $patient, string $slug, $recordId)

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\Course;
 use App\Models\Office;
-use App\Models\Patient;
+use Illuminate\Support\Facades\Storage;
 use App\Models\UserRole;
 use App\Models\YearLevel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -63,6 +63,7 @@ class ProfileController extends Controller
 
         $fillable = [
             'first_name', 'middle_name', 'last_name', 'email', 'office_id', 'course_id', 'year_level_id',
+            // note: we will handle signature separately
         ];
 
         // Only allow role update if user is not RCY
@@ -70,10 +71,36 @@ class ProfileController extends Controller
             $fillable[] = 'user_role_id';
         }
 
+        // Handle signature (base64 → file path)
+        $signaturePath = $user->signature; // default to existing
+        if ($request->filled('signature') && str_starts_with($request->signature, 'data:image')) {
+
+            // Delete old signature if exists
+            if ($user->signature && Storage::disk('public')->exists($user->signature)) {
+                Storage::disk('public')->delete($user->signature);
+            }
+
+            // Convert base64 to file
+            if (preg_match('/^data:image\/(\w+);base64,/', $request->signature, $type)) {
+                $dataBase64 = substr($request->signature, strpos($request->signature, ',') + 1);
+                $dataBase64 = base64_decode($dataBase64);
+
+                $extension = $type[1];
+                $fileName = 'signature_' . $user->id . '_' . time() . '.' . $extension;
+                $signaturePath = 'signatures/' . $fileName;
+
+                Storage::disk('public')->makeDirectory('signatures');
+                Storage::disk('public')->put($signaturePath, $dataBase64);
+            }
+        }
+
+        // Fill other fields (excluding signature)
         $user->fill($request->safe()->only($fillable));
 
+        // Assign signature path separately
+        $user->signature = $signaturePath;
 
-        // Only nullify course/year if the user is not a Student or RCY (adjust logic if needed)
+        // Only nullify course/year if the user is not a Student or RCY
         if (!in_array($user->userRole?->category, ['user', 'rcy'])) {
             $user->course_id = null;
             $user->year_level_id = null;
@@ -84,7 +111,7 @@ class ProfileController extends Controller
         }
 
         $user->save();
-        
+
         $userRoleName = $user->userRole->name;
 
         return match($userRoleName) {
