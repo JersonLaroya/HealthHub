@@ -248,13 +248,12 @@ class FileController extends Controller
     public function athletePage3() { return Inertia::render('user/files/athlete/Page3', ['patient' => $this->patientPayload(auth()->user())]); }
     public function athletePage4() { return Inertia::render('user/files/athlete/Page4', ['patient' => $this->patientPayload(auth()->user())]); }
     public function athletePage5() { return Inertia::render('user/files/athlete/Page5', ['patient' => $this->patientPayload(auth()->user())]); }
-    public function athletePage6() { return Inertia::render('user/files/athlete/Page6', ['patient' => $this->patientPayload(auth()->user())]); }
-    public function athletePage7() {
+    public function athletePage6() {
         $user = auth()->user();
         $service = Service::where('slug', 'athlete-medical')->first();
         $alreadySubmitted = Record::where('user_id', $user->id)->where('service_id', $service->id)->exists();
 
-        return Inertia::render('user/files/athlete/Page7', [
+        return Inertia::render('user/files/athlete/Page6', [
             'patient' => $this->patientPayload($user),
             'alreadySubmitted' => $alreadySubmitted,
         ]);

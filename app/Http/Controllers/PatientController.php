@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Disease;
-use App\Models\FormAssignment;
+use App\Models\Record;
+use App\Models\Service;
+use Inertia\Inertia;
 use App\Models\User;
 use App\Models\VitalSign;
 use Illuminate\Http\Request;
@@ -108,15 +110,119 @@ class PatientController extends Controller
     /**
      * List forms assigned to the user/patient
      */
-    public function forms(User $patient)
-    {
-        $formAssignments = FormAssignment::with(['form', 'response'])
-            ->where('user_id', $patient->id) // changed from patient_id
-            ->get();
+    // public function forms(User $patient)
+    // {
+    //     $formAssignments = FormAssignment::with(['form', 'response'])
+    //         ->where('user_id', $patient->id) // changed from patient_id
+    //         ->get();
 
-        return inertia('patients/Forms', [
-            'patient' => $patient,
-            'assignedForms' => $formAssignments,
+    //     return inertia('patients/Forms', [
+    //         'patient' => $patient,
+    //         'assignedForms' => $formAssignments,
+    //     ]);
+    // }
+
+    public function files(User $patient)
+    {
+        $category = optional($patient->userRole)->category;
+
+        if (!in_array($category, ['user', 'rcy'])) {
+            abort(403, 'You do not have access to files.');
+        }
+
+        $services = Service::where('slug', '!=', 'clinic-consultation-record-form')
+            ->orderBy('slug', 'desc')
+            ->get()
+            ->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'title' => $service->title,
+                    'slug' => $service->slug,
+                    'description' => $service->description,
+                ];
+            });
+
+        return Inertia::render('patients/Files', [
+            'patient' => [
+                'id' => $patient->id,
+                'name' => $patient->name,
+                'birthdate' => $patient->birthdate,
+                'sex' => $patient->sex,
+                'course' => $patient->course,
+                'year' => $patient->yearLevel,
+                'office' => $patient->office,
+                'category' => $category,
+                'user_role' => $patient->userRole,
+            ],
+            'assignments' => [
+                'data' => $services,
+            ],
+            'breadcrumbs' => [
+                ['title' => 'Dashboard', 'href' => route('user.dashboard')],
+                ['title' => 'Files'],
+            ],
         ]);
     }
+
+    public function showFile(User $patient, string $slug)
+    {
+        // Get the service ONLY for template + metadata
+        $service = Service::where('slug', $slug)->firstOrFail();
+
+        // Get records (actual filled data)
+        $records = Record::where('user_id', $patient->id)
+            ->where('service_id', $service->id)
+            ->orderByDesc('created_at')
+            ->get([
+                'id',
+                'created_at',
+            ]);
+
+        return Inertia::render('patients/ShowFile', [
+            'patient' => [
+                'id' => $patient->id,
+                'name' => $patient->name,
+            ],
+            'service' => [
+                'id' => $service->id,
+                'title' => $service->title,
+                'slug' => $service->slug,
+            ],
+            'records' => $records,
+        ]);
+    }
+
+public function viewRecord(User $patient, string $slug, Record $record)
+{
+    $service = Service::where('slug', $slug)->firstOrFail();
+
+    abort_if(
+        $record->user_id !== $patient->id ||
+        $record->service_id !== $service->id,
+        403
+    );
+
+    return response()->json([
+        'service' => [
+            'slug' => $service->slug,
+            'file_path' => $service->file_path,
+        ],
+        'responses' => $record->response_data,
+    ]);
+}
+
+
+    public function deleteRecord(User $patient, string $slug, $recordId)
+    {
+        $record = Record::where('id', $recordId)
+            ->where('user_id', $patient->id)
+            ->firstOrFail();
+
+        $record->delete();
+
+        return back()->with('success', 'Record deleted successfully.');
+    }
+
+
+
 }

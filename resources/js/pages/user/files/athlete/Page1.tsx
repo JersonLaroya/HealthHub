@@ -1,27 +1,25 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function AthletePage1() {
-  const lineInput =
-    'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
+  const [continuing, setContinuing] = useState(false);
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
+    setContinuing(true);
 
-    // Save Page1 data as a JSON object in sessionStorage
     sessionStorage.setItem(
-        'athlete_page_1',
-        JSON.stringify({
+      'athlete_page_1',
+      JSON.stringify({
         duhs_name: sessionStorage.getItem('duhs_name') || '',
         duhs_signature: sessionStorage.getItem('duhs_signature') || '',
-        })
+      })
     );
 
-    // Navigate to next athlete form page
     window.location.href = '/user/fill-forms/athlete-medical/page-2';
-    };
+  };
 
   return (
     <AppLayout>
@@ -60,8 +58,8 @@ export default function AthletePage1() {
 
           {/* NEXT BUTTON */}
           <div className="flex justify-end">
-            <Button type="submit">
-              Next
+            <Button type="submit" disabled={continuing}>
+              {continuing ? 'Continuing…' : 'Next'}
             </Button>
           </div>
         </form>

@@ -288,8 +288,11 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('admin.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('admin.patients.consultations.store');
         Route::put('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'update'])->name('admin.patients.consultations.update');
-        Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('admin.patients.forms');
-        Route::get('/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('admin.forms.patient.response');
+        Route::get('/patients/{patient}/files', [PatientController::class, 'files'])->name('admin.patients.files');
+        Route::get('/patients/{patient}/files/{slug}', [PatientController::class, 'showFile'])->name('admin.patients.showFiles');
+        Route::get('/patients/{patient}/files/{slug}/records/{record}',[PatientController::class, 'viewRecord'])->name('admin.patients.records.view');
+
+        Route::delete('/patients/{patient}/files/{slug}/records/{record}', [PatientController::class, 'deleteRecord'])->name('admin.patients.records.delete');
         Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('admin.patients.consultations.destroy');
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('admin.patients.consultations.approve');
     });
@@ -300,8 +303,7 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('nurse.patients.show');
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('nurse.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
-        Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('nurse.patients.forms');
-        Route::get('/forms/{form}/patients/{patient}/response', [FormResponseController::class, 'show'])->name('nurse.forms.patient.response');
+        //Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('nurse.patients.forms');
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('nurse.patients.consultations.approve');
     });
 });

@@ -961,7 +961,7 @@ export default function AthletePage5({ patient }: Props) {
         <div className="mt-8">
         <p className="font-semibold">I. FOR FEMALES</p>
 
-        {form.data.sex === 'Male' ? (
+        {form.data.sex === 'Female' ? (
             <>
             {/* Irregular / Heavy periods */}
             <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">

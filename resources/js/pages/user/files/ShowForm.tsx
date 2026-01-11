@@ -3,6 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
 import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
+import { fillAthleteMedicalForm } from "@/utils/fillAthleteMedicalForm";
 import { useState } from 'react';
 
 interface Props {
@@ -45,7 +46,9 @@ export default function ShowForm({ service, patient }: Props) {
         pdfBytes = await fillPreEnrollmentForm(responses, serviceSlug);
       } else if (serviceSlug === 'pre-employment-health-form') {
         pdfBytes = await fillPreEmploymentForm(responses, serviceSlug);
-      } else {
+      } else if (serviceSlug === 'athlete-medical') {
+        pdfBytes = await fillAthleteMedicalForm(responses, serviceSlug);
+      }else {
         alert('Unsupported form type');
         return;
       }

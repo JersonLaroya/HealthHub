@@ -19,596 +19,468 @@ export async function fillAthleteMedicalForm(allPagesData: any, slug: string) {
 
   console.log('Filling Pre-Enrollment Form with data:', allPagesData);
 
-//   // ----------------------
-//   // Fill Page 1 fields
-//   // ----------------------
-//   form.getTextField('name').setText(allPagesData.page1.name || '');
-//   form.getTextField('birthdate').setText(allPagesData.page1.birthdate || '');
-//   form.getTextField('printed_name').setText(allPagesData.page1.printed_name || '');
-
-//   // ----------------------
-//   // Fix checkboxes
-//   // ----------------------
-//   const consent1 = form.getCheckBox('check_box_consent1');
-//   allPagesData.page1.check_box_consent1 ? consent1.check() : consent1.uncheck();
-
-//   const consent2 = form.getCheckBox('check_box_consent2');
-//   allPagesData.page1.check_box_consent2 ? consent2.check() : consent2.uncheck();
-
-//   // ----------------------
-//   // Page 1 signature using button position
-//   // ----------------------
-//   if (allPagesData.page1?.signature_image) {
-//     const sigBytes = await fetch(
-//       allPagesData.page1.signature_image.startsWith('http')
-//         ? allPagesData.page1.signature_image
-//         : `/storage/${allPagesData.page1.signature_image}`
-//     ).then(r => r.arrayBuffer());
-
-//     const pngImage = await pdfDoc.embedPng(sigBytes);
-
-//     const sigButton = form.getButton('signature_image1');
-//     if (sigButton) {
-//       const widget = sigButton.acroField.getWidgets()[0];
-//       const rect = widget.getRectangle();
-//       const page = pdfDoc.getPages()[0];
-
-//       page.drawImage(pngImage, {
-//         x: rect.x,
-//         y: rect.y,
-//         width: rect.width,
-//         height: rect.height,
-//       });
-//     }
-//   }
-
-
-
-
-//   /////////////////////// Fill Page 2 fields
-//   // ----------------------
-//   const civilStatus = allPagesData.page2?.civil_status?.toLowerCase() || '';
-
-//   const singleBox = form.getCheckBox('check_box_single');
-//   const marriedBox = form.getCheckBox('check_box_married');
-//   const widowedBox = form.getCheckBox('check_box_widowed');
-//   const separatedBox = form.getCheckBox('check_box_separated');
-
-//   if (allPagesData.page2?.picture_2x2) {
-//     const dataUrl = allPagesData.page2.picture_2x2;
-
-//     // Strip base64 header
-//     const base64 = dataUrl.split(',')[1];
-//     const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-
-//     // Detect image type
-//     const image = dataUrl.startsWith('data:image/png')
-//       ? await pdfDoc.embedPng(bytes)
-//       : await pdfDoc.embedJpg(bytes);
-
-//     const pictureField = form.getButton('picture_2x2');
-//     const widget = pictureField.acroField.getWidgets()[0];
-//     const rect = widget.getRectangle();
-
-//     const page = pdfDoc.getPages()[1]; // Page 2
-
-//     page.drawImage(image, {
-//       x: rect.x,
-//       y: rect.y,
-//       width: rect.width,
-//       height: rect.height,
-//     });
-//   }
-
-//   // Uncheck all first
-//   singleBox.uncheck();
-//   marriedBox.uncheck();
-//   widowedBox.uncheck();
-//   separatedBox.uncheck();
-
-//   // Check the box based on civil_status
-//   switch (civilStatus) {
-//     case 'single':
-//       singleBox.check();
-//       break;
-//     case 'married':
-//       marriedBox.check();
-//       break;
-//     case 'widowed':
-//       widowedBox.check();
-//       break;
-//     case 'separated':
-//       separatedBox.check();
-//       break;
-//   }
-
-//   form.getTextField('age').setText(allPagesData.page2.age || '');
-//   form.getTextField('birthplace').setText(allPagesData.page2.birthplace || '');
-//   form.getTextField('campus').setText(allPagesData.page2.campus || '');
-//   form.getTextField('course_and_year').setText(allPagesData.page2.course_and_year || '');
-//   form.getTextField('home_address').setText(allPagesData.page2.home_address || '');
-//   form.getTextField('contact_no').setText(allPagesData.page2.contact_no || '');
-//   form.getTextField('present_address').setText(allPagesData.page2.present_address || '');
-//   form.getTextField('guardian').setText(allPagesData.page2.guardian || '');
-//   form.getTextField('landlady').setText(allPagesData.page2.landlord || '');
-//   form.getTextField('landlord_contact').setText(allPagesData.page2.landlord_contact || '');
-//   form.getTextField('landlord_address').setText(allPagesData.page2.landlord_address || '');
-
-//   const studentType = allPagesData.page2?.student_type?.toLowerCase() || '';
-
-//   const freshmanBox = form.getCheckBox('check_box_freshman');
-//   const postGradBox = form.getCheckBox('check_box_post_graduate');
-//   const transfereeBox = form.getCheckBox('check_box_transferee');
-//   const crossEnrolleeBox = form.getCheckBox('check_box_cross-enrollee');
-//   const returningBox = form.getCheckBox('check_box_returning');
-
-//   // Uncheck all first
-//   freshmanBox.uncheck();
-//   postGradBox.uncheck();
-//   transfereeBox.uncheck();
-//   crossEnrolleeBox.uncheck();
-//   returningBox.uncheck();
-
-//   // Check the box based on student_type
-//   switch (studentType) {
-//     case 'freshman':
-//       freshmanBox.check();
-//       break;
-//     case 'post_graduate':
-//     case 'postgraduate':
-//       postGradBox.check();
-//       break;
-//     case 'transferee':
-//       transfereeBox.check();
-//       break;
-//     case 'cross-enrollee':
-//     case 'crossenrollee':
-//       crossEnrolleeBox.check();
-//       break;
-//     case 'returning':
-//       returningBox.check();
-//       break;
-//   }
-
-
-
-
-  
-//   // ----------------------
-//   ////////////////////// Page 3 fields
-
-//   const foodAllergyBox = form.getCheckBox('check_box_food_alergies');
-//   const foodAllergyText = form.getTextField('food_allerigies');
-
-//   foodAllergyBox.uncheck();
-
-//   if (allPagesData.page3?.food_allergies) {
-//     foodAllergyBox.check();
-//     foodAllergyText.setText(allPagesData.page3.food_allergies);
-//   } else {
-//     foodAllergyText.setText(''); // clear if not checked
-//   }
-
-//   const drugAllergyBox = form.getCheckBox('check_box_drug_allergies');
-//   const drugllergyText = form.getTextField('drug_allergies');
-
-//   drugAllergyBox.uncheck();
-
-//   if (allPagesData.page3?.drug_allergies) {
-//     drugAllergyBox.check();
-//     drugllergyText.setText(allPagesData.page3.drug_allergies);
-//   } else {
-//     drugllergyText.setText(''); // clear if not checked
-//   }
-
-//   form.getCheckBox('check_box_medication_yes').uncheck();
-//   form.getCheckBox('check_box_medication_no').uncheck();
-//   form.getTextField('specify_medications').setText('');
-
-//   if (allPagesData.page3?.medications_regularly === 'Yes') {
-//     form.getCheckBox('check_box_medication_yes').check();
-//     form.getTextField('specify_medications').setText(allPagesData.page3.medications_details || '');
-//   } else if (allPagesData.page3?.medications_regularly === 'No') {
-//       form.getCheckBox('check_box_medication_no').check();
-//   }
-
-//   allPagesData.page3?.no_known_allergies
-//     ? form.getCheckBox('check_box_no_allergies').check()
-//     : form.getCheckBox('check_box_no_allergies').uncheck();
-
-//   const diseaseKeys = Object.keys(allPagesData.page3?.diseases || {});
-
-//   diseaseKeys.forEach((disease, i) => {
-//     const data = allPagesData.page3.diseases[disease];
-//     form.getCheckBox(`check_box_p3_yes${i + 1}`).uncheck();
-//     form.getCheckBox(`check_box_p3_no${i + 1}`).uncheck();
-//     form.getTextField(`remarks${i + 1}`).setText('');
-
-//     if (data?.yes) form.getCheckBox(`check_box_p3_yes${i + 1}`).check();
-//     else if (data?.no) form.getCheckBox(`check_box_p3_no${i + 1}`).check();
-
-//     if (data?.remarks) form.getTextField(`remarks${i + 1}`).setText(data.remarks);
-//   });
-
-
-
-
-//   ///////////////// Page 4
-
-//   allPagesData.page4?.age_have?.forEach((item: any, i: number) => {
-//     form.getTextField(`age_have${i + 1}`).setText(item.age || '');
-
-//     item.na
-//       ? form.getCheckBox(`check_box_p4_na${i + 1}`).check()
-//       : form.getCheckBox(`check_box_p4_na${i + 1}`).uncheck();
-//   });
-
-//   Object.values(allPagesData.page4?.difficulty || {}).forEach((value: any, i: number) => {
-//     form.getCheckBox(`no_difficulty${i + 1}`).uncheck();
-//     form.getCheckBox(`some_difficulty${i + 1}`).uncheck();
-//     form.getCheckBox(`a_lot_of_difficulty${i + 1}`).uncheck();
-
-//     if (value === 'No difficulty') {
-//       form.getCheckBox(`no_difficulty${i + 1}`).check();
-//     } else if (value === 'Some difficulty') {
-//       form.getCheckBox(`some_difficulty${i + 1}`).check();
-//     } else if (value === 'A lot of difficulty') {
-//       form.getCheckBox(`a_lot_of_difficulty${i + 1}`).check();
-//     }
-//   });
-
-//   Object.values(allPagesData.page4?.tiredness || {}).forEach((value: any, i: number) => {
-//     form.getCheckBox(`never${i + 1}`).uncheck();
-//     form.getCheckBox(`some_days${i + 1}`).uncheck();
-//     form.getCheckBox(`most_days${i + 1}`).uncheck();
-//     form.getCheckBox(`everyday${i + 1}`).uncheck();
-
-//     if (value === 'Never') {
-//       form.getCheckBox(`never${i + 1}`).check();
-//     } else if (value === 'Some days') {
-//       form.getCheckBox(`some_days${i + 1}`).check();
-//     } else if (value === 'Most days') {
-//       form.getCheckBox(`most_days${i + 1}`).check();
-//     } else if (value === 'Every day') {
-//       form.getCheckBox(`everyday${i + 1}`).check();
-//     }
-//   });
-
-//   form.getCheckBox('check_box_equipment_yes').uncheck();
-//   form.getCheckBox('check_box_equipment_no').uncheck();
-
-//   if (allPagesData.page4?.equipment_help === 'Yes') {
-//     form.getCheckBox('check_box_equipment_yes').check();
-//   } else if (allPagesData.page4?.equipment_help === 'No') {
-//     form.getCheckBox('check_box_equipment_no').check();
-//   }
-
-//   [
-//     ['cane', 'check_box_cane_yes', 'check_box_cane_no'],
-//     ['walker', 'check_box_walker_yes', 'check_box_walker_no'],
-//     ['crutches', 'check_box_crutches_yes', 'check_box_crutches_no'],
-//     ['wheelchair', 'check_box_wheelchair_yes', 'check_box_wheelchair_no'],
-//     ['artificial_limb', 'check_box_artificial_limb_yes', 'check_box_artificial_limb_no'],
-//     ['assistance', 'check_box_assistance_yes', 'check_box_assistance_no'],
-//   ].forEach(([key, yesBox, noBox]) => {
-//     form.getCheckBox(yesBox).uncheck();
-//     form.getCheckBox(noBox).uncheck();
-
-//     allPagesData.page4?.equipment_list?.[key]
-//       ? form.getCheckBox(yesBox).check()
-//       : form.getCheckBox(noBox).check();
-//   });
-
-//   form.getCheckBox('check_box_sign_language_yes').uncheck();
-// form.getCheckBox('check_box_sign_language_no').uncheck();
-
-// allPagesData.page4?.sign_language
-//   ? form.getCheckBox('check_box_sign_language_yes').check()
-//   : form.getCheckBox('check_box_sign_language_no').check();
-
-// form.getCheckBox('check_box_medication_p4_yes').uncheck();
-// form.getCheckBox('check_box_medication_p4_no').uncheck();
-
-// allPagesData.page4?.anxious_medication
-//   ? form.getCheckBox('check_box_medication_p4_yes').check()
-//   : form.getCheckBox('check_box_medication_p4_no').check();
-
-// form.getTextField('physical_deformities').setText(allPagesData.page4?.physical_deformities || '');
-
-
-
-
-//   /////////////////// Page 5
-
-//   allPagesData.page5?.immunization?.forEach((value: string, index: number) => {
-//     const fieldName = `immunization_record${index + 1}`;
-
-//     try {
-//       form.getTextField(fieldName).setText(value || '');
-//     } catch {
-//       console.warn(`Missing PDF field: ${fieldName}`);
-//     }
-//   });
-
-//   form.getTextField('menstruation_age')?.setText(
-//     allPagesData.page5?.femaleHealth?.menstruationAge || ''
-//   );
-
-//   form.getTextField('menstruation_duration')?.setText(
-//     allPagesData.page5?.femaleHealth?.menstruationDuration || ''
-//   );
-
-//   form.getTextField('last_period')?.setText(
-//     allPagesData.page5?.femaleHealth?.lastMenstrualPeriod || ''
-//   );
-
-//   form.getTextField('breasts_trouble_details')?.setText(
-//     allPagesData.page5?.femaleHealth?.breastDetails || ''
-//   );
-
-//   form.getTextField('have_children')?.setText(
-//     allPagesData.page5?.femaleHealth?.haveChildren ? 'Yes' : 'No'
-//   );
-
-//   form.getTextField('how_many_children')?.setText(
-//     allPagesData.page5?.femaleHealth?.numberOfChildren || ''
-//   );
-  
-//   // Uncheck both first
-//   form.getCheckBox('check_box_regular')?.uncheck();
-//   form.getCheckBox('check_box_irregular')?.uncheck();
-
-//   // Check based on value
-//   const reg = allPagesData.page5?.femaleHealth?.menstruationRegularity;
-//   if (reg === 'Regular') form.getCheckBox('check_box_regular')?.check();
-//   else if (reg === 'Irregular') form.getCheckBox('check_box_irregular')?.check();
-
-//   // Uncheck all first
-//   form.getCheckBox('check_box_light')?.uncheck();
-//   form.getCheckBox('check_box_moderate')?.uncheck();
-//   form.getCheckBox('check_box_heavy')?.uncheck();
-
-//   // Check the one that matches
-//   const flow = allPagesData.page5?.femaleHealth?.menstruationFlow;
-//   if (flow === 'Light') form.getCheckBox('check_box_light')?.check();
-//   else if (flow === 'Moderate') form.getCheckBox('check_box_moderate')?.check();
-//   else if (flow === 'Heavy') form.getCheckBox('check_box_heavy')?.check();
-
-//   // Uncheck both first
-//   form.getCheckBox('check_box_dysmenorrhea_yes')?.uncheck();
-//   form.getCheckBox('check_box_dysmenorrhea_no')?.uncheck();
-
-//   // Check based on value
-//   const dys = allPagesData.page5?.femaleHealth?.dysmenorrhea;
-//   if (dys === 'Yes') form.getCheckBox('check_box_dysmenorrhea_yes')?.check();
-//   else if (dys === 'No') form.getCheckBox('check_box_dysmenorrhea_no')?.check();
-
-//   // Uncheck both first
-//   form.getCheckBox('breasts_trouble_yes')?.uncheck();
-//   form.getCheckBox('breasts_trouble_no')?.uncheck();
-
-//   // Check based on value
-//   const breast = allPagesData.page5?.femaleHealth?.breastTrouble;
-//   if (breast === 'Yes') form.getCheckBox('breasts_trouble_yes')?.check();
-//   else if (breast === 'No') form.getCheckBox('breasts_trouble_no')?.check();
-
-//   // Uncheck both first
-//   form.getCheckBox('check_box_pregnant_yes')?.uncheck();
-//   form.getCheckBox('check_box_pregnant_no')?.uncheck();
-
-//   // Check based on value
-//   const pregnant = allPagesData.page5?.femaleHealth?.pregnantNow;
-//   if (pregnant === 'Yes') form.getCheckBox('check_box_pregnant_yes')?.check();
-//   else if (pregnant === 'No') form.getCheckBox('check_box_pregnant_no')?.check();
-
-
-
-
-//   ///////////////// Page 6
-
-//   const mother = allPagesData.page6?.family.mother || {};
-//   // Check alive/deceased
-//   if (mother.age_alive) {
-//     form.getCheckBox('check_box_mother_alive_yes')?.check();
-//     form.getCheckBox('check_box_mother_alive_no')?.uncheck();
-//     form.getTextField('mother_age')?.setText(mother.age_alive);
-//   } else {
-//     form.getCheckBox('check_box_mother_alive_yes')?.uncheck();
-//     form.getCheckBox('check_box_mother_alive_no')?.check();
-//     form.getTextField('mothe_age_time_of_death')?.setText(mother.age_death || '');
-//     form.getTextField('mother_cause_of_death')?.setText(mother.cause_death || '');
-//   }
-
-//   // Diseases & Medications
-//   form.getTextField('mother_diseases')?.setText(mother.diseases || '');
-//   form.getTextField('mother_medications')?.setText(mother.medications || '');
-
-//   const father = allPagesData.page6?.family.father || {};
-
-//   // Check alive/deceased
-//   if (father.age_alive) {
-//     form.getCheckBox('check_box_father_alive_yes')?.check();
-//     form.getCheckBox('check_box_father_alive_no')?.uncheck();
-//     form.getTextField('father_age')?.setText(father.age_alive);
-//   } else {
-//     form.getCheckBox('check_box_father_alive_yes')?.uncheck();
-//     form.getCheckBox('check_box_father_alive_no')?.check();
-//     form.getTextField('father_age_time_of_death')?.setText(father.age_death || '');
-//     form.getTextField('father_cause_of_death')?.setText(father.cause_death || '');
-//   }
-
-//   // Diseases & Medications
-//   form.getTextField('father_diseases')?.setText(father.diseases || '');
-//   form.getTextField('father_medications')?.setText(father.medications || '');
-
-//   form.getTextField('how_many_siblings')?.setText(allPagesData.page6?.family.siblings_count || '');
-//   form.getTextField('siblings_illnesses')?.setText(allPagesData.page6?.family.siblings_illnesses || '');
-
-//   const spouse = allPagesData.page6?.family.spouse || {};
-
-//   // Alive / Deceased
-//   if (spouse.age_alive) {
-//     form.getCheckBox('check_box_spouse_alive_yes')?.check();
-//     form.getCheckBox('check_box_spouse_alive_no')?.uncheck();
-//     form.getTextField('spouse_age')?.setText(spouse.age_alive);
-//   } else {
-//     form.getCheckBox('check_box_spouse_alive_yes')?.uncheck();
-//     form.getCheckBox('check_box_spouse_alive_no')?.check();
-//     form.getTextField('spouse_age_time_of_death')?.setText(spouse.age_death || '');
-//     form.getTextField('spouse_cause_of_death')?.setText(spouse.cause_death || '');
-//   }
-
-//   // Diseases & Medications
-//   form.getTextField('spouse_diseases')?.setText(spouse.diseases || '');
-//   form.getTextField('spouse_medications')?.setText(spouse.medications || '');
-
-//   // ----------------------
-//   // CHILDREN
-//   // ----------------------
-//   form.getTextField('number_of_children')?.setText(allPagesData.page6?.family.children_count || '');
-//   form.getTextField('health_problems')?.setText(allPagesData.page6?.family.children_health_problems || '');
-
-//   allPagesData.page6?.family.hereditary?.forEach((item: any, i: number) => {
-//   // Check YES/NO box
-//   const yesBox = form.getCheckBox(`check_box_hereditary_yes${i + 1}`);
-//   const noBox = form.getCheckBox(`check_box_hereditary_no${i + 1}`);
-
-//   if (yesBox && noBox) {
-//     if (item.answer === 'Yes') {
-//       yesBox.check();
-//       noBox.uncheck();
-//     } else if (item.answer === 'No') {
-//       yesBox.uncheck();
-//       noBox.check();
-//     } else {
-//       yesBox.uncheck();
-//       noBox.uncheck();
-//     }
-//   }
-
-//   // Fill relation
-//   const relationField = form.getTextField(`hereditary_relation${i + 1}`);
-//     if (relationField) {
-//       relationField.setText(item.relation || '');
-//     }
-//   });
-
-//   // Social History
-  
-//   const social = allPagesData.page6?.social_history || {};
-
-//   // 1. Alcohol use
-//   const alcoholYes = form.getCheckBox('check_box_consume_alcohol_yes');
-//   const alcoholNo = form.getCheckBox('check_box_consume_alcohol_no');
-//   if (social.alcohol_use?.answer === 'Yes') {
-//     alcoholYes?.check();
-//     alcoholNo?.uncheck();
-//     form.getTextField('alcohol_frequency')?.setText(social.alcohol_use.details || '');
-//   } else if (social.alcohol_use?.answer === 'No') {
-//     alcoholYes?.uncheck();
-//     alcoholNo?.check();
-//     form.getTextField('alcohol_frequency')?.setText('');
-//   } else {
-//     alcoholYes?.uncheck();
-//     alcoholNo?.uncheck();
-//     form.getTextField('alcohol_frequency')?.setText('');
-//   }
-
-//   // 2. Reduce alcohol
-//   const reduceYes = form.getCheckBox('check_box_reduce_alcohol_yes');
-//   const reduceNo = form.getCheckBox('check_box_reduce_alcohol_no');
-//   if (social.reduce_alcohol?.answer === 'Yes') {
-//     reduceYes?.check();
-//     reduceNo?.uncheck();
-//     form.getTextField('reduce_alcohol_consumption')?.setText(social.reduce_alcohol.details || '');
-//   } else if (social.reduce_alcohol?.answer === 'No') {
-//     reduceYes?.uncheck();
-//     reduceNo?.check();
-//     form.getTextField('reduce_alcohol_consumption')?.setText('');
-//   } else {
-//     reduceYes?.uncheck();
-//     reduceNo?.uncheck();
-//     form.getTextField('reduce_alcohol_consumption')?.setText('');
-//   }
-
-//   // 3. Smoking
-//   const smokeYes = form.getCheckBox('check_box_smoke_yes');
-//   const smokeNo = form.getCheckBox('check_box_smoke_no');
-//   if (social.smoking?.answer === 'Yes') {
-//     smokeYes?.check();
-//     smokeNo?.uncheck();
-//     form.getTextField('smoke_frequency')?.setText(social.smoking.details || '');
-//   } else if (social.smoking?.answer === 'No') {
-//     smokeYes?.uncheck();
-//     smokeNo?.check();
-//     form.getTextField('smoke_frequency')?.setText('');
-//   } else {
-//     smokeYes?.uncheck();
-//     smokeNo?.uncheck();
-//     form.getTextField('smoke_frequency')?.setText('');
-//   }
-
-//   // 4. Vape / smokeless tobacco
-//   const smokelessYes = form.getCheckBox('check_box_smokeless_yes');
-//   const smokelessNo = form.getCheckBox('check_box_smokeless_no');
-//   if (social.vape_tobacco?.answer === 'Yes') {
-//     smokelessYes?.check();
-//     smokelessNo?.uncheck();
-//     form.getTextField('used_smokeless_tobacco')?.setText(social.vape_tobacco.details || '');
-//   } else if (social.vape_tobacco?.answer === 'No') {
-//     smokelessYes?.uncheck();
-//     smokelessNo?.check();
-//     form.getTextField('used_smokeless_tobacco')?.setText('');
-//   } else {
-//     smokelessYes?.uncheck();
-//     smokelessNo?.uncheck();
-//     form.getTextField('used_smokeless_tobacco')?.setText('');
-//   }
-
-//   // 5. Other medical conditions
-//   const medicalYes = form.getCheckBox('check_box_medical_conditions_yes');
-//   const medicalNo = form.getCheckBox('check_box_medical_conditions_no');
-//   if (social.other_conditions?.answer === 'Yes') {
-//     medicalYes?.check();
-//     medicalNo?.uncheck();
-//     form.getTextField('medical_conditions')?.setText(social.other_conditions.details || '');
-//   } else if (social.other_conditions?.answer === 'No') {
-//     medicalYes?.uncheck();
-//     medicalNo?.check();
-//     form.getTextField('medical_conditions')?.setText('');
-//   } else {
-//     medicalYes?.uncheck();
-//     medicalNo?.uncheck();
-//     form.getTextField('medical_conditions')?.setText('');
-//   }
-
-
-//   // ----------------------
-//   // Page 7
-//   // ----------------------
-//   if (allPagesData.page1?.signature_image) {
-//     const sigBytes = await fetch(
-//       allPagesData.page1.signature_image.startsWith('http')
-//         ? allPagesData.page1.signature_image
-//         : `/storage/${allPagesData.page1.signature_image}`
-//     ).then(r => r.arrayBuffer());
-
-//     const pngImage = await pdfDoc.embedPng(sigBytes);
-
-//     const sigButton = form.getButton('signature_image2'); // same field in PDF
-//     if (sigButton) {
-//       const widget = sigButton.acroField.getWidgets()[0];
-//       const rect = widget.getRectangle();
-//       const page = pdfDoc.getPages()[pdfDoc.getPageCount() - 1];
-
-//       page.drawImage(pngImage, {
-//         x: rect.x,
-//         y: rect.y,
-//         width: rect.width,
-//         height: rect.height,
-//       });
-//     }
-//   }
+
+// ----------------------
+// Page 2
+// ----------------------
+
+const p2 = allPagesData.page2 || {};
+
+form.getTextField('sport_event')?.setText(p2.sport_event || '');
+form.getTextField('name')?.setText(p2.name || '');
+form.getTextField('student_id')?.setText(p2.student_id || '');
+form.getTextField('activity_participated_and_year')?.setText(p2.activity_participated || '');
+form.getTextField('organized_by')?.setText(p2.organized_by || '');
+form.getTextField('activity_name')?.setText(p2.activity || '');
+form.getTextField('hereby_release')?.setText(p2.hereby_release || '');
+form.getTextField('date_filled')?.setText(p2.date || '');
+
+form.getTextField('printed_name')?.setText(
+  p2?.printed_name || ''
+);
+
+// Signature
+if (allPagesData.page2?.signature_image) {
+  const sigBytes = await fetch(
+    allPagesData.page2.signature_image.startsWith('http')
+      ? allPagesData.page2.signature_image
+      : `/storage/${allPagesData.page2.signature_image}`
+  ).then(r => r.arrayBuffer());
+
+  const pngImage = await pdfDoc.embedPng(sigBytes);
+
+  const sigButton = form.getButton('signature_image1');
+  if (sigButton) {
+    const widget = sigButton.acroField.getWidgets()[0];
+    const rect = widget.getRectangle();
+
+    // Page 6 → index 5 (adjust if needed)
+    const page = pdfDoc.getPages()[1];
+
+    page.drawImage(pngImage, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
+
+// ----------------------
+// Page 3
+// ----------------------
+form.getTextField('birthdate')?.setText(
+  allPagesData.page3?.birthdate || ''
+);
+
+form.getTextField('home_address')?.setText(
+  allPagesData.page3?.home_address || ''
+);
+
+form.getTextField('present_address')?.setText(
+  allPagesData.page3?.school_address || ''
+);
+
+form.getTextField('contact_no')?.setText(
+  allPagesData.page3?.contact_no || ''
+);
+
+// Signature
+if (allPagesData.page2?.signature_image) {
+  const sigBytes = await fetch(
+    allPagesData.page2.signature_image.startsWith('http')
+      ? allPagesData.page2.signature_image
+      : `/storage/${allPagesData.page2.signature_image}`
+  ).then(r => r.arrayBuffer());
+
+  const pngImage = await pdfDoc.embedPng(sigBytes);
+
+  const sigButton = form.getButton('signature_image2');
+  if (sigButton) {
+    const widget = sigButton.acroField.getWidgets()[0];
+    const rect = widget.getRectangle();
+
+    // Page 6 → index 5 (adjust if needed)
+    const page = pdfDoc.getPages()[3];
+
+    page.drawImage(pngImage, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
+// ----------------------
+// Page 4
+// ----------------------
+
+// Signature
+if (allPagesData.page2?.signature_image) {
+  const sigBytes = await fetch(
+    allPagesData.page2.signature_image.startsWith('http')
+      ? allPagesData.page2.signature_image
+      : `/storage/${allPagesData.page2.signature_image}`
+  ).then(r => r.arrayBuffer());
+
+  const pngImage = await pdfDoc.embedPng(sigBytes);
+
+  const sigButton = form.getButton('signature_image3');
+  if (sigButton) {
+    const widget = sigButton.acroField.getWidgets()[0];
+    const rect = widget.getRectangle();
+
+    // Page 6 → index 5 (adjust if needed)
+    const page = pdfDoc.getPages()[3];
+
+    page.drawImage(pngImage, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
+// Signature
+if (allPagesData.page2?.signature_image) {
+  const sigBytes = await fetch(
+    allPagesData.page2.signature_image.startsWith('http')
+      ? allPagesData.page2.signature_image
+      : `/storage/${allPagesData.page2.signature_image}`
+  ).then(r => r.arrayBuffer());
+
+  const pngImage = await pdfDoc.embedPng(sigBytes);
+
+  const sigButton = form.getButton('signature_image4');
+  if (sigButton) {
+    const widget = sigButton.acroField.getWidgets()[0];
+    const rect = widget.getRectangle();
+
+    // Page 6 → index 5 (adjust if needed)
+    const page = pdfDoc.getPages()[3];
+
+    page.drawImage(pngImage, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
+
+// ----------------------
+// Page 5
+// ----------------------
+
+form.getTextField('age')?.setText(
+  allPagesData.page5?.age || ''
+);
+
+const mh = allPagesData.page5?.medical_history;
+
+if (mh?.yes === true) {
+  form.getCheckBox('check_box_medical_history_yes')?.check();
+}
+
+if (mh?.no === true) {
+  form.getCheckBox('check_box_medical_history_no')?.check();
+}
+
+form.getTextField('medical_history')?.setText(
+  mh?.remarks || ''
+);
+
+const family = allPagesData.page5?.family_history;
+
+// Sudden death / heart problems
+family?.['Sudden death or heart problems under the age of 50']?.yes
+  ? form.getCheckBox('check_box_sudden_death_yes')?.check()
+  : form.getCheckBox('check_box_sudden_death_no')?.check();
+
+form.getTextField('sudden_death_who')?.setText(
+  family?.['Sudden death or heart problems under the age of 50']?.remarks || ''
+);
+
+// High blood pressure
+family?.['High blood pressure']?.yes
+  ? form.getCheckBox('check_box_high_blood_yes')?.check()
+  : form.getCheckBox('check_box_high_blood_no')?.check();
+
+form.getTextField('high_blood_who')?.setText(
+  family?.['High blood pressure']?.remarks || ''
+);
+
+// Diabetes
+family?.['Diabetes']?.yes
+  ? form.getCheckBox('check_box_diabetes_yes')?.check()
+  : form.getCheckBox('check_box_diabetes_no')?.check();
+
+form.getTextField('diabetes_who')?.setText(
+  family?.['Diabetes']?.remarks || ''
+);
+
+const personalHistory = allPagesData.page5?.personal_history || [];
+
+personalHistory.forEach((item: any, i: number) => {
+  const index = i + 1;
+
+  // Yes/No checkboxes
+  const yesBox = form.getCheckBox(`check_box_personal_history_yes${index}`);
+  const noBox = form.getCheckBox(`check_box_personal_history_no${index}`);
+
+  if (item.yes) yesBox?.check(); else yesBox?.uncheck();
+  if (item.no) noBox?.check(); else noBox?.uncheck();
+
+  // Remarks text field
+  form.getTextField(`personal_history_remark${index}`)?.setText(item.remarks || '');
+});
+
+
+const headInjuries = allPagesData.page5?.head_injuries;
+
+// Loss of consciousness
+if (headInjuries?.loss_of_consciousness?.yes) {
+  form.getCheckBox('check_box_loss_consciousness_yes')?.check();
+  form.getCheckBox('check_box_loss_consciousness_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_loss_consciousness_yes')?.uncheck();
+  form.getCheckBox('check_box_loss_consciousness_no')?.check();
+}
+
+// Any head injury
+if (headInjuries?.head_injury?.yes) {
+  form.getCheckBox('check_box_any_head_injury_yes')?.check();
+  form.getCheckBox('check_box_any_head_injury_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_any_head_injury_yes')?.uncheck();
+  form.getCheckBox('check_box_any_head_injury_no')?.check();
+}
+
+
+// Illness History
+const illnessHistory = allPagesData.page5?.illness_history || [];
+
+illnessHistory.forEach((item: any, i: number) => {
+  const index = i + 1;
+  const yesBox = form.getCheckBox(`check_box_illness_yes${index}`);
+  const noBox = form.getCheckBox(`check_box_illness_no${index}`);
+
+  item.yes ? yesBox?.check() : yesBox?.uncheck();
+  item.no  ? noBox?.check()  : noBox?.uncheck();
+
+  form.getTextField(`illness_remark${index}`)?.setText(item.remarks || '');
+});
+
+// Allergies History
+const allergyHistory = allPagesData.page5?.allergy_history || [];
+
+allergyHistory.forEach((item: any, i: number) => {
+  const index = i + 1;
+  const yesBox = form.getCheckBox(`check_box_allergy_yes${index}`);
+  const noBox = form.getCheckBox(`check_box_allergy_no${index}`);
+
+  item.yes ? yesBox?.check() : yesBox?.uncheck();
+  item.no  ? noBox?.check()  : noBox?.uncheck();
+
+  form.getTextField(`allergy_remark${index}`)?.setText(item.remarks || '');
+});
+
+const hospitalization = allPagesData.page5?.hospitalization;
+
+// Past two years injury
+if (hospitalization?.pastTwoYearsInjury?.yes) {
+  form.getCheckBox('check_box_injury_yes')?.check();
+  form.getCheckBox('check_box_injury_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_injury_yes')?.uncheck();
+  form.getCheckBox('check_box_injury_no')?.check();
+}
+
+form.getTextField('injury')?.setText(hospitalization?.pastTwoYearsInjury?.remarks || '');
+
+// Past two years medical condition
+if (hospitalization?.pastTwoYearsMedical?.yes) {
+  form.getCheckBox('check_box_medical_condition_yes')?.check();
+  form.getCheckBox('check_box_medical_condition_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_medical_condition_yes')?.uncheck();
+  form.getCheckBox('check_box_medical_condition_no')?.check();
+}
+
+form.getTextField('medical_condition')?.setText(hospitalization?.pastTwoYearsMedical?.remarks || '');
+
+// Surgery
+if (hospitalization?.surgery?.yes) {
+  form.getCheckBox('check_box_surgery_yes')?.check();
+  form.getCheckBox('check_box_surgery_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_surgery_yes')?.uncheck();
+  form.getCheckBox('check_box_surgery_no')?.check();
+}
+
+form.getTextField('surgery')?.setText(hospitalization?.surgery?.remarks || '');
+
+// Miscellaneous
+const miscellaneous = allPagesData.page5?.miscellaneous || [];
+
+miscellaneous.forEach((item: any, i: number) => {
+  const index = i + 1;
+
+  // Yes/No checkboxes
+  if (item.yes) {
+    form.getCheckBox(`check_box_miscellaneous_yes${index}`)?.check();
+    form.getCheckBox(`check_box_miscellaneous_no${index}`)?.uncheck();
+  } else {
+    form.getCheckBox(`check_box_miscellaneous_yes${index}`)?.uncheck();
+    form.getCheckBox(`check_box_miscellaneous_no${index}`)?.check();
+  }
+
+  // Details text field
+  form.getTextField(`miscellaneous${index}`)?.setText(item.details || '');
+});
+
+
+// Female History
+const femaleHistory = allPagesData.page5?.female_history || {};
+
+// Irregular periods
+if (femaleHistory.irregular_periods?.yes) {
+  form.getCheckBox('check_box_irregular_menstrual_yes')?.check();
+  form.getCheckBox('check_box_irregular_menstrual_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_irregular_menstrual_yes')?.uncheck();
+  form.getCheckBox('check_box_irregular_menstrual_no')?.check();
+}
+
+// Period frequency
+form.getTextField('period_frequency')?.setText(femaleHistory.period_frequency || '');
+
+// Other gynecological issues
+if (femaleHistory.other_gynecological_issues?.yes) {
+  form.getCheckBox('check_box_gynecological_issues_yes')?.check();
+  form.getCheckBox('check_box_gynecological_issues_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_gynecological_issues_yes')?.uncheck();
+  form.getCheckBox('check_box_gynecological_issues_no')?.check();
+}
+
+// Gynecological issues details
+form.getTextField('gynecological_issues')?.setText(
+  femaleHistory.other_gynecological_issues?.details || ''
+);
+
+
+// Orthopedic History
+const orthopedicHistory = allPagesData.page5?.orthopedic_history || [];
+
+orthopedicHistory.forEach((item: any, i: number) => {
+  const index = i + 1;
+
+  // Yes/No checkboxes
+  const yesBox = form.getCheckBox(`check_box_orthopedic_history_yes${index}`);
+  const noBox = form.getCheckBox(`check_box_orthopedic_history_no${index}`);
+
+  if (item.yes) yesBox?.check(); else yesBox?.uncheck();
+  if (item.no) noBox?.check(); else noBox?.uncheck();
+
+  // Remarks text field
+  form.getTextField(`orthopedic_remark${index}`)?.setText(item.remarks || '');
+});
+
+
+// Social History
+const social = allPagesData.page5?.social_history;
+
+// Consume alcohol
+if (social?.alcohol?.yes) {
+  form.getCheckBox('check_box_consume_alcohol_yes')?.check();
+  form.getCheckBox('check_box_consume_alcohol_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_consume_alcohol_yes')?.uncheck();
+  form.getCheckBox('check_box_consume_alcohol_no')?.check();
+}
+form.getTextField('consume_alcohol')?.setText(social?.alcohol?.remarks || '');
+
+// Reduce alcohol
+if (social?.reduce_alcohol?.yes) {
+  form.getCheckBox('check_box_reduce_alcohol­_yes')?.check();
+  form.getCheckBox('check_box_reduce_alcohol­_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_reduce_alcohol­_yes')?.uncheck();
+  form.getCheckBox('check_box_reduce_alcohol­_no')?.check();
+}
+
+// Smoke
+if (social?.smoke?.yes) {
+  form.getCheckBox('check_box_smoke_yes')?.check();
+  form.getCheckBox('check_box_smoke_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_smoke_yes')?.uncheck();
+  form.getCheckBox('check_box_smoke_no')?.check();
+}
+form.getTextField('smoke_frequency_amount')?.setText(social?.smoke?.remarks || '');
+
+// Smokeless tobacco / vape
+if (social?.tobacco_or_vape?.yes) {
+  form.getCheckBox('check_box_smokeless_tobacco_yes')?.check();
+  form.getCheckBox('check_box_smokeless_tobacco_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_smokeless_tobacco_yes')?.uncheck();
+  form.getCheckBox('check_box_smokeless_tobacco_no')?.check();
+}
+form.getTextField('smokeless_tobacco_vape')?.setText(social?.tobacco_or_vape?.remarks || '');
+
+// Other medical conditions
+if (social?.other_conditions?.yes) {
+  form.getCheckBox('check_box_other_medical_conditions_yes')?.check();
+  form.getCheckBox('check_box_other_medical_conditions_no')?.uncheck();
+} else {
+  form.getCheckBox('check_box_other_medical_conditions_yes')?.uncheck();
+  form.getCheckBox('check_box_other_medical_conditions_no')?.check();
+}
+form.getTextField('other_medical_conditions')?.setText(social?.other_conditions?.remarks || '');
+
+
+// ----------------------
+// Page 11
+// ----------------------
+
+// Signature
+if (allPagesData.page2?.signature_image) {
+  const sigBytes = await fetch(
+    allPagesData.page2.signature_image.startsWith('http')
+      ? allPagesData.page2.signature_image
+      : `/storage/${allPagesData.page2.signature_image}`
+  ).then(r => r.arrayBuffer());
+
+  const pngImage = await pdfDoc.embedPng(sigBytes);
+
+  const sigButton = form.getButton('signature_image5');
+  if (sigButton) {
+    const widget = sigButton.acroField.getWidgets()[0];
+    const rect = widget.getRectangle();
+
+    // Page 11 in the pdf
+    const page = pdfDoc.getPages()[10];
+
+    page.drawImage(pngImage, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
+const page6 = allPagesData.page6;
+
+form.getTextField('civil_status')?.setText(page6.civil_status || '');
+form.getTextField('sex')?.setText(page6.sex || '');
+
 
   // Flatten all fields
   // ----------------------

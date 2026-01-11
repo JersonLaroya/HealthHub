@@ -28,8 +28,8 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
     router.get(`/admin/patients/${patient.id}`);
   };
 
-  const handleViewForms = (patient) => {
-    router.get(`/admin/patients/${patient.id}/forms`);
+  const handleViewMedicalFiles = (patient) => {
+    router.get(`/admin/patients/${patient.id}/files`);
   };
 
   return (
@@ -100,8 +100,8 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
                             <DropdownMenuItem onClick={() => handleViewConsultation(patient)}>
                               Consultation Records
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewForms(patient)}>
-                              Clinic Forms
+                            <DropdownMenuItem onClick={() => handleViewMedicalFiles(patient)}>
+                              Medical Files
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
