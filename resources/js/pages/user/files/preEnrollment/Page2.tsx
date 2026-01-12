@@ -68,6 +68,19 @@ export default function PreenrollmentPage2({ patient }: Props) {
     picture_2x2: null as string | null,
   });
 
+const civilStatusValid = !!form.data.civil_status;
+const birthplaceValid = !!form.data.birthplace.trim();
+const studentTypeValid = !!form.data.student_type;
+const pictureValid = !!form.data.picture_2x2;
+
+
+const formComplete =
+  civilStatusValid &&
+  birthplaceValid &&
+  studentTypeValid &&
+  pictureValid;
+
+
   useEffect(() => {
     const saved = sessionStorage.getItem('preenrollment_page_2');
     if (saved) {
@@ -164,14 +177,19 @@ export default function PreenrollmentPage2({ patient }: Props) {
             <input
               type="file"
               accept="image/*"
-              className="mt-2 text-xs"
+              className={`mt-2 text-xs ${
+                !pictureValid ? 'text-red-600 font-semibold' : ''
+              }`}
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const input = e.target;
+                const file = input.files?.[0];
                 if (!file) return;
 
                 const maxSizeMB = 3;
                 if (file.size / 1024 / 1024 > maxSizeMB) {
                   alert(`File is too large! Max size is ${maxSizeMB}MB.`);
+                  input.value = '';
+                  form.setData('picture_2x2', null);
                   return;
                 }
                 
@@ -193,7 +211,11 @@ export default function PreenrollmentPage2({ patient }: Props) {
           </div>
 
           {/* CIVIL STATUS */}
-          <div className="flex flex-wrap gap-4 text-sm items-center">
+          <div
+            className={`flex flex-wrap gap-4 text-sm items-center pb-1 ${
+              !civilStatusValid ? 'border-b border-red-500' : ''
+            }`}
+          >
             <span className="font-semibold">Civil Status:</span>
             {['Single', 'Married', 'Widowed', 'Legally separated'].map((v) => (
               <label key={v} className="flex items-center gap-1">
@@ -225,7 +247,9 @@ export default function PreenrollmentPage2({ patient }: Props) {
             <div>
               Birthplace:
               <input
-                className={lineInput}
+                className={`${lineInput} ${
+                  !birthplaceValid ? 'border-red-500' : ''
+                }`}
                 value={form.data.birthplace}
                 onChange={(e) => form.setData('birthplace', e.target.value)}
               />
@@ -253,7 +277,11 @@ export default function PreenrollmentPage2({ patient }: Props) {
           </div>
 
           {/* STUDENT TYPE (radio) */}
-          <div className="flex flex-wrap gap-6 text-sm">
+          <div
+            className={`flex flex-wrap gap-6 text-sm pb-1 ${
+              !studentTypeValid ? 'border-b border-red-500' : ''
+            }`}
+          >
             <span className="font-semibold">Student Type:</span>
             {[
               { key: 'freshman', label: 'Freshman' },
@@ -358,7 +386,10 @@ export default function PreenrollmentPage2({ patient }: Props) {
             >
               {savingPrev ? 'Going back…' : 'Previous'}
             </Button>
-            <Button type="submit" disabled={savingNext || savingPrev}>
+            <Button
+              type="submit"
+              disabled={savingNext || savingPrev || !formComplete}
+            >
               {savingNext ? 'Continuing…' : 'Next'}
             </Button>
           </div>

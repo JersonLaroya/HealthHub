@@ -75,6 +75,10 @@ export default function PreemploymentPage3({ patient }: Props) {
       parsedData.immunization ?? Array(15).fill(''),
   });
 
+  const canProceedHealthConditions = form.data.age_have.every(
+    (item: { age: string; na: boolean }) => item.age.trim() || item.na
+  );
+
   useEffect(() => {
     if (savedData) {
       console.log('Preemployment Page 3 data:', parsedData);
@@ -120,46 +124,49 @@ export default function PreemploymentPage3({ patient }: Props) {
           does not apply.
         </p>
 
+        {/* HEALTH CONDITIONS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-12 justify-center">
           {/* COLUMN 1 */}
           <div className="space-y-1 mx-auto">
             {diseaseProblems
               .slice(0, malariaIndex + 1)
-              .map((d, idx) => (
-                <div
-                  key={d}
-                  className="flex items-center justify-center gap-2 text-sm"
-                >
-                  <span className="w-40 text-center">
-                    {d}
-                  </span>
-                  <input
-                    className={lineInput}
-                    placeholder="Age"
-                    value={form.data.age_have[idx].age}
-                    disabled={form.data.age_have[idx].na}
-                    onChange={(e) =>
-                      form.setData(
-                        `age_have.${idx}.age`,
-                        e.target.value
-                      )
-                    }
-                  />
-                  <label className="flex items-center gap-1 text-xs">
+              .map((d, idx) => {
+                const ageValue = form.data.age_have[idx].age;
+                const isNA = form.data.age_have[idx].na;
+                const showError = !ageValue && !isNA; // red if empty and not N/A
+
+                return (
+                  <div
+                    key={d}
+                    className="flex items-center justify-center gap-2 text-sm"
+                  >
+                    <span className="w-40 text-center">{d}</span>
                     <input
-                      type="checkbox"
-                      checked={form.data.age_have[idx].na}
+                      className={
+                        lineInput +
+                        (showError ? ' border-b-2 border-red-500' : '')
+                      }
+                      placeholder="Age"
+                      value={ageValue}
+                      disabled={isNA}
                       onChange={(e) =>
-                        form.setData(
-                          `age_have.${idx}.na`,
-                          e.target.checked
-                        )
+                        form.setData(`age_have.${idx}.age`, e.target.value)
                       }
                     />
-                    N/A
-                  </label>
-                </div>
-              ))}
+                    <label className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={isNA}
+                        onChange={(e) => {
+                          form.setData(`age_have.${idx}.na`, e.target.checked);
+                          if (e.target.checked) form.setData(`age_have.${idx}.age`, '');
+                        }}
+                      />
+                      N/A
+                    </label>
+                  </div>
+                );
+              })}
           </div>
 
           {/* COLUMN 2 */}
@@ -167,44 +174,36 @@ export default function PreemploymentPage3({ patient }: Props) {
             {diseaseProblems
               .slice(malariaIndex + 1)
               .map((d, idx) => {
-                const globalIdx =
-                  malariaIndex + 1 + idx;
+                const globalIdx = malariaIndex + 1 + idx;
+                const ageValue = form.data.age_have[globalIdx].age;
+                const isNA = form.data.age_have[globalIdx].na;
+                const showError = !ageValue && !isNA; // red if empty and not N/A
+
                 return (
                   <div
                     key={d}
                     className="flex items-center justify-center gap-2 text-sm"
                   >
-                    <span className="w-40 text-center">
-                      {d}
-                    </span>
+                    <span className="w-40 text-center">{d}</span>
                     <input
-                      className={lineInput}
+                      className={
+                        lineInput + (showError ? ' border-b-2 border-red-500' : '')
+                      }
                       placeholder="Age"
-                      value={
-                        form.data.age_have[globalIdx].age
-                      }
-                      disabled={
-                        form.data.age_have[globalIdx].na
-                      }
+                      value={ageValue}
+                      disabled={isNA}
                       onChange={(e) =>
-                        form.setData(
-                          `age_have.${globalIdx}.age`,
-                          e.target.value
-                        )
+                        form.setData(`age_have.${globalIdx}.age`, e.target.value)
                       }
                     />
                     <label className="flex items-center gap-1 text-xs">
                       <input
                         type="checkbox"
-                        checked={
-                          form.data.age_have[globalIdx].na
-                        }
-                        onChange={(e) =>
-                          form.setData(
-                            `age_have.${globalIdx}.na`,
-                            e.target.checked
-                          )
-                        }
+                        checked={isNA}
+                        onChange={(e) => {
+                          form.setData(`age_have.${globalIdx}.na`, e.target.checked);
+                          if (e.target.checked) form.setData(`age_have.${globalIdx}.age`, '');
+                        }}
                       />
                       N/A
                     </label>
@@ -305,7 +304,7 @@ export default function PreemploymentPage3({ patient }: Props) {
           </Button>
 
           <Button
-            disabled={savingNext || savingPrev}
+            disabled={savingNext || savingPrev || !canProceedHealthConditions}
             onClick={submitPage}
           >
             {savingNext ? 'Continuing…' : 'Next'}

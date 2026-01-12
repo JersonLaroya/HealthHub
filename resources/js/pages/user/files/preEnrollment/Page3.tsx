@@ -59,6 +59,8 @@ export default function PreenrollmentPage3({ patient }: Props) {
   const form = useForm({
     food_allergies: '',
     drug_allergies: '',
+    food_allergies_checkbox: false,
+    drug_allergies_checkbox: false,
     no_known_allergies: false,
     medications_regularly: '',
     medications_details: '',
@@ -74,6 +76,38 @@ export default function PreenrollmentPage3({ patient }: Props) {
       form.setData(JSON.parse(saved));
     }
   }, []);
+
+  const requiredIf = (condition: boolean, value?: string) =>
+  condition && (!value || !value.trim());
+
+  const allergyChoiceSelected =
+  form.data.food_allergies_checkbox ||
+  form.data.drug_allergies_checkbox ||
+  form.data.no_known_allergies;
+
+
+  const allergiesValid =
+  allergyChoiceSelected &&
+  !requiredIf(form.data.food_allergies_checkbox, form.data.food_allergies) &&
+  !requiredIf(form.data.drug_allergies_checkbox, form.data.drug_allergies);
+
+  const medicationsSelected =
+  form.data.medications_regularly === 'Yes' ||
+  form.data.medications_regularly === 'No';
+
+  const medicationsValid =
+    medicationsSelected &&
+    !requiredIf(
+      form.data.medications_regularly === 'Yes',
+      form.data.medications_details
+    );
+
+  
+  const diseasesValid = Object.values(form.data.diseases).every(
+    (d) =>
+      (d.yes || d.no) &&
+      (!d.yes || d.remarks.trim())
+  );
 
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
@@ -109,6 +143,7 @@ export default function PreenrollmentPage3({ patient }: Props) {
                 checked={!!form.data.food_allergies_checkbox}
                 onChange={(e) => {
                   form.setData('food_allergies_checkbox', e.target.checked);
+                  if (e.target.checked) form.setData('no_known_allergies', false); // uncheck No known
                   if (!e.target.checked) form.setData('food_allergies', '');
                 }}
               />
@@ -116,7 +151,12 @@ export default function PreenrollmentPage3({ patient }: Props) {
             </label>
             {form.data.food_allergies_checkbox && (
               <input
-                className={lineInput}
+                className={
+                  lineInput +
+                  (requiredIf(form.data.food_allergies_checkbox, form.data.food_allergies)
+                    ? ' border-red-600'
+                    : '')
+                }
                 placeholder="Specify if any"
                 value={form.data.food_allergies}
                 onChange={(e) => form.setData('food_allergies', e.target.value)}
@@ -132,6 +172,7 @@ export default function PreenrollmentPage3({ patient }: Props) {
                 checked={!!form.data.drug_allergies_checkbox}
                 onChange={(e) => {
                   form.setData('drug_allergies_checkbox', e.target.checked);
+                  if (e.target.checked) form.setData('no_known_allergies', false); // uncheck No known
                   if (!e.target.checked) form.setData('drug_allergies', '');
                 }}
               />
@@ -139,7 +180,12 @@ export default function PreenrollmentPage3({ patient }: Props) {
             </label>
             {form.data.drug_allergies_checkbox && (
               <input
-                className={lineInput}
+                className={
+                  lineInput +
+                  (requiredIf(form.data.drug_allergies_checkbox, form.data.drug_allergies)
+                    ? ' border-red-600'
+                    : '')
+                }
                 placeholder="Specify if any"
                 value={form.data.drug_allergies}
                 onChange={(e) => form.setData('drug_allergies', e.target.value)}
@@ -152,7 +198,15 @@ export default function PreenrollmentPage3({ patient }: Props) {
             <input
               type="checkbox"
               checked={form.data.no_known_allergies}
-              onChange={(e) => form.setData('no_known_allergies', e.target.checked)}
+              onChange={(e) => {
+                form.setData('no_known_allergies', e.target.checked);
+                if (e.target.checked) {
+                  form.setData('food_allergies_checkbox', false);
+                  form.setData('food_allergies', '');
+                  form.setData('drug_allergies_checkbox', false);
+                  form.setData('drug_allergies', '');
+                }
+              }}
             />
             No known allergies
           </label>
@@ -192,7 +246,15 @@ export default function PreenrollmentPage3({ patient }: Props) {
                 <span>If yes, please specify:</span>
                 <input
                     type="text"
-                    className={lineInput + ' flex-1'}
+                    className={
+                      lineInput +
+                      (requiredIf(
+                        form.data.medications_regularly === 'Yes',
+                        form.data.medications_details
+                      )
+                        ? ' border-red-600'
+                        : '')
+                    }
                     value={form.data.medications_details}
                     onChange={(e) => form.setData('medications_details', e.target.value)}
                     placeholder="Specify medications"
@@ -237,23 +299,31 @@ export default function PreenrollmentPage3({ patient }: Props) {
                         <input
                         type="checkbox"
                         checked={form.data.diseases[q].no}
-                        onChange={(e) =>
-                            form.setData(`diseases.${q}`, {
-                            yes: e.target.checked ? false : form.data.diseases[q].yes,
-                            no: e.target.checked,
-                            remarks: form.data.diseases[q].remarks,
-                            })
-                        }
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+
+                          form.setData(`diseases.${q}`, {
+                            yes: checked ? false : form.data.diseases[q].yes,
+                            no: checked,
+                            remarks: checked ? '' : form.data.diseases[q].remarks,
+                          });
+                        }}
                         />
                     </td>
                     <td className="border px-2 py-1">
                         <input
-                        type="text"
-                        className={lineInput}
-                        value={form.data.diseases[q].remarks}
-                        onChange={(e) =>
+                          className={
+                            lineInput +
+                            (form.data.diseases[q].yes &&
+                            !form.data.diseases[q].remarks.trim()
+                              ? ' border-red-600'
+                              : '')
+                          }
+                          value={form.data.diseases[q].remarks}
+                          onChange={(e) =>
                             form.setData(`diseases.${q}.remarks`, e.target.value)
-                        }
+                          }
+                          disabled={!form.data.diseases[q].yes}
                         />
                     </td>
                     </tr>
@@ -279,7 +349,13 @@ export default function PreenrollmentPage3({ patient }: Props) {
           </Button>
           <Button
             type="button"
-            disabled={savingNext || savingPrev}
+            disabled={
+              savingNext ||
+              savingPrev ||
+              !allergiesValid ||
+              !medicationsValid ||
+              !diseasesValid
+            }
             onClick={(e) => {
               setSavingNext(true);
               submitPage(e); // call the function directly

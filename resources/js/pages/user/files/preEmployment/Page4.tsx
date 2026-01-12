@@ -9,7 +9,7 @@ interface Props {
   };
 }
 
-export default function PreenrollmentPage4({ patient }: Props) {
+export default function PreemploymentPage4({ patient }: Props) {
   const savedData = sessionStorage.getItem('preemployment_page_4');
   const parsedData = savedData ? JSON.parse(savedData) : {};
 
@@ -67,28 +67,28 @@ export default function PreenrollmentPage4({ patient }: Props) {
     ? {
         mother: parsedData.family.mother || {
             living: '',
-            age: '',
+            age_alive: '',
             diseases: '',
             medications: '',
-            deceasedAge: '',
-            causeOfDeath: '',
+            age_death: '',
+            cause_death: '',
         },
         father: parsedData.family.father || {
             living: '',
-            age: '',
+            age_alive: '',
             diseases: '',
             medications: '',
-            deceasedAge: '',
-            causeOfDeath: '',
+            age_death: '',
+            cause_death: '',
         },
         spouse: parsedData.family.spouse || {
             living: '',
-            age: '',
+            age_alive: '',
             generalHealth: '',
             diseases: '',
             medications: '',
-            deceasedAge: '',
-            causeOfDeath: '',
+            age_death: '',
+            cause_death: '',
         },
         children: parsedData.family.children || {
             number: '',
@@ -184,6 +184,66 @@ form.data.family.hereditary =
     relation: '',
   }));
 
+// Check if field has error
+const hasError = (value: string | undefined, dependent?: boolean) => {
+  if (dependent) return false; // skip validation if dependent is true
+  return !value || value.trim() === '';
+};
+
+const motherAliveRequired =
+  !form.data.family.mother.age_death && !form.data.family.mother.cause_death;
+
+const fatherAliveRequired =
+  !form.data.family.father.age_death && !form.data.family.father.cause_death;
+
+const motherDeathRequired =
+  !form.data.family.mother.age_alive;
+
+const fatherDeathRequired =
+  !form.data.family.father.age_alive;
+
+// Mother & Father required
+const motherValid =
+  (motherAliveRequired
+    ? !hasError(form.data.family.mother.age_alive) &&
+      !hasError(form.data.family.mother.diseases) &&
+      !hasError(form.data.family.mother.medications)
+    : true) &&
+  (!motherDeathRequired || !hasError(form.data.family.mother.age_death) && !hasError(form.data.family.mother.cause_death));
+
+const fatherValid = 
+  (fatherAliveRequired
+    ? !hasError(form.data.family.father.age_alive) &&
+      !hasError(form.data.family.father.diseases) &&
+      !hasError(form.data.family.father.medications)
+    : true) &&
+  (!fatherDeathRequired || !hasError(form.data.family.father.age_death) && !hasError(form.data.family.father.cause_death));
+
+const hereditaryValid = form.data.family.hereditary.every(
+  (item: { answer: string; relation: string }) =>
+    item.answer && (item.answer === 'No' || (item.answer === 'Yes' && item.relation.trim()))
+);
+
+// Check if female health field has error
+const femaleFieldRequired = (value: string | undefined, dependent?: boolean) => {
+  if (dependent) return false; // skip validation if dependent is true
+  return !value || value.trim() === '';
+};
+
+// Validate entire female health section
+const femaleHealthValid =
+  !femaleFieldRequired(form.data.femaleHealth.menstruationAge) &&
+  !femaleFieldRequired(form.data.femaleHealth.menstruationRegularity) &&
+  !femaleFieldRequired(form.data.femaleHealth.menstruationDuration) &&
+  !femaleFieldRequired(form.data.femaleHealth.menstruationFlow) &&
+  !femaleFieldRequired(form.data.femaleHealth.dysmenorrhea) &&
+  !femaleFieldRequired(form.data.femaleHealth.lastMenstrualPeriod) &&
+  !femaleFieldRequired(form.data.femaleHealth.breastTrouble) &&
+  (form.data.femaleHealth.breastTrouble === 'No' ||
+    !femaleFieldRequired(form.data.femaleHealth.breastDetails, form.data.femaleHealth.breastTrouble !== 'Yes'));
+
+
+
   useEffect(() => {
     if (savedData) {
       console.log('Loaded Page 4 data:', parsedData);
@@ -225,7 +285,12 @@ form.data.family.hereditary =
               <div>
                 <label>Menstruation: Age of onset</label>
                 <input
-                  className={lineInput}
+                  className={
+                    lineInput +
+                    (patient.sex === 'Female' && !form.data.femaleHealth.menstruationAge
+                      ? ' border-red-600'
+                      : '')
+                  }
                   value={form.data.femaleHealth.menstruationAge ?? ''}
                   onChange={(e) =>
                     form.setData('femaleHealth', {
@@ -238,7 +303,14 @@ form.data.family.hereditary =
 
               <div>
                 <label>Regularity</label>
-                <div className="flex gap-4 mt-1">
+                <div
+                  className={
+                    'flex gap-4 mt-1 ' +
+                    (patient.sex === 'Female' && !form.data.femaleHealth.menstruationRegularity
+                      ? ' border-b border-red-600'
+                      : '')
+                  }
+                >
                   {['Regular', 'Irregular'].map((opt) => (
                     <label key={opt} className="flex items-center gap-1">
                       <input
@@ -262,7 +334,10 @@ form.data.family.hereditary =
               <div>
                 <label>Duration (days)</label>
                 <input
-                  className={lineInput}
+                  className={
+                    lineInput +
+                    (patient.sex === 'Female' && !form.data.femaleHealth.menstruationDuration ? ' border-red-600' : '')
+                  }
                   value={form.data.femaleHealth.menstruationDuration ?? ''}
                   onChange={(e) =>
                     form.setData('femaleHealth', {
@@ -275,7 +350,12 @@ form.data.family.hereditary =
 
               <div>
                 <label>Flow</label>
-                <div className="flex gap-4 mt-1">
+                <div
+                  className={
+                    'flex gap-4 mt-1 ' +
+                    (patient.sex === 'Female' && !form.data.femaleHealth.menstruationFlow ? ' border-b border-red-600' : '')
+                  }
+                >
                   {['Light', 'Moderate', 'Heavy'].map((flow) => (
                     <label key={flow} className="flex items-center gap-1">
                       <input
@@ -298,7 +378,12 @@ form.data.family.hereditary =
 
               <div>
                 <label>Dysmenorrhea</label>
-                <div className="flex gap-4 mt-1">
+                <div
+                    className={
+                      'flex gap-4 mt-1 ' +
+                      (patient.sex === 'Female' && !form.data.femaleHealth.dysmenorrhea ? ' border-b border-red-600' : '')
+                    }
+                  >
                   {['Yes', 'No'].map((opt) => (
                     <label key={opt} className="flex items-center gap-1">
                       <input
@@ -322,7 +407,10 @@ form.data.family.hereditary =
               <div>
                 <label>Last menstrual period (month & year)</label>
                 <input
-                  className={lineInput}
+                  className={
+                    lineInput +
+                    (patient.sex === 'Female' && !form.data.femaleHealth.lastMenstrualPeriod ? ' border-red-600' : '')
+                  }
                   value={form.data.femaleHealth.lastMenstrualPeriod ?? ''}
                   onChange={(e) =>
                     form.setData('femaleHealth', {
@@ -338,7 +426,12 @@ form.data.family.hereditary =
                   Have you had any trouble with your breasts, such as lumps,
                   tumor, surgery?
                 </label>
-                <div className="flex gap-4 mt-1">
+                <div
+                  className={
+                    'flex gap-4 mt-1 ' +
+                    (patient.sex === 'Female' && !form.data.femaleHealth.breastTrouble ? ' border-b border-red-600' : '')
+                  }
+                >
                   {['Yes', 'No'].map((opt) => (
                     <label key={opt} className="flex items-center gap-1">
                       <input
@@ -364,7 +457,13 @@ form.data.family.hereditary =
 
                 {form.data.femaleHealth.breastTrouble === 'Yes' && (
                   <input
-                    className={lineInput + ' mt-1'}
+                    className={
+                      lineInput +
+                      (form.data.femaleHealth.breastTrouble === 'Yes' &&
+                      !form.data.femaleHealth.breastDetails
+                        ? ' border-red-600'
+                        : '')
+                    }
                     placeholder="If so, give details:"
                     value={form.data.femaleHealth.breastDetails ?? ''}
                     onChange={(e) =>
@@ -386,7 +485,6 @@ form.data.family.hereditary =
 
           {/* FAMILY BACKGROUND */}
         <div className="space-y-4 text-sm">
-        <h2 className="text-lg font-semibold">FAMILY BACKGROUND</h2>
 
         {/* MOTHER */}
         <div className="space-y-2">
@@ -395,32 +493,39 @@ form.data.family.hereditary =
             <label>
                 Living:
                 <input
-                className={lineInput + " ml-1 w-20"}
+                className={
+                  lineInput +
+                  " ml-1 w-20 " +
+                  (hasError(form.data.family.mother.age_alive) ? " border-red-600" : "")
+                }
                 placeholder="Age"
                 value={form.data.family.mother.age_alive ?? ''}
                 onChange={(e) =>
                     form.setData('family.mother.age_alive', e.target.value)
                 }
+                disabled={!!form.data.family.mother.age_death || !!form.data.family.mother.cause_death}
                 />
             </label>
             <label>
                 Diseases:
                 <input
-                className={lineInput + " ml-1 w-40"}
+                className={lineInput + " ml-1 w-40 " + (hasError(form.data.family.mother.diseases) ? " border-red-600" : "")}
                 value={form.data.family.mother.diseases ?? ''}
                 onChange={(e) =>
                     form.setData('family.mother.diseases', e.target.value)
                 }
+                disabled={!!form.data.family.mother.age_death || !!form.data.family.mother.cause_death}
                 />
             </label>
             <label>
                 Maintenance medications:
                 <input
-                className={lineInput + " ml-1 w-40"}
+                className={lineInput + " ml-1 w-40 " + (hasError(form.data.family.mother.medications) ? " border-red-600" : "")}
                 value={form.data.family.mother.medications ?? ''}
                 onChange={(e) =>
                     form.setData('family.mother.medications', e.target.value)
                 }
+                disabled={!!form.data.family.mother.age_death || !!form.data.family.mother.cause_death}
                 />
             </label>
             </div>
@@ -428,21 +533,35 @@ form.data.family.hereditary =
             <label>
                 If deceased (age of death):
                 <input
-                className={lineInput + " ml-1 w-20"}
-                value={form.data.family.mother.age_death ?? ''}
-                onChange={(e) =>
-                    form.setData('family.mother.age_death', e.target.value)
+                className={
+                  lineInput +
+                  " ml-1 w-20 " +
+                  (hasError(form.data.family.mother.age_death, !!form.data.family.mother.age_alive) ? " border-red-600" : "") +
+                  (form.data.family.mother.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
+                value={form.data.family.mother.age_death ?? ''}
+                onChange={(e) => {
+                  form.setData('family.mother.age_death', e.target.value);
+                  if (e.target.value) form.setData('family.mother.age_alive', ''); // clear age alive if death filled
+                }}
+                disabled={!!form.data.family.mother.age_alive}
                 />
             </label>
             <label>
                 Cause of death:
                 <input
-                className={lineInput + " ml-1 w-40"}
-                value={form.data.family.mother.cause_death ?? ''}
-                onChange={(e) =>
-                    form.setData('family.mother.cause_death', e.target.value)
+                className={
+                  lineInput +
+                  " ml-1 w-40 " +
+                  (hasError(form.data.family.mother.cause_death, !!form.data.family.mother.age_alive) ? " border-red-600" : "") +
+                  (form.data.family.mother.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
+                value={form.data.family.mother.cause_death ?? ''}
+                onChange={(e) => {
+                  form.setData('family.mother.cause_death', e.target.value);
+                  if (e.target.value) form.setData('family.mother.age_alive', ''); // clear age alive if cause filled
+                }}
+                disabled={!!form.data.family.mother.age_alive}
                 />
             </label>
             </div>
@@ -455,32 +574,39 @@ form.data.family.hereditary =
             <label>
                 Living:
                 <input
-                className={lineInput + " ml-1 w-20"}
+                className={
+                  lineInput +
+                  " ml-1 w-20 " +
+                  (hasError(form.data.family.father.age_alive) ? " border-red-600" : "")
+                }
                 placeholder="Age"
                 value={form.data.family.father.age_alive ?? ''}
                 onChange={(e) =>
                     form.setData('family.father.age_alive', e.target.value)
                 }
+                disabled={!!form.data.family.father.age_death || !!form.data.family.father.cause_death}
                 />
             </label>
             <label>
                 Diseases:
                 <input
-                className={lineInput + " ml-1 w-40"}
+                className={lineInput + " ml-1 w-40 " + (hasError(form.data.family.father.diseases) ? " border-red-600" : "")}
                 value={form.data.family.father.diseases ?? ''}
                 onChange={(e) =>
                     form.setData('family.father.diseases', e.target.value)
                 }
+                disabled={!!form.data.family.father.age_death || !!form.data.family.father.cause_death}
                 />
             </label>
             <label>
                 Maintenance medications:
                 <input
-                className={lineInput + " ml-1 w-40"}
+                className={lineInput + " ml-1 w-40 " + (hasError(form.data.family.father.medications) ? " border-red-600" : "")}
                 value={form.data.family.father.medications ?? ''}
                 onChange={(e) =>
                     form.setData('family.father.medications', e.target.value)
                 }
+                disabled={!!form.data.family.father.age_death || !!form.data.family.father.cause_death}
                 />
             </label>
             </div>
@@ -488,21 +614,35 @@ form.data.family.hereditary =
             <label>
                 If deceased (age of death):
                 <input
-                className={lineInput + " ml-1 w-20"}
-                value={form.data.family.father.age_death ?? ''}
-                onChange={(e) =>
-                    form.setData('family.father.age_death', e.target.value)
+                className={
+                  lineInput +
+                  " ml-1 w-20 " +
+                  (hasError(form.data.family.father.age_death, !!form.data.family.father.age_alive) ? " border-red-600" : "") +
+                  (form.data.family.father.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
+                value={form.data.family.father.age_death ?? ''}
+                onChange={(e) => {
+                  form.setData('family.father.age_death', e.target.value);
+                  if (e.target.value) form.setData('family.father.age_alive', ''); // clear age alive if death filled
+                }}
+                disabled={!!form.data.family.father.age_alive}
                 />
             </label>
             <label>
                 Cause of death:
                 <input
-                className={lineInput + " ml-1 w-40"}
-                value={form.data.family.father.cause_death ?? ''}
-                onChange={(e) =>
-                    form.setData('family.father.cause_death', e.target.value)
+                className={
+                  lineInput +
+                  " ml-1 w-40 " +
+                  (hasError(form.data.family.father.cause_death, !!form.data.family.father.age_alive) ? " border-red-600" : "") +
+                  (form.data.family.father.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
+                value={form.data.family.father.cause_death ?? ''}
+                onChange={(e) => {
+                  form.setData('family.father.cause_death', e.target.value);
+                  if (e.target.value) form.setData('family.father.age_alive', ''); // clear age alive if cause filled
+                }}
+                disabled={!!form.data.family.father.age_alive}
                 />
             </label>
             </div>
@@ -614,6 +754,16 @@ form.data.family.hereditary =
             Among your blood relatives, is there a history of:
           </p>
 
+          {/* Show top required message */}
+          {!form.data.family.hereditary.every(
+            (item: { answer: string; relation: string }) =>
+              item.answer && (item.answer === 'No' || (item.answer === 'Yes' && item.relation.trim()))
+          ) && (
+            <p className="text-red-600 font-medium mb-2">
+              All hereditary disease relations must be filled if "Yes" is selected.
+            </p>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full border text-sm">
               <thead>
@@ -657,7 +807,7 @@ form.data.family.hereditary =
 
                     <td className="border px-2">
                       <input
-                        className={lineInput}
+                        className={lineInput + (item.answer === 'Yes' && hasError(item.relation) ? " border-red-600" : "")}
                         value={item.relation}
                         onChange={(e) =>
                           form.setData(
@@ -692,7 +842,7 @@ form.data.family.hereditary =
             {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
 
-          <Button disabled={savingNext || savingPrev} onClick={submitPage}>
+          <Button disabled={savingNext || savingPrev || !motherValid || !fatherValid || !hereditaryValid || (patient.sex === 'Female' && !femaleHealthValid)} onClick={submitPage}>
             {savingNext ? 'Continuing…' : 'Next'}
           </Button>
         </div>

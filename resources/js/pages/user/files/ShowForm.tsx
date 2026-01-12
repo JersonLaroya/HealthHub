@@ -75,7 +75,11 @@ export default function ShowForm({ service, patient }: Props) {
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
   const handleFillForm = (serviceSlug: string) => {
+  setIsRedirecting(true);
+
   let path = '';
 
   switch (serviceSlug) {
@@ -146,9 +150,13 @@ export default function ShowForm({ service, patient }: Props) {
             <Button
               variant="default"
               onClick={() => handleFillForm(service.slug)}
-              disabled={isAlreadySubmitted}
+              disabled={isAlreadySubmitted || isRedirecting} // disable while redirecting
             >
-              {isAlreadySubmitted ? 'Already Submitted' : `Fill up ${service.title}`}
+              {isAlreadySubmitted
+                ? 'Already Submitted'
+                : isRedirecting
+                ? 'Redirecting…'
+                : `Fill up ${service.title}`}
             </Button>
           </div>
         </div>

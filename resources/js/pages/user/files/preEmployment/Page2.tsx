@@ -88,6 +88,37 @@ export default function PreemploymentPage2({ patient }: Props) {
     }, {} as Record<string, { yes: boolean; no: boolean; remarks: string }>),
   });
 
+  const isCivilStatusValid = !!form.data.civil_status;
+  const isBirthplaceValid = !!form.data.birthplace.trim();
+
+  /* Allergies */
+  const allergiesValid =
+    form.data.no_known_allergies ||
+    (form.data.allergies_checkbox && form.data.allergies.trim());
+
+  /* Medications */
+  const medicationsValid =
+    form.data.medications_regularly === 'No' ||
+    (form.data.medications_regularly === 'Yes' &&
+      form.data.medications_details.trim());
+
+  /* Diseases */
+  const diseasesValid = Object.values(form.data.diseases).every(d =>
+    d.yes || d.no
+  ) && Object.values(form.data.diseases).every(d =>
+    d.yes ? d.remarks.trim() : true
+  );
+
+  const canProceed =
+    isCivilStatusValid &&
+    isBirthplaceValid &&
+    allergiesValid &&
+    medicationsValid &&
+    diseasesValid;
+  
+  const [showError, setShowError] = useState(false);
+
+
   useEffect(() => {
     const saved = sessionStorage.getItem('preemployment_page_2');
     if (saved) {
@@ -112,6 +143,12 @@ export default function PreemploymentPage2({ patient }: Props) {
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!canProceed) {
+      setShowError(true);
+      return;
+    }
+
     setSavingNext(true);
     sessionStorage.setItem('preemployment_page_2', JSON.stringify(form.data));
     window.location.href = '/user/fill-forms/pre-employment-health-form/page-3';
@@ -138,24 +175,29 @@ export default function PreemploymentPage2({ patient }: Props) {
               <label className="font-semibold">Age:</label>
               <input className={lineInput} value={form.data.age || ''} readOnly />
             </div>
+            <div className={`col-span-full flex flex-wrap items-center gap-2 mt-5 ${
+                !form.data.civil_status ? 'border-b-2 border-red-500 pb-1' : ''
+              }`}>
+                <span className="font-semibold">Civil Status:<span className="text-red-600">*</span></span>
+                {['Single', 'Married', 'Widowed', 'Legally Separated'].map((status) => (
+                  <label key={status} className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="civil_status"
+                      checked={form.data.civil_status === status}
+                      onChange={() => form.setData('civil_status', status)}
+                    />
+                    {status}
+                  </label>
+                ))}
+              </div>
             <div className="col-span-full flex flex-wrap items-center gap-2 mt-5">
-              <span className="font-semibold">Civil Status:</span>
-              {['Single', 'Married', 'Widowed', 'Legally Separated'].map((status) => (
-                <label key={status} className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="civil_status"
-                    checked={form.data.civil_status === status}
-                    onChange={() => form.setData('civil_status', status)}
-                  />
-                  {status}
-                </label>
-              ))}
-            </div>
-            <div className="col-span-full flex flex-wrap items-center gap-2 mt-5">
-              <label className="font-semibold">Birthplace:</label>
+              <label className="font-semibold">Birthplace:<span className="text-red-600">*</span></label>
               <input
-                className={lineInput}
+                className={
+                  lineInput +
+                  (form.data.birthplace.trim() ? ' border-black' : ' border-red-500')
+                }
                 value={form.data.birthplace || ''}
                 onChange={(e) => form.setData('birthplace', e.target.value)}
               />
@@ -181,7 +223,7 @@ export default function PreemploymentPage2({ patient }: Props) {
 
           {/* PERSONAL HISTORY */}
           <div className="space-y-2">
-            <h2 className="text-sm sm:text-base font-semibold">PERSONAL HISTORY</h2>
+            <h2 className="text-sm sm:text-base font-semibold">PERSONAL HISTORY<span className="text-red-600">*</span></h2>
 
             {/* Allergies & Medications */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center text-sm my-5">
@@ -193,15 +235,24 @@ export default function PreemploymentPage2({ patient }: Props) {
                     checked={form.data.allergies_checkbox}
                     onChange={(e) => {
                         form.setData('allergies_checkbox', e.target.checked);
-                        if (!e.target.checked) form.setData('allergies', '');
+                        if (e.target.checked) {
+                          // If "Allergies" is checked, uncheck "No known allergies"
+                          form.setData('no_known_allergies', false);
+                        } else {
+                          // If unchecked, clear allergies input
+                          form.setData('allergies', '');
+                        }
                     }}
                 />
                 Allergies?
                 </label>
                 {form.data.allergies_checkbox && (
                     <input
-                        className={lineInput}
-                        placeholder="Specify"
+                        className={
+                          lineInput +
+                          (form.data.allergies.trim() ? ' border-black' : ' border-red-500')
+                        }
+                        placeholder="Specify *"
                         value={form.data.allergies || ''}
                         onChange={(e) => form.setData('allergies', e.target.value)}
                     />
@@ -213,7 +264,14 @@ export default function PreemploymentPage2({ patient }: Props) {
                 <input
                 type="checkbox"
                 checked={form.data.no_known_allergies}
-                onChange={(e) => form.setData('no_known_allergies', e.target.checked)}
+                onChange={(e) => {
+                  form.setData('no_known_allergies', e.target.checked);
+                  if (e.target.checked) {
+                    // Clear and uncheck "Allergies" if "No known allergies" is checked
+                    form.setData('allergies_checkbox', false);
+                    form.setData('allergies', '');
+                  }
+                }}
                 />
                 No known allergies
             </div>
@@ -237,8 +295,10 @@ export default function PreemploymentPage2({ patient }: Props) {
                 ))}
                 {form.data.medications_regularly === 'Yes' && (
                 <input
-                    className={lineInput + ' flex-1'}
-                    placeholder="Specify"
+                    className={
+                      lineInput + (form.data.medications_details.trim() ? ' border-black' : ' border-red-500')
+                    }
+                    placeholder="Specify *"
                     value={form.data.medications_details || ''}
                     onChange={(e) => form.setData('medications_details', e.target.value)}
                 />
@@ -259,7 +319,14 @@ export default function PreemploymentPage2({ patient }: Props) {
                 </thead>
                 <tbody>
                 {diseaseQuestions.map((q) => (
-                    <tr key={q}>
+                    <tr key={q}
+                      className={
+                        showError &&
+                        !form.data.diseases[q].yes &&
+                        !form.data.diseases[q].no
+                          ? 'bg-red-50'
+                          : ''
+                      }>
                     <td className="border px-1 py-1">{q}</td>
                     <td className="border px-1 py-1 text-center">
                         <input
@@ -276,23 +343,41 @@ export default function PreemploymentPage2({ patient }: Props) {
                     </td>
                     <td className="border px-1 py-1 text-center">
                         <input
-                        type="checkbox"
-                        checked={form.data.diseases[q].no}
-                        onChange={(e) =>
+                          type="checkbox"
+                          checked={form.data.diseases[q].no}
+                          onChange={(e) =>
                             form.setData(`diseases.${q}`, {
-                            yes: e.target.checked ? false : form.data.diseases[q].yes,
-                            no: e.target.checked,
-                            remarks: form.data.diseases[q].remarks,
+                              yes: e.target.checked ? false : form.data.diseases[q].yes,
+                              no: e.target.checked,
+                              remarks: e.target.checked ? '' : form.data.diseases[q].remarks,
                             })
-                        }
+                          }
                         />
                     </td>
                     <td className="border px-1 py-1">
                         <input
-                        type="text"
-                        className={lineInput + ' text-xs'}
-                        value={form.data.diseases[q].remarks || ''}
-                        onChange={(e) => form.setData(`diseases.${q}.remarks`, e.target.value)}
+                          type="text"
+                          disabled={form.data.diseases[q].no}
+                          className={
+                            lineInput +
+                            ' text-xs ' +
+                            (form.data.diseases[q].yes && !form.data.diseases[q].remarks
+                              ? 'border-red-500'
+                              : form.data.diseases[q].no
+                              ? 'bg-gray-100 cursor-not-allowed'
+                              : '')
+                          }
+                          placeholder={
+                            form.data.diseases[q].yes
+                              ? 'Required *'
+                              : form.data.diseases[q].no
+                              ? 'N/A'
+                              : ''
+                          }
+                          value={form.data.diseases[q].remarks || ''}
+                          onChange={(e) =>
+                            form.setData(`diseases.${q}.remarks`, e.target.value)
+                          }
                         />
                     </td>
                     </tr>
@@ -301,6 +386,12 @@ export default function PreemploymentPage2({ patient }: Props) {
             </table>
             </div>
           </div>
+
+        {showError && !canProceed && (
+          <p className="text-red-600 text-sm text-center font-semibold">
+            Please complete all required fields marked with (*)
+          </p>
+        )}
 
           {/* NAVIGATION */}
         <div className="flex justify-between mt-2">
@@ -317,7 +408,7 @@ export default function PreemploymentPage2({ patient }: Props) {
                 {savingPrev ? 'Going back…' : 'Previous'}
             </Button>
 
-            <Button type="submit" disabled={savingNext || savingPrev}>
+            <Button type="submit" disabled={savingNext || savingPrev || !canProceed}>
                 {savingNext ? 'Continuing…' : 'Next'}
             </Button>
         </div>

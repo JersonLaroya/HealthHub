@@ -88,29 +88,9 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
     },
     });
 
-  const [countdown, setCountdown] = useState(60);
-  const [submitDisabled, setSubmitDisabled] = useState(true);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [savingPrev, setSavingPrev] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // Countdown before enabling submit
-  useEffect(() => {
-    if (alreadySubmitted) return;
-
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setSubmitDisabled(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [alreadySubmitted]);
 
   const yesNoOptions = ['Yes', 'No'];
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 text-sm';
@@ -164,6 +144,23 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
     });
     };
 
+    // Returns true if all required questions are answered
+const isFormComplete = () => {
+  const sh = form.data.responses.page5.socialHistory;
+
+  return (
+    sh.alcoholConsumption &&
+    (sh.alcoholConsumption === 'No' || sh.alcoholConsumptionDetails) &&
+    sh.alcoholReduce &&
+    (sh.alcoholReduce === 'No' || sh.alcoholReduceDetails) &&
+    sh.smoke &&
+    (sh.smoke === 'No' || sh.smokeDetails) &&
+    sh.tobaccoVape &&
+    (sh.tobaccoVape === 'No' || sh.tobaccoVapeDetails) &&
+    sh.otherConditions &&
+    (sh.otherConditions === 'No' || sh.otherConditionsDetails)
+  );
+};
 
 
   return (
@@ -179,7 +176,7 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
         <form onSubmit={submitPage} className="space-y-6">
           {/* Question 1 */}
           <div className="space-y-2 text-sm">
-            <label>1. Do you consume alcohol? If so, please specify the frequency and quantity.</label>
+            <label>1. Do you consume alcohol? If so, please specify the frequency and quantity. <span className="text-red-600">*</span></label>
             <div className="flex gap-4 mt-1">
                 {yesNoOptions.map(opt => (
                 <label key={opt} className="flex items-center gap-1">
@@ -199,23 +196,29 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             </div>
 
             {form.data.responses.page5.socialHistory.alcoholConsumption === 'Yes' && (
-                <input
-                className={lineInput + ' mt-1'}
+              <input
+                className={
+                  lineInput +
+                  (!form.data.responses.page5.socialHistory.alcoholConsumptionDetails
+                    ? ' border-red-600'
+                    : '') +
+                  ' mt-1'
+                }
                 placeholder="Frequency / quantity"
                 value={form.data.responses.page5.socialHistory.alcoholConsumptionDetails}
                 onChange={e =>
-                    form.setData(
+                  form.setData(
                     'responses.page5.socialHistory.alcoholConsumptionDetails',
                     e.target.value
-                    )
+                  )
                 }
-                />
+              />
             )}
             </div>
 
           {/* Question 2 */}
             <div className="space-y-2 text-sm">
-            <label>2. Do you feel the need or desire to reduce your alcohol consumption?</label>
+            <label>2. Do you feel the need or desire to reduce your alcohol consumption? <span className="text-red-600">*</span></label>
             <div className="flex gap-4 mt-1">
                 {yesNoOptions.map(opt => (
                 <label key={opt} className="flex items-center gap-1">
@@ -232,22 +235,28 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             </div>
 
             {form.data.responses.page5.socialHistory.alcoholReduce === 'Yes' && (
-                <input
-                className={lineInput + ' mt-1'}
+              <input
+                className={
+                  lineInput +
+                  (!form.data.responses.page5.socialHistory.alcoholReduceDetails
+                    ? ' border-red-600'
+                    : '') +
+                  ' mt-1'
+                }
                 value={form.data.responses.page5.socialHistory.alcoholReduceDetails}
                 onChange={e =>
-                    form.setData(
+                  form.setData(
                     'responses.page5.socialHistory.alcoholReduceDetails',
                     e.target.value
-                    )
+                  )
                 }
-                />
+              />
             )}
             </div>
 
           {/* Question 3 */}
             <div className="space-y-2 text-sm">
-            <label>3. Do you smoke? If yes, please indicate the frequency and amount.</label>
+            <label>3. Do you smoke? If yes, please indicate the frequency and amount. <span className="text-red-600">*</span></label>
             <div className="flex gap-4 mt-1">
                 {yesNoOptions.map(opt => (
                 <label key={opt} className="flex items-center gap-1">
@@ -264,17 +273,23 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             </div>
 
             {form.data.responses.page5.socialHistory.smoke === 'Yes' && (
-                <input
-                className={lineInput + ' mt-1'}
+              <input
+                className={
+                  lineInput +
+                  (!form.data.responses.page5.socialHistory.smokeDetails
+                    ? ' border-red-600'
+                    : '') +
+                  ' mt-1'
+                }
                 placeholder="Frequency / amount"
                 value={form.data.responses.page5.socialHistory.smokeDetails}
                 onChange={e =>
-                    form.setData(
+                  form.setData(
                     'responses.page5.socialHistory.smokeDetails',
                     e.target.value
-                    )
+                  )
                 }
-                />
+              />
             )}
             </div>
 
@@ -282,7 +297,7 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             <div className="space-y-2 text-sm">
             <label>
                 4. Have you used smokeless tobacco or vape within the past year? If so, are you aware of
-                the potential risks and dangers associated with its use?
+                the potential risks and dangers associated with its use? <span className="text-red-600">*</span>
             </label>
             <div className="flex gap-4 mt-1">
                 {yesNoOptions.map(opt => (
@@ -300,23 +315,29 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             </div>
 
             {form.data.responses.page5.socialHistory.tobaccoVape === 'Yes' && (
-                <input
-                className={lineInput + ' mt-1'}
+              <input
+                className={
+                  lineInput +
+                  (!form.data.responses.page5.socialHistory.tobaccoVapeDetails
+                    ? ' border-red-600'
+                    : '') +
+                  ' mt-1'
+                }
                 value={form.data.responses.page5.socialHistory.tobaccoVapeDetails}
                 onChange={e =>
-                    form.setData(
+                  form.setData(
                     'responses.page5.socialHistory.tobaccoVapeDetails',
                     e.target.value
-                    )
+                  )
                 }
-                />
+              />
             )}
             </div>
 
           {/* Question 5 */}
             <div className="space-y-2 text-sm">
             <label>
-                5. Are there any other medical conditions, illnesses, or relevant information that should be reported to the clinic?
+                5. Are there any other medical conditions, illnesses, or relevant information that should be reported to the clinic? <span className="text-red-600">*</span>
             </label>
             <div className="flex gap-4 mt-1">
                 {yesNoOptions.map(opt => (
@@ -334,16 +355,22 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
             </div>
 
             {form.data.responses.page5.socialHistory.otherConditions === 'Yes' && (
-                <input
-                className={lineInput + ' mt-1'}
+              <input
+                className={
+                  lineInput +
+                  (!form.data.responses.page5.socialHistory.otherConditionsDetails
+                    ? ' border-red-600'
+                    : '') +
+                  ' mt-1'
+                }
                 value={form.data.responses.page5.socialHistory.otherConditionsDetails}
                 onChange={e =>
-                    form.setData(
+                  form.setData(
                     'responses.page5.socialHistory.otherConditionsDetails',
                     e.target.value
-                    )
+                  )
                 }
-                />
+              />
             )}
             </div>
 
@@ -400,16 +427,16 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
               <Button
                 variant="outline"
                 onClick={previewPdf}
-                disabled={loadingPreview}
+                disabled={loadingPreview || !isFormComplete()}
               >
                 {loadingPreview ? 'Previewing PDF…' : 'Preview PDF'}
               </Button>
 
               <Button
                 type="submit"
-                disabled={submitting || savingPrev || submitDisabled}
+                disabled={submitting || savingPrev || !isFormComplete()}
               >
-                {submitDisabled ? `Submit (${countdown}s)` : submitting ? 'Submitting…' : 'Submit'}
+                {submitting ? 'Submitting…' : 'Submit'}
               </Button>
             </div>
           </div>

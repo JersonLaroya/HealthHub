@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Record;
+use App\Models\Setting;
 use Auth;
 use Illuminate\Http\Request;
 use App\Models\Service;
@@ -74,8 +75,16 @@ class FileController extends Controller
             $service = Service::where('slug', $slug)->firstOrFail();
         }
 
-        $records = Record::where('user_id', $user->id)
-            ->get(['service_id', 'created_at'])
+        $recordsQuery = Record::where('user_id', $user->id)
+                            ->where('service_id', $service->id);
+
+        // Only filter by current school year for pre-employment and athlete forms
+        if (in_array($slug, ['pre-employment-health-form', 'athlete-medical'])) {
+            $currentSchoolYear = Setting::first()?->school_year;
+            $recordsQuery->whereJsonContains('response_data->school_year', $currentSchoolYear);
+        }
+
+        $records = $recordsQuery->get(['service_id', 'created_at'])
             ->map(function ($record) {
                 return [
                     'service_id' => $record->service_id,
@@ -226,9 +235,12 @@ class FileController extends Controller
     {
         $user = auth()->user();
         $service = Service::where('slug', 'pre-employment-health-form')->first();
+        $settings = Setting::first();
+        $currentSchoolYear = $settings?->school_year;
 
         $alreadySubmitted = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
+            ->whereJsonContains('response_data->school_year', $currentSchoolYear)
             ->exists();
 
         return Inertia::render('user/files/preEmployment/Page5', [
@@ -248,17 +260,23 @@ class FileController extends Controller
     public function athletePage3() { return Inertia::render('user/files/athlete/Page3', ['patient' => $this->patientPayload(auth()->user())]); }
     public function athletePage4() { return Inertia::render('user/files/athlete/Page4', ['patient' => $this->patientPayload(auth()->user())]); }
     public function athletePage5() { return Inertia::render('user/files/athlete/Page5', ['patient' => $this->patientPayload(auth()->user())]); }
-    public function athletePage6() {
+    public function athletePage6()
+    {
         $user = auth()->user();
         $service = Service::where('slug', 'athlete-medical')->first();
-        $alreadySubmitted = Record::where('user_id', $user->id)->where('service_id', $service->id)->exists();
+        $settings = Setting::first();
+        $currentSchoolYear = $settings?->school_year;
+
+        $alreadySubmitted = Record::where('user_id', $user->id)
+            ->where('service_id', $service->id)
+            ->whereJsonContains('response_data->school_year', $currentSchoolYear)
+            ->exists();
 
         return Inertia::render('user/files/athlete/Page6', [
             'patient' => $this->patientPayload($user),
             'alreadySubmitted' => $alreadySubmitted,
         ]);
     }
-
 
 
     public function previewPDF(Request $request)
@@ -287,6 +305,14 @@ class FileController extends Controller
             'responses' => 'required|array',
         ]);
 
+        // Get the first (and only) settings row
+        $settings = Setting::first();
+
+        $responses = $request->responses;
+
+        // Add school_year to the responses
+        $responses['school_year'] = $settings?->school_year ?? null;
+
         $service = Service::where('slug', $formType)->firstOrFail();
 
         Record::create([
@@ -294,7 +320,7 @@ class FileController extends Controller
             'service_id'      => $service->id,
             'consultation_id' => null,
             'lab_result_id'   => null,
-            'response_data'   => $request->responses,
+            'response_data'   => $responses,
         ]);
 
         return redirect()->route('user.files.confirmation', [
@@ -304,9 +330,8 @@ class FileController extends Controller
             'message' => 'Your responses have been successfully saved.',
             'type' => 'success',
         ]);
-
     }
-  
+
     public function getFormTemplate($slug)
     {
         $service = Service::where('slug', $slug)->first();

@@ -45,6 +45,9 @@ export default function PreemploymentPage1({ patient }: Props) {
         signature_image: patient.signature || null,
     });
 
+    const consentComplete =
+        form.data.check_box_consent1 && form.data.check_box_consent2;
+
     useEffect(() => {
         const saved = sessionStorage.getItem('preemployment_page_1');
         if (saved) {
@@ -57,10 +60,23 @@ export default function PreemploymentPage1({ patient }: Props) {
         }
     }, [patient.signature]);
 
+    useEffect(() => {
+        if (consentComplete) {
+            setShowError(false);
+        }
+    }, [consentComplete]);
+
     const [saving, setSaving] = useState(false);
+    const [showError, setShowError] = useState(false);
 
     const submitPage = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!consentComplete) {
+            setShowError(true);
+            return; // stop navigation if unchecked
+        }
+
         setSaving(true);
         sessionStorage.setItem('preemployment_page_1', JSON.stringify(form.data));
         window.location.href = '/user/fill-forms/pre-employment-health-form/page-2';
@@ -178,9 +194,15 @@ export default function PreemploymentPage1({ patient }: Props) {
                         </div>
                     </div>
 
+                    {showError && !consentComplete && (
+                        <p className="text-red-600 text-sm text-center font-semibold">
+                            You must agree to both consent statements before continuing.
+                        </p>
+                    )}
+
                     {/* NEXT */}
                     <div className="flex justify-end">
-                        <Button type="submit" disabled={saving}>
+                        <Button type="submit" disabled={saving || !consentComplete}>
                             {saving ? 'Continuing...' : 'Next'}
                         </Button>
                     </div>

@@ -57,9 +57,19 @@ export default function PreenrollmentPage1({ patient }: Props) {
   }, [patient.signature]);
 
   const [saving, setSaving] = useState(false);
+  const [showError, setShowError] = useState(false);
+
+  const consentComplete =
+  form.data.check_box_consent1 && form.data.check_box_consent2;
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!consentComplete) {
+      setShowError(true);
+      return; // stop if checkboxes not checked
+    }
+    
     setSaving(true);
     sessionStorage.setItem('preenrollment_page_1', JSON.stringify(form.data));
     window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-2';
@@ -180,9 +190,15 @@ export default function PreenrollmentPage1({ patient }: Props) {
             </div>
           </div>
 
+          {showError && !consentComplete && (
+            <p className="text-red-600 text-sm text-center font-semibold">
+              You must agree to both consent statements before continuing.
+            </p>
+          )}
+
           {/* NEXT */}
           <div className="flex justify-end">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !consentComplete}>
               {saving ? 'Continuing...' : 'Next'}
             </Button>
           </div>

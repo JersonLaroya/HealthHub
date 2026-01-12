@@ -113,6 +113,31 @@ export default function PreenrollmentPage4({ patient }: Props) {
     physical_deformities: '', // fillable
   });
 
+  // Validation helpers
+  const requiredIf = (condition: boolean, value?: string) =>
+    condition && (!value || !value.trim());
+
+  // Check if all age fields are valid
+  const ageValid = form.data.age_have.every(
+    (a) => a.na || (a.age && a.age.trim())
+  );
+
+  // Check if all difficulty questions have a selection
+  const difficultyValid = Object.values(form.data.difficulty).every((val) => val);
+
+  // Check if all tiredness questions have a selection
+  const tirednessValid = Object.values(form.data.tiredness).every((val) => val);
+
+  // Check if equipment is valid if "Yes"
+  const equipmentValid =
+    form.data.equipment_help === 'Yes'
+      ? Object.values(form.data.equipment_list).some((v) => v)
+      : true;
+
+  // Disable Next if any required validation fails
+  const canNext = ageValid && difficultyValid && tirednessValid && equipmentValid;
+
+
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
   const [savingNext, setSavingNext] = useState(false);
   const [savingPrev, setSavingPrev] = useState(false);
@@ -152,14 +177,25 @@ export default function PreenrollmentPage4({ patient }: Props) {
                     className={lineInput + ' w-12 text-center'}
                     placeholder="Age"
                     value={form.data.age_have?.[globalIdx]?.age || ''}
-                    onChange={(e) => form.setData(`age_have.${globalIdx}.age`, e.target.value)}
+                    onChange={(e) => {
+                      // If user types age, uncheck N/A
+                      form.setData(`age_have.${globalIdx}`, {
+                        age: e.target.value,
+                        na: false,
+                      });
+                    }}
                     disabled={form.data.age_have?.[globalIdx]?.na || false}
                   />
                   <label className="flex items-center gap-1">
                     <input
                       type="checkbox"
                       checked={form.data.age_have?.[globalIdx]?.na || false}
-                      onChange={(e) => form.setData(`age_have.${globalIdx}.na`, e.target.checked)}
+                      onChange={(e) => {
+                        form.setData(`age_have.${globalIdx}`, {
+                          age: e.target.checked ? '' : form.data.age_have?.[globalIdx]?.age,
+                          na: e.target.checked,
+                        });
+                      }}
                     />
                     N/A
                   </label>
@@ -180,14 +216,25 @@ export default function PreenrollmentPage4({ patient }: Props) {
                     className={lineInput + ' w-12 text-center'}
                     placeholder="Age"
                     value={form.data.age_have?.[globalIdx]?.age || ''}
-                    onChange={(e) => form.setData(`age_have.${globalIdx}.age`, e.target.value)}
+                    onChange={(e) => {
+                      // If user types age, uncheck N/A
+                      form.setData(`age_have.${globalIdx}`, {
+                        age: e.target.value,
+                        na: false,
+                      });
+                    }}
                     disabled={form.data.age_have?.[globalIdx]?.na || false}
                   />
                   <label className="flex items-center gap-1">
                     <input
                       type="checkbox"
                       checked={form.data.age_have?.[globalIdx]?.na || false}
-                      onChange={(e) => form.setData(`age_have.${globalIdx}.na`, e.target.checked)}
+                      onChange={(e) => {
+                        form.setData(`age_have.${globalIdx}`, {
+                          age: e.target.checked ? '' : form.data.age_have?.[globalIdx]?.age,
+                          na: e.target.checked,
+                        });
+                      }}
                     />
                     N/A
                   </label>
@@ -463,7 +510,7 @@ export default function PreenrollmentPage4({ patient }: Props) {
           </Button>
           <Button
             type="button"
-            disabled={savingNext || savingPrev}
+            disabled={savingNext || savingPrev || !canNext}
             onClick={(e) => {
               setSavingNext(true);
               submitPage(e);

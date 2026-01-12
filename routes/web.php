@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DiseaseCategoryController;
 use App\Http\Controllers\Admin\ListOfDiseaseController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\ConsultationController;
@@ -204,6 +205,10 @@ Route::middleware(['role:Admin'])
         Route::delete('/list-of-diseases/{disease}', [ListOfDiseaseController::class, 'destroy']);
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+
+        // Settings
+        Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
+        Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 });
 
 Route::middleware(['role:Nurse'])->prefix('nurse')->name('nurse.')->group(function () {
