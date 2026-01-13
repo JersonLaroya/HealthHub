@@ -39,8 +39,6 @@ export default function ShowFile({ patient, service, records }: Props) {
   const { props } = usePage();
   const loggedInUser = props.auth.user;
 
-  console.log(loggedInUser);
-
 
     const handleViewPdf = async (recordId: number) => {
     try {
@@ -174,9 +172,8 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 variant="secondary"
                                 onClick={() => {
                                 const rec = recordList.find(r => r.id === record.id);
-                                setEditingRecord(rec || null);
-                                setFormData(rec?.response_data || {
-                                    // default empty structure
+
+                                const baseData = rec?.response_data || {
                                     vitalSigns: { bp: "", pr: "", rr: "", temp: "", o2sat: "" },
                                     anthropometry: { height: "", weight: "", bmi: "" },
                                     generalHealth: "",
@@ -200,7 +197,23 @@ export default function ShowFile({ patient, service, records }: Props) {
                                     recommendation: "",
                                     clearance: "",
                                     examiner: { name: "", prc: "", date: "" },
-                                });
+                                };
+
+                                const enrichedData = {
+                                    ...baseData,
+                                    examiner: {
+                                        ...(baseData.examiner || {}),
+                                        date: baseData.examiner?.date || new Date().toISOString().split("T")[0],
+                                    },
+                                    page1: {
+                                    ...(baseData.page1 || {}),
+                                    duhs_name: loggedInUser?.name || patient.name || "",
+                                    duhs_signature: loggedInUser?.signature || null,
+                                    },
+                                };
+
+                                setEditingRecord(rec || null);
+                                setFormData(enrichedData);
                                 }}
                             >
                                 Edit
@@ -309,33 +322,47 @@ export default function ShowFile({ patient, service, records }: Props) {
                 "genito_urinary", "neurologic"
                 ].map(system => (
                 <div key={system} className="grid grid-cols-6 items-center gap-2 mb-1">
-                    <span className="capitalize">{system.replace(/_/g," ")}</span>
+                    <span className="capitalize">{system.replace(/_/g," / ")}</span>
 
                     <label className="inline-flex items-center">
-                    <input
-                        type="checkbox"
-                        onChange={e => {
-                        const newOrganSystems = { ...formData.organ_systems };
-                        newOrganSystems[system] = { ...newOrganSystems[system], status: e.target.checked ? "Normal" : null, findings: "" };
-                        setFormData({ ...formData, organ_systems: newOrganSystems });
-                        }}
-                        className="mr-1"
-                    />
-                    Normal
-                    </label>
+                        <input
+                            type="checkbox"
+                            checked={formData.organ_systems?.[system]?.status === "Normal"}
+                            onChange={() => {
+                            const newOrganSystems = { ...formData.organ_systems };
 
-                    <label className="inline-flex items-center">
-                    <input
-                        type="checkbox"
-                        onChange={e => {
-                        const newOrganSystems = { ...formData.organ_systems };
-                        newOrganSystems[system] = { ...newOrganSystems[system], status: e.target.checked ? "Abnormal" : null };
-                        setFormData({ ...formData, organ_systems: newOrganSystems });
-                        }}
-                        className="mr-1"
-                    />
-                    Abnormal
-                    </label>
+                            newOrganSystems[system] = {
+                                status: "Normal",
+                                findings: "" // clear findings if switching to normal
+                            };
+
+                            setFormData({ ...formData, organ_systems: newOrganSystems });
+                            }}
+                            className="mr-1"
+                        />
+                        Normal
+                        </label>
+
+                        <label className="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            checked={formData.organ_systems?.[system]?.status === "Abnormal"}
+                            onChange={() => {
+                            const newOrganSystems = { ...formData.organ_systems };
+
+                            const isAbnormal =
+                                newOrganSystems[system]?.status === "Abnormal";
+
+                            newOrganSystems[system] = isAbnormal
+                                ? { status: null, findings: "" } // uncheck abnormal → clear input
+                                : { status: "Abnormal", findings: "" };
+
+                            setFormData({ ...formData, organ_systems: newOrganSystems });
+                            }}
+                            className="mr-1"
+                        />
+                        Abnormal
+                        </label>
 
                     {formData.organ_systems?.[system]?.status === "Abnormal" && (
                     <input

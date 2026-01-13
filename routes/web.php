@@ -187,12 +187,6 @@ Route::middleware(['role:Admin'])
         Route::put('/forms/{form}', [ServiceController::class, 'update'])->name('forms.update');
         Route::delete('/forms/{form}', [ServiceController::class, 'destroy'])->name('forms.destroy');
 
-        Route::get('/form-assignments', [FormAssignmentController::class, 'index'])->name('form-assignments.index');
-        Route::get('/form-assignments/create', [FormAssignmentController::class, 'create'])->name('form-assignments.create');
-        Route::post('/form-assignments', [FormAssignmentController::class, 'store'])->name('form-assignments.store');
-        Route::get('/form-assignments/search-users', [FormAssignmentController::class, 'searchUsers'])->name('form-assignments.search-users');
-        Route::get('/form-assignments/auto-select-users', [FormAssignmentController::class, 'autoSelectUsers'])->name('form-assignments.auto-select-users');
-
         // Disease Categories
         Route::get('/disease-categories', [DiseaseCategoryController::class, 'index']);
         Route::post('/disease-categories', [DiseaseCategoryController::class, 'store']);

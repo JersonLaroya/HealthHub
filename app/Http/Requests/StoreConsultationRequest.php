@@ -34,6 +34,9 @@ class StoreConsultationRequest extends FormRequest
             'pr' => 'nullable|string|max:20',
             'temp' => 'nullable|string|max:10',
             'o2_sat' => 'nullable|string|max:10',
+            'height' => 'nullable|string|max:20',
+            'weight' => 'nullable|string|max:20',
+            'bmi'    => 'nullable|string|max:20',
 
             'medical_complaint' => 'required|string|max:255',
             'disease_ids' => 'nullable|array',

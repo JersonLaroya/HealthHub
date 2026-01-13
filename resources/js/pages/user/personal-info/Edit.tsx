@@ -3,6 +3,7 @@ import AppLayout from "@/layouts/app-layout";
 import { useRef, useLayoutEffect, useState, useEffect } from "react";
 import { toast } from "sonner";
 import SignaturePad from "signature_pad";
+import PhoneInput from "react-phone-input-2";
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -294,11 +295,23 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
               {/* Contact Info */}
               <div>
                 <Label htmlFor="contact_no">Contact No</Label>
-                <Input
-                  id="contact_no"
+
+                <PhoneInput
+                  country={"ph"}
                   value={data.contact_no}
-                  onChange={(e) => setData("contact_no", e.target.value)}
+                  onChange={(value, country) => {
+                    // value will be like: 639171234567
+                    setData("contact_no", "+" + value);
+                  }}
+                  inputClass="!w-full !h-10 !text-sm !dark:bg-neutral-800 !dark:text-white"
+                  containerClass="!w-full"
+                  specialLabel=""
+                  placeholder="+63 9XX XXX XXXX"
                 />
+
+                {errors.contact_no && (
+                  <p className="text-sm text-red-600">{errors.contact_no}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="birthdate">Birthdate</Label>
@@ -463,10 +476,14 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                   onChange={(e) => setData("guardian_name", e.target.value)}
                   className="mb-2"
                 />
-                <Input
-                  placeholder="Contact No"
+                <PhoneInput
+                  country={"ph"}
                   value={data.guardian_contact_no}
-                  onChange={(e) => setData("guardian_contact_no", e.target.value)}
+                  onChange={(value) => setData("guardian_contact_no", "+" + value)}
+                  inputClass="!w-full !h-10 !text-sm !dark:bg-neutral-800 !dark:text-white"
+                  containerClass="!w-full"
+                  specialLabel=""
+                  placeholder="+63 9XX XXX XXXX"
                 />
               </div>
 

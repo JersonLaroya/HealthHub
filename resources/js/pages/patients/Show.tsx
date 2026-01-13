@@ -79,6 +79,9 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     pr: "",
     temp: "",
     o2_sat: "",
+    height: "",
+    weight: "",
+    bmi: "",
   });
 
   const handleAddConsultation = (e) => {
@@ -99,6 +102,9 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
           pr: "",
           temp: "",
           o2_sat: "",
+          height: "",
+          weight: "",
+          bmi: "",
         });
       },
     });
@@ -121,9 +127,17 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
   const { data: editConsultData, setData: setEditConsultData, put: putConsultation, processing: editingConsultProcessing, errors: editConsultErrors } = useForm({
     date: "",
     time: "",
-    vital_signs: "",
+    bp: "",
+    rr: "",
+    pr: "",
+    temp: "",
+    o2_sat: "",
+    height: "",
+    weight: "",
+    bmi: "",
     medical_complaint : "",
     management_and_treatment: "",
+    disease_ids: [],
   });
 
   const openEditConsultation = (c) => {
@@ -136,6 +150,9 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
       pr: c.vital_signs?.pr || "",
       temp: c.vital_signs?.temp || "",
       o2_sat: c.vital_signs?.o2_sat || "",
+      height: c.vital_signs?.height || "",
+      weight: c.vital_signs?.weight || "",
+      bmi: c.vital_signs?.bmi || "",
       medical_complaint: c.medical_complaint || "",
       management_and_treatment: c.management_and_treatment || "",
       disease_ids: c.diseases?.map((d) => d.id) || [],
@@ -204,6 +221,9 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                   pr: "",
                   temp: "",
                   o2_sat: "",
+                  height: "",
+                  weight: "",
+                  bmi: "",
                 });
                 setAddingConsultation(true);
               }}
@@ -317,19 +337,32 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                     <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
                       <td className="p-2 border-b">{formattedDateTime}</td>
                       <td className="p-2 border-b align-top">
-                        <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md text-sm space-y-1">
                           {c.vital_signs ? (
-                            [
-                              c.vital_signs.bp,
-                              c.vital_signs.rr,
-                              c.vital_signs.pr,
-                              c.vital_signs.temp ? `${c.vital_signs.temp}°C` : null,
-                              c.vital_signs.o2_sat,
-                            ]
-                              .filter(Boolean) // keep only non-null/non-empty
-                              .join(", ") || "-" // fallback if all empty
+                            <>
+                              {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
+                              {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
+                              {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
+                              {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}°C</div>}
+                              {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
+                              {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
+                              {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
+                              {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
+
+                              {/* if all empty */}
+                              {!c.vital_signs.bp &&
+                              !c.vital_signs.rr &&
+                              !c.vital_signs.pr &&
+                              !c.vital_signs.temp &&
+                              !c.vital_signs.o2_sat &&
+                              !c.vital_signs.height &&
+                              !c.vital_signs.weight &&
+                              !c.vital_signs.bmi && (
+                                <div>-</div>
+                              )}
+                            </>
                           ) : (
-                            "-"
+                            <div>-</div>
                           )}
                         </div>
                       </td>
@@ -615,6 +648,23 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                     value={consultationData.o2_sat}
                     onChange={(e) => setConsultationData("o2_sat", e.target.value)}
                   />
+                  <Input
+                    placeholder="Height (cm)"
+                    value={consultationData.height}
+                    onChange={(e) => setConsultationData("height", e.target.value)}
+                  />
+
+                  <Input
+                    placeholder="Weight (kg)"
+                    value={consultationData.weight}
+                    onChange={(e) => setConsultationData("weight", e.target.value)}
+                  />
+
+                  <Input
+                    placeholder="BMI"
+                    value={consultationData.bmi}
+                    onChange={(e) => setConsultationData("bmi", e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -780,6 +830,23 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
                     placeholder="O₂ Sat (%)"
                     value={editConsultData.o2_sat || ""}
                     onChange={(e) => setEditConsultData("o2_sat", e.target.value)}
+                  />
+                  <Input
+                    placeholder="Height (cm)"
+                    value={editConsultData.height || ""}
+                    onChange={(e) => setEditConsultData("height", e.target.value)}
+                  />
+
+                  <Input
+                    placeholder="Weight (kg)"
+                    value={editConsultData.weight || ""}
+                    onChange={(e) => setEditConsultData("weight", e.target.value)}
+                  />
+
+                  <Input
+                    placeholder="BMI"
+                    value={editConsultData.bmi || ""}
+                    onChange={(e) => setEditConsultData("bmi", e.target.value)}
                   />
                 </div>
               </div>

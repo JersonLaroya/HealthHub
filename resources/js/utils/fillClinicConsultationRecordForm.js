@@ -136,16 +136,19 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
 
     // --- Convert vital signs object into a string ---
     const vitalsText = c.vital_signs
-      ? [
-          c.vital_signs.bp,
-          c.vital_signs.rr,
-          c.vital_signs.pr,
-          c.vital_signs.temp ? `${c.vital_signs.temp}°C` : null,
-          c.vital_signs.o2_sat,
-        ]
-          .filter(Boolean)
-          .join(", ")
-      : "-";
+    ? [
+        c.vital_signs.bp ? `BP: ${c.vital_signs.bp}` : null,
+        c.vital_signs.rr ? `RR: ${c.vital_signs.rr}` : null,
+        c.vital_signs.pr ? `PR: ${c.vital_signs.pr}` : null,
+        c.vital_signs.temp ? `Temp: ${c.vital_signs.temp}°C` : null,
+        c.vital_signs.o2_sat ? `O2 Sat: ${c.vital_signs.o2_sat}` : null,
+        c.vital_signs.height ? `Height: ${c.vital_signs.height}` : null,
+        c.vital_signs.weight ? `Weight: ${c.vital_signs.weight}` : null,
+        c.vital_signs.bmi ? `BMI: ${c.vital_signs.bmi}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "-";
 
     const vitalsLines = wrapText(vitalsText, columns[1].width - 4);
 

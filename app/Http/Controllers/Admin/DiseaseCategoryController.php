@@ -18,7 +18,7 @@ class DiseaseCategoryController extends Controller
 
         $categories = DiseaseCategory::with('creator')
             ->when($search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%");
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%']);
             })
             ->orderBy($sort, $direction)
             ->paginate(10)
@@ -40,8 +40,10 @@ class DiseaseCategoryController extends Controller
             'name' => 'required|string|unique:disease_categories,name',
         ]);
 
+        $name = strtoupper($request->name);
+
         DiseaseCategory::create([
-            'name' => $request->name,
+            'name' => $name,
             'created_by' => Auth::id(),
         ]);
 
@@ -54,8 +56,10 @@ class DiseaseCategoryController extends Controller
             'name' => 'required|string|unique:disease_categories,name,' . $category->id,
         ]);
 
+        $name = strtoupper($request->name);
+
         $category->update([
-            'name' => $request->name,
+            'name' => $name,
         ]);
 
         return back()->with('success', 'Category updated successfully.');

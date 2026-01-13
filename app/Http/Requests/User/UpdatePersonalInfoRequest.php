@@ -18,7 +18,7 @@ class UpdatePersonalInfoRequest extends FormRequest
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:20', 
-            'contact_no' => 'required|string|max:50',
+            'contact_no' => ['required', 'regex:/^(?:\+63|0)9\d{9}$/'],
             'birthdate' => 'required|date',
             'sex' => 'required|string|max:10',
             'signature' => 'required|string',
@@ -43,8 +43,17 @@ class UpdatePersonalInfoRequest extends FormRequest
 
             // Guardian
             'guardian_name' => 'required|string|max:255',
-            'guardian_contact_no' => 'required|string|max:50',
+            'guardian_contact_no' => ['required', 'regex:/^(?:\+63|0)9\d{9}$/'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'contact_no.regex' => 'Contact number must be a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).',
+            'guardian_contact_no.regex' => 'Guardian contact number must be a valid Philippine mobile number.',
+        ];
+    }
+
 
 }

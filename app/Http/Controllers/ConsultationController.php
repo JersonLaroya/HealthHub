@@ -35,6 +35,9 @@ class ConsultationController extends Controller
             'pr' => $request->pr,
             'temp' => $request->temp,
             'o2_sat' => $request->o2_sat,
+            'height' => $request->height,
+            'weight' => $request->weight,
+            'bmi' => $request->bmi,
         ]);
 
         // Create consultation
@@ -73,13 +76,18 @@ class ConsultationController extends Controller
      */
     public function update(UpdateConsultationRequest $request, User $patient, Consultation $consultation)
     {
-        $consultation->vitalSigns->update([
-            'bp' => $request->bp,
-            'rr' => $request->rr,
-            'pr' => $request->pr,
-            'temp' => $request->temp,
-            'o2_sat' => $request->o2_sat,
-        ]);
+        if ($consultation->vitalSigns) {
+            $consultation->vitalSigns->update([
+                'bp' => $request->bp,
+                'rr' => $request->rr,
+                'pr' => $request->pr,
+                'temp' => $request->temp,
+                'o2_sat' => $request->o2_sat,
+                'height' => $request->height,
+                'weight' => $request->weight,
+                'bmi' => $request->bmi,
+            ]);
+        }
 
         $consultation->update([
             'date' => $request->date,

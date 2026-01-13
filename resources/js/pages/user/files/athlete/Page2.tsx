@@ -65,6 +65,22 @@ export default function AthletePage2({ patient }: Props) {
     date: todayFormatted,
   });
 
+  const sportEventValid = form.data.sport_event.trim() !== '';
+  const studentIdValid = form.data.student_id.trim() !== '';
+  const activityParticipatedValid = form.data.activity_participated.trim() !== '';
+  const organizedByValid = form.data.organized_by.trim() !== '';
+  const activityValid = form.data.activity.trim() !== '';
+  const herebyReleaseValid = form.data.hereby_release.trim() !== '';
+
+  const pageValid =
+    sportEventValid &&
+    studentIdValid &&
+    activityParticipatedValid &&
+    organizedByValid &&
+    activityValid &&
+    herebyReleaseValid;
+
+
     useEffect(() => {
         const saved = sessionStorage.getItem('athlete_page_2');
         if (saved) {
@@ -97,6 +113,9 @@ export default function AthletePage2({ patient }: Props) {
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!pageValid) return;
+
     setSavingNext(true);
     sessionStorage.setItem('athlete_page_2', JSON.stringify(form.data));
     window.location.href = '/user/fill-forms/athlete-medical/page-3';
@@ -119,13 +138,15 @@ export default function AthletePage2({ patient }: Props) {
 
                 {/* Sport/Event */}
                 <div className="text-sm flex items-center space-x-2">
-                    <label className="whitespace-nowrap">Sport/Event:</label>
-                    <input
+                  <label className="whitespace-nowrap">Sport/Event:</label>
+                  <input
                     type="text"
                     value={form.data.sport_event}
                     onChange={(e) => form.setData('sport_event', e.target.value)}
-                    className="w-[200px] border-b border-gray-400 focus:border-blue-500 focus:outline-none h-8 text-sm"
-                    />
+                    className={`w-[200px] border-b h-8 text-sm focus:outline-none ${
+                      !sportEventValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
+                  />
                 </div>
 
                 {/* First Paragraph */}
@@ -142,20 +163,26 @@ export default function AthletePage2({ patient }: Props) {
                     type="text"
                     value={form.data.student_id}
                     onChange={(e) => form.setData('student_id', e.target.value)}
-                    className="inline w-24 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-24 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !studentIdValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                     />, express my desire to participate in the{' '}
                     <input
                     type="text"
                     value={form.data.activity_participated}
                     onChange={(e) => form.setData('activity_participated', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !activityParticipatedValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                     />{' '}
                     organized by{' '}
                     <input
                     type="text"
                     value={form.data.organized_by}
                     onChange={(e) => form.setData('organized_by', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !organizedByValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                     />. I acknowledge that the event involves various activities such as practices, weight training, competitions, travel, and injury treatment. I confirm that I am in good health and physical condition, and I commit to engaging only in activities that are within my physical capabilities.
                 </div>
 
@@ -166,14 +193,18 @@ export default function AthletePage2({ patient }: Props) {
                     type="text"
                     value={form.data.activity}
                     onChange={(e) => form.setData('activity', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !activityValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                 />{' '}
                 activities carry both known and unforeseen risks that may result in physical or mental illness. These risks include, but are not limited to: 1.) cuts, bruises, sprains, fractures, trauma, and/or disease; 2.) paralysis, which can involve the loss or impairment of movement, strength, feeling, or the use of a body part or function, potentially lasting a lifetime; 3.) disfigurement; 4.) death; 5.) injuries related to temperature or weather conditions, such as hyperthermia, dehydration, and heat exhaustion; 6.) injuries resulting from the use or non-use of sports equipment; 7.) injuries during travel to, from, and during{' '}
                 <input
                     type="text"
                     value={form.data.activity}
                     onChange={(e) => form.setData('activity', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !activityValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                 />{' '}
                 activities; 8.) injuries caused by negligent or intentional acts or omissions of university personnel, teammates, participants, officials, spectators, or others; and 9.) injuries due to the inaccessibility of emergency medical care or negligent medical care during injury treatment.
                 </div>
@@ -185,7 +216,9 @@ export default function AthletePage2({ patient }: Props) {
                     type="text"
                     value={form.data.activity}
                     onChange={(e) => form.setData('activity', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !activityValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                 />{' '}
                 activities, as well as following the instructions provided by my coaches and trainers regarding rules, techniques, training, equipment, and injuries. I understand that failure to comply with such rules and instructions may result in injury to myself or my opponents. Furthermore, I am aware that even when abiding by all rules and regulations and using appropriate safety equipment, there remains a significant risk of injury inherent in sports/activities. I agree to promptly report all injuries to the University Health Service and acknowledge my responsibility for seeking necessary follow-up care and treatment under the supervision of my coach or trainer.
                 </div>
@@ -197,14 +230,18 @@ export default function AthletePage2({ patient }: Props) {
                     type="text"
                     value={form.data.activity}
                     onChange={(e) => form.setData('activity', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !activityValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                 />{' '}
                 activities, I hereby release{' '}
                 <input
                     type="text"
                     value={form.data.hereby_release}
                     onChange={(e) => form.setData('hereby_release', e.target.value)}
-                    className="inline w-40 border-b border-gray-400 focus:border-blue-500 focus:outline-none h-6 text-sm mx-1"
+                    className={`inline w-40 border-b h-6 text-sm mx-1 focus:outline-none ${
+                      !herebyReleaseValid ? 'border-red-600' : 'border-gray-400'
+                    }`}
                 />, its trustees, officers, employees, agents, representatives, coaches, trainers, and volunteers from any and all claims, demands, losses, liabilities, obligations, damages, causes of action, and costs.
                 </div>
 
@@ -260,7 +297,7 @@ export default function AthletePage2({ patient }: Props) {
             >
               {savingPrev ? 'Going back…' : 'Previous'}
             </Button>
-            <Button type="submit" disabled={savingNext || savingPrev}>
+            <Button type="submit" disabled={savingNext || savingPrev || !pageValid}>
               {savingNext ? 'Continuing…' : 'Next'}
             </Button>
           </div>

@@ -49,6 +49,42 @@ export default function PreenrollmentPage5({ patient }: Props) {
       femaleHealth, // normalized object
     });
 
+  const immunizationErrors = form.data.immunization.map(v => !v || !v.trim());
+  const immunizationValid = immunizationErrors.every(v => v === false);
+
+  const isFemale = patient.sex === 'Female';
+
+const femaleErrors = {
+  menstruationAge: isFemale && !form.data.femaleHealth.menstruationAge,
+  menstruationDuration: isFemale && !form.data.femaleHealth.menstruationDuration,
+  lastMenstrualPeriod: isFemale && !form.data.femaleHealth.lastMenstrualPeriod,
+
+  breastDetails:
+    isFemale &&
+    form.data.femaleHealth.breastTrouble === 'Yes' &&
+    !form.data.femaleHealth.breastDetails,
+
+  numberOfChildren:
+    isFemale &&
+    form.data.femaleHealth.haveChildren &&
+    !form.data.femaleHealth.numberOfChildren,
+};
+
+const femaleValid =
+  !isFemale ||
+  (
+    !femaleErrors.menstruationAge &&
+    !femaleErrors.menstruationDuration &&
+    !femaleErrors.lastMenstrualPeriod &&
+    !femaleErrors.breastDetails &&
+    !femaleErrors.numberOfChildren &&
+    form.data.femaleHealth.menstruationRegularity &&
+    form.data.femaleHealth.menstruationFlow &&
+    form.data.femaleHealth.dysmenorrhea &&
+    form.data.femaleHealth.breastTrouble &&
+    form.data.femaleHealth.pregnantNow
+  );
+
   const lineInput =
     'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 text-sm';
     const [savingNext, setSavingNext] = useState(false);
@@ -89,7 +125,10 @@ export default function PreenrollmentPage5({ patient }: Props) {
             <div key={idx} className="flex items-center gap-3">
               <span className="flex-1">{label}</span>
               <input
-                className="w-32 border-b border-black bg-transparent focus:outline-none"
+                className={
+                  "w-32 border-b bg-transparent focus:outline-none " +
+                  (immunizationErrors[idx] ? "border-red-600" : "border-black")
+                }
                 placeholder="Date / Year or N/A"
                 value={form.data.immunization[idx]}
                 onChange={(e) =>
@@ -117,7 +156,10 @@ export default function PreenrollmentPage5({ patient }: Props) {
             <div key={idx} className="flex items-center gap-3">
               <span className="flex-1">{label}</span>
               <input
-                className="w-32 border-b border-black bg-transparent focus:outline-none"
+                className={
+                  "w-32 border-b bg-transparent focus:outline-none " +
+                  (immunizationErrors[idx] ? "border-red-600" : "border-black")
+                }
                 placeholder="Date / Year"
                 value={form.data.immunization[idx]}
                 onChange={(e) =>
@@ -143,7 +185,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             <div>
               <label>Menstruation: Age of onset</label>
               <input
-                className={lineInput}
+                className={`${lineInput} ${femaleErrors.menstruationAge ? 'border-red-600' : ''}`}
                 value={form.data.femaleHealth.menstruationAge}
                 onChange={(e) =>
                   form.setData('femaleHealth', {
@@ -155,7 +197,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             </div>
 
             <div>
-              <label>Regularity</label>
+              <label>Regularity <span className="text-red-600">*</span></label>
               <div className="flex gap-4 mt-1">
                 {['Regular', 'Irregular'].map((opt) => (
                   <label key={opt} className="flex items-center gap-1">
@@ -178,7 +220,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             <div>
               <label>Duration (days)</label>
               <input
-                className={lineInput}
+                className={`${lineInput} ${femaleErrors.menstruationDuration ? 'border-red-600' : ''}`}
                 value={form.data.femaleHealth.menstruationDuration}
                 onChange={(e) =>
                   form.setData('femaleHealth', {
@@ -190,7 +232,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             </div>
 
             <div>
-              <label>Flow</label>
+              <label>Flow <span className="text-red-600">*</span></label>
               <div className="flex gap-4 mt-1">
                 {['Light', 'Moderate', 'Heavy'].map((flow) => (
                   <label key={flow} className="flex items-center gap-1">
@@ -211,7 +253,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             </div>
 
             <div>
-              <label>Dysmenorrhea</label>
+              <label>Dysmenorrhea <span className="text-red-600">*</span></label>
               <div className="flex gap-4 mt-1">
                 {['Yes', 'No'].map((opt) => (
                   <label key={opt} className="flex items-center gap-1">
@@ -234,7 +276,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             <div>
               <label>Last menstrual period (month and year)</label>
               <input
-                className={lineInput}
+                className={`${lineInput} ${femaleErrors.lastMenstrualPeriod ? 'border-red-600' : ''}`}
                 value={form.data.femaleHealth.lastMenstrualPeriod}
                 onChange={(e) =>
                   form.setData('femaleHealth', {
@@ -246,7 +288,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             </div>
 
             <div className="sm:col-span-2">
-              <label>Have you had any trouble with your breasts, such as lumps, tumor, surgery?</label>
+              <label>Have you had any trouble with your breasts, such as lumps, tumor, surgery? <span className="text-red-600">*</span></label>
               <div className="flex gap-4 mt-1">
                 {['Yes', 'No'].map((opt) => (
                   <label key={opt} className="flex items-center gap-1">
@@ -270,7 +312,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
 
               {form.data.femaleHealth.breastTrouble === 'Yes' && (
                 <input
-                  className={lineInput + ' mt-1'}
+                  className={`${lineInput} mt-1 ${femaleErrors.breastDetails ? 'border-red-600' : ''}`}
                   value={form.data.femaleHealth.breastDetails}
                   onChange={(e) =>
                     form.setData('femaleHealth', {
@@ -283,7 +325,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
             </div>
 
             <div>
-              <label>Are you pregnant NOW?</label>
+              <label>Are you pregnant NOW? <span className="text-red-600">*</span></label>
               <div className="flex gap-4 mt-1">
                 {['Yes', 'No'].map((opt) => (
                   <label key={opt} className="flex items-center gap-1">
@@ -323,7 +365,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
 
               {form.data.femaleHealth.haveChildren && (
                 <input
-                  className={lineInput + ' mt-1'}
+                  className={`${lineInput} mt-1 ${femaleErrors.numberOfChildren ? 'border-red-600' : ''}`}
                   value={form.data.femaleHealth.numberOfChildren}
                   placeholder="Number of children (e.g., 3)"
                   onChange={(e) =>
@@ -358,7 +400,7 @@ export default function PreenrollmentPage5({ patient }: Props) {
           </Button>
 
           <Button
-            disabled={savingNext || savingPrev}
+            disabled={savingNext || savingPrev || !immunizationValid || !femaleValid}
             onClick={(e) => {
               setSavingNext(true);
               submitPage(e);

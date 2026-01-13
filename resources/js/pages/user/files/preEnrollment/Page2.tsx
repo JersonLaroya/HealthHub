@@ -48,6 +48,13 @@ export default function PreenrollmentPage2({ patient }: Props) {
         return `${month}/${day}/${year}`;
     }
     console.log('Patient:', patient);
+  
+  function formatPHLocal(num?: string) {
+    if (!num) return '';
+    if (num.startsWith('+63')) return '0' + num.substring(3);
+    if (num.startsWith('63')) return '0' + num.substring(2);
+    return num; // already 09...
+  }
 
   const form = useForm({
     name: fullName,
@@ -59,7 +66,7 @@ export default function PreenrollmentPage2({ patient }: Props) {
     course_and_year: `${patient.course || ''} ${patient.year || ''}`.trim(),
     student_type: '',
     home_address: patient.home_address || '',
-    contact_no: patient.contact_no || '',
+    contact_no: formatPHLocal(patient.contact_no),
     present_address: patient.present_address || '',
     guardian: patient.guardian_name || '',
     landlord: '',

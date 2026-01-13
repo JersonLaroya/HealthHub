@@ -130,6 +130,7 @@ export default function AthletePage5({ patient }: Props) {
     birthdate: formatDate(patient.birthdate),
     age: calculateAge(patient.birthdate),
     sex: patient.sex || '',
+    civil_status: '',
     sport_event: sport_event,
 
      // Medical History
@@ -202,6 +203,151 @@ export default function AthletePage5({ patient }: Props) {
 
   });
 
+  /* =======================
+   VALIDATION
+======================= */
+
+// A. Medical history
+const medicalAnswered =
+  form.data.medical_history.yes || form.data.medical_history.no;
+
+const medicalValid =
+  medicalAnswered &&
+  (!form.data.medical_history.yes ||
+    form.data.medical_history.remarks.trim() !== '');
+
+// B. Family history
+const familyErrors = familyHistoryQuestions.map((q) => {
+  const item = form.data.family_history[q];
+  return {
+    answered: item.yes || item.no,
+    remarks: item.yes && !item.remarks.trim(),
+  };
+});
+
+const familyValid = familyErrors.every(
+  (f) => f.answered && !f.remarks
+);
+
+// C. Personal history
+const personalErrors = form.data.personal_history.map((item) => ({
+  answered: item.yes || item.no,
+  remarks: item.yes && !item.remarks.trim(),
+}));
+
+const personalValid = personalErrors.every(
+  (p) => p.answered && !p.remarks
+);
+
+// E. Illness
+const illnessErrors = form.data.illness_history.map((item) => ({
+  answered: item.yes || item.no,
+  remarks: item.yes && !item.remarks.trim(),
+}));
+
+const illnessValid = illnessErrors.every(
+  (i) => i.answered && !i.remarks
+);
+
+// F. Allergies
+const allergyErrors = form.data.allergy_history.map((item) => ({
+  answered: item.yes || item.no,
+  remarks: item.yes && !item.remarks.trim(),
+}));
+
+const allergyValid = allergyErrors.every(
+  (a) => a.answered && !a.remarks
+);
+
+// G. Hospitalization
+const hosp = form.data.hospitalization;
+
+const hospitalizationValid =
+  (hosp.pastTwoYearsInjury.yes || hosp.pastTwoYearsInjury.no) &&
+  (!hosp.pastTwoYearsInjury.yes || hosp.pastTwoYearsInjury.remarks.trim()) &&
+
+  (hosp.pastTwoYearsMedical.yes || hosp.pastTwoYearsMedical.no) &&
+  (!hosp.pastTwoYearsMedical.yes || hosp.pastTwoYearsMedical.remarks.trim()) &&
+
+  (hosp.surgery.yes || hosp.surgery.no) &&
+  (!hosp.surgery.yes || hosp.surgery.remarks.trim());
+
+// H. Miscellaneous
+const miscErrors = form.data.miscellaneous.map((item) => ({
+  answered: item.yes || item.no,
+  details: item.yes && !item.details.trim(),
+}));
+
+const miscValid = miscErrors.every(
+  (m) => m.answered && !m.details
+);
+
+// J. Orthopedic
+const orthoErrors = form.data.orthopedic_history.map((item) => ({
+  answered: item.yes || item.no,
+  remarks: item.yes && !item.remarks.trim(),
+}));
+
+const orthoValid = orthoErrors.every(
+  (o) => o.answered && !o.remarks
+);
+
+// K. Social history
+const social = form.data.social_history;
+
+const socialValid =
+  (social.alcohol.yes || social.alcohol.no) &&
+  (!social.alcohol.yes || social.alcohol.remarks.trim()) &&
+
+  (social.reduce_alcohol.yes || social.reduce_alcohol.no) &&
+
+  (social.smoke.yes || social.smoke.no) &&
+  (!social.smoke.yes || social.smoke.remarks.trim()) &&
+
+  (social.tobacco_or_vape.yes || social.tobacco_or_vape.no) &&
+  (!social.tobacco_or_vape.yes || social.tobacco_or_vape.remarks.trim()) &&
+
+  (social.other_conditions.yes || social.other_conditions.no) &&
+  (!social.other_conditions.yes || social.other_conditions.remarks.trim());
+
+const female = form.data.female_history;
+
+const femaleValid =
+  form.data.sex !== 'Female' ||
+
+  (
+    (female.irregular_periods.yes || female.irregular_periods.no) &&
+    female.period_frequency.trim() !== '' &&
+    (female.other_gynecological_issues.yes || female.other_gynecological_issues.no) &&
+    (!female.other_gynecological_issues.yes || female.other_gynecological_issues.details.trim() !== '')
+  );
+
+const civilStatusValid = form.data.civil_status.trim() !== '';
+
+  // D. Head injuries
+const head = form.data.head_injuries;
+
+const headValid =
+  (head.loss_of_consciousness.yes || head.loss_of_consciousness.no) &&
+  (head.head_injury.yes || head.head_injury.no);
+
+
+// FINAL PAGE VALID
+const pageValid =
+  medicalValid &&
+  familyValid &&
+  personalValid &&
+  headValid &&  
+  illnessValid &&
+  allergyValid &&
+  hospitalizationValid &&
+  miscValid &&
+  orthoValid &&
+  socialValid &&
+  femaleValid &&
+  civilStatusValid;
+
+
   const [savingNext, setSavingNext] = useState(false);
   const [savingPrev, setSavingPrev] = useState(false);
 
@@ -221,6 +367,9 @@ export default function AthletePage5({ patient }: Props) {
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!pageValid) return;
+
     setSavingNext(true);
     sessionStorage.setItem('athlete_page_5', JSON.stringify(form.data));
     window.location.href = '/user/fill-forms/athlete-medical/page-6';
@@ -295,10 +444,11 @@ export default function AthletePage5({ patient }: Props) {
           </div>
         </div>
 
-        {/* Sex & Sports */}
-        <div className="flex flex-wrap gap-4 mt-2">
+        {/* Sex, Civil Status & Sports */}
+        <div className="flex flex-wrap gap-6 mt-2">
+
         {/* Sex */}
-        <div className="flex flex-1 min-w-[150px] items-center gap-2">
+        <div className="flex min-w-[150px] items-center gap-2">
             <span>Sex:</span>
             <label className="inline-flex items-center gap-1">
             <input type="checkbox" checked={form.data.sex === 'Male'} readOnly />
@@ -308,6 +458,22 @@ export default function AthletePage5({ patient }: Props) {
             <input type="checkbox" checked={form.data.sex === 'Female'} readOnly />
             Female
             </label>
+        </div>
+
+        {/* Civil Status (REQUIRED) */}
+        <div className="flex flex-col min-w-[180px]">
+            <span>
+            Civil Status <span className="text-red-600">*</span>
+            </span>
+            <input
+            type="text"
+            value={form.data.civil_status}
+            onChange={(e) => form.setData('civil_status', e.target.value)}
+            className={`${lineInput} ${
+                !civilStatusValid ? 'border-red-600' : ''
+            }`}
+            placeholder="Single / Married / Widowed / etc."
+            />
         </div>
 
         {/* Sports */}
@@ -320,6 +486,7 @@ export default function AthletePage5({ patient }: Props) {
             readOnly
             />
         </div>
+
         </div>
 
         {/* Horizontal line */}
@@ -331,7 +498,7 @@ export default function AthletePage5({ patient }: Props) {
         <div className="mt-4">
             <p className="font-semibold">A. MEDICAL HISTORY</p>
             <p className="mt-1">
-                Have you ever been prohibited or restricted by a doctor from participating in sports or competitions for any reason? If your answer is yes, please provide an explanation.
+                Have you ever been prohibited or restricted by a doctor from participating in sports or competitions for any reason? If your answer is yes, please provide an explanation. <span className="text-red-600">*</span>
             </p>
 
             <div className="flex items-center gap-4 mt-2">
@@ -340,11 +507,11 @@ export default function AthletePage5({ patient }: Props) {
                     type="checkbox"
                     checked={form.data.medical_history.yes}
                     onChange={(e) =>
-                    form.setData('medical_history', {
+                        form.setData('medical_history', {
                         yes: e.target.checked,
                         no: e.target.checked ? false : form.data.medical_history.no,
-                        remarks: form.data.medical_history.remarks,
-                    })
+                        remarks: e.target.checked ? form.data.medical_history.remarks : '',
+                        })
                     }
                 />
                 Yes
@@ -355,25 +522,33 @@ export default function AthletePage5({ patient }: Props) {
                     type="checkbox"
                     checked={form.data.medical_history.no}
                     onChange={(e) =>
-                    form.setData('medical_history', {
+                        form.setData('medical_history', {
                         yes: e.target.checked ? false : form.data.medical_history.yes,
                         no: e.target.checked,
-                        remarks: form.data.medical_history.remarks,
-                    })
+                        remarks: e.target.checked ? '' : form.data.medical_history.remarks,
+                        })
                     }
                 />
                 No
                 </label>
 
-                <input
-                type="text"
-                className={`${lineInput} flex-1`}
-                placeholder="Explanation if YES"
-                value={form.data.medical_history.remarks}
-                onChange={(e) =>
-                    form.setData('medical_history.remarks', e.target.value)
-                }
-                />
+                {/* SHOW ONLY IF YES */}
+                {form.data.medical_history.yes && (
+                    <input
+                    type="text"
+                    className={`${lineInput} flex-1 ${
+                        form.data.medical_history.yes &&
+                        !form.data.medical_history.remarks.trim()
+                        ? 'border-red-600'
+                        : ''
+                    }`}
+                    placeholder="Explanation if YES"
+                    value={form.data.medical_history.remarks}
+                    onChange={(e) =>
+                        form.setData('medical_history.remarks', e.target.value)
+                    }
+                    />
+                )}
             </div>
         </div>
 
@@ -383,14 +558,14 @@ export default function AthletePage5({ patient }: Props) {
             <p className="font-semibold">B. FAMILY HISTORY</p>
             <p className="mt-1">Do any of your family members have any of the following?</p>
 
-            {familyHistoryQuestions.map((q) => (
+            {familyHistoryQuestions.map((q, index) => (
                 <div
                 key={q}
                 className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2"
                 >
                 {/* Question (left) */}
                 <div className="md:w-1/2">
-                    <span>{q}? Who?</span>
+                    <span>{q}? Who? <span className="text-red-600">*</span></span>
                 </div>
 
                 {/* YES / NO checkboxes (center) */}
@@ -403,7 +578,7 @@ export default function AthletePage5({ patient }: Props) {
                         form.setData(`family_history.${q}`, {
                             yes: e.target.checked,
                             no: e.target.checked ? false : form.data.family_history[q].no,
-                            remarks: form.data.family_history[q].remarks,
+                            remarks: e.target.checked ? form.data.family_history[q].remarks : '',
                         })
                         }
                     />
@@ -418,7 +593,7 @@ export default function AthletePage5({ patient }: Props) {
                         form.setData(`family_history.${q}`, {
                             yes: e.target.checked ? false : form.data.family_history[q].yes,
                             no: e.target.checked,
-                            remarks: form.data.family_history[q].remarks,
+                            remarks: e.target.checked ? '' : form.data.family_history[q].remarks,
                         })
                         }
                     />
@@ -431,7 +606,9 @@ export default function AthletePage5({ patient }: Props) {
                     <div className="w-full md:w-1/4 mt-1 md:mt-0">
                     <input
                         type="text"
-                        className={`${lineInput} w-full`}
+                        className={`${lineInput} w-full ${
+                            familyErrors[index].remarks ? 'border-red-600' : ''
+                        }`}
                         placeholder="Who?"
                         value={form.data.family_history[q].remarks}
                         onChange={(e) =>
@@ -456,7 +633,7 @@ export default function AthletePage5({ patient }: Props) {
             >
             {/* Question (left) */}
             <div className="md:w-1/2">
-                <span>{item.question}</span>
+                <span>{item.question} <span className="text-red-600">*</span></span>
             </div>
 
             {/* YES / NO checkboxes (center) */}
@@ -470,6 +647,7 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked,
                         no: e.target.checked ? false : item.no,
+                        remarks: e.target.checked ? item.remarks : '',
                     })
                     }
                 />
@@ -485,6 +663,7 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked ? false : item.yes,
                         no: e.target.checked,
+                        remarks: e.target.checked ? '' : item.remarks,
                     })
                     }
                 />
@@ -497,7 +676,9 @@ export default function AthletePage5({ patient }: Props) {
                 <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                     type="text"
-                    className={`${lineInput} w-full`}
+                    className={`${lineInput} w-full ${
+                        personalErrors[index].remarks ? 'border-red-600' : ''
+                    }`}
                     placeholder="Remarks"
                     value={item.remarks}
                     onChange={(e) =>
@@ -517,7 +698,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Loss of consciousness */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <div className="md:w-1/2">
-            Have you ever experienced a loss of consciousness?
+            Have you ever experienced a loss of consciousness? <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -558,7 +739,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Head injury */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-4">
             <div className="md:w-1/2">
-            Have you ever sustained any type of head injury?
+            Have you ever sustained any type of head injury? <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -609,7 +790,7 @@ export default function AthletePage5({ patient }: Props) {
             >
             {/* Question (top on mobile) */}
             <div className="md:w-1/2">
-                {item.question}
+                {item.question} <span className="text-red-600">*</span>
             </div>
 
             {/* YES / NO (center) */}
@@ -623,6 +804,7 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked,
                         no: e.target.checked ? false : item.no,
+                        remarks: e.target.checked ? item.remarks : '',
                     })
                     }
                 />
@@ -638,6 +820,7 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked ? false : item.yes,
                         no: e.target.checked,
+                        remarks: e.target.checked ? '' : item.remarks,
                     })
                     }
                 />
@@ -650,7 +833,9 @@ export default function AthletePage5({ patient }: Props) {
                 <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                     type="text"
-                    className={lineInput}
+                    className={`${lineInput} ${
+                        illnessErrors[index].remarks ? 'border-red-600' : ''
+                    }`}
                     placeholder="Remarks"
                     value={item.remarks}
                     onChange={(e) =>
@@ -675,7 +860,7 @@ export default function AthletePage5({ patient }: Props) {
             >
             {/* Question (top on mobile) */}
             <div className="md:w-1/2">
-                {item.question}
+                {item.question} <span className="text-red-600">*</span>
             </div>
 
             {/* YES / NO (center) */}
@@ -689,6 +874,7 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked,
                         no: e.target.checked ? false : item.no,
+                        remarks: e.target.checked ? item.remarks : '',
                     })
                     }
                 />
@@ -704,6 +890,7 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked ? false : item.yes,
                         no: e.target.checked,
+                        remarks: e.target.checked ? '' : item.remarks,
                     })
                     }
                 />
@@ -716,7 +903,9 @@ export default function AthletePage5({ patient }: Props) {
                 <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                     type="text"
-                    className={lineInput}
+                    className={`${lineInput} ${
+                        allergyErrors[index].remarks ? 'border-red-600' : ''
+                    }`}
                     placeholder="Remarks"
                     value={item.remarks}
                     onChange={(e) =>
@@ -736,7 +925,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Past Two Years - Injury */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <span className="md:w-1/2">
-            A. For an injury? If yes, please specify
+            A. For an injury? If yes, please specify <span className="text-red-600">*</span>
             </span>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -745,16 +934,16 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.hospitalization.pastTwoYearsInjury.yes}
                 onChange={(e) =>
-                    form.setData('hospitalization.pastTwoYearsInjury', {
-                    ...form.data.hospitalization.pastTwoYearsInjury,
+                form.setData('hospitalization.pastTwoYearsInjury', {
                     yes: e.target.checked,
-                    no: e.target.checked
-                        ? false
-                        : form.data.hospitalization.pastTwoYearsInjury.no,
-                    })
+                    no: e.target.checked ? false : form.data.hospitalization.pastTwoYearsInjury.no,
+                    remarks: e.target.checked
+                    ? form.data.hospitalization.pastTwoYearsInjury.remarks
+                    : '',
+                })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -762,14 +951,14 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.hospitalization.pastTwoYearsInjury.no}
                 onChange={(e) =>
-                    form.setData('hospitalization.pastTwoYearsInjury', {
-                    ...form.data.hospitalization.pastTwoYearsInjury,
+                form.setData('hospitalization.pastTwoYearsInjury', {
                     yes: e.target.checked ? false : form.data.hospitalization.pastTwoYearsInjury.yes,
                     no: e.target.checked,
-                    })
+                    remarks: e.target.checked ? '' : form.data.hospitalization.pastTwoYearsInjury.remarks,
+                })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -777,7 +966,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.hospitalization.pastTwoYearsInjury.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Specify"
                 value={form.data.hospitalization.pastTwoYearsInjury.remarks}
                 onChange={(e) =>
@@ -791,7 +984,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Past Two Years - Medical Condition */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <span className="md:w-1/2">
-            B. For a medical condition? If yes, please specify
+            B. For a medical condition? If yes, please specify <span className="text-red-600">*</span>
             </span>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -800,14 +993,16 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.hospitalization.pastTwoYearsMedical.yes}
                 onChange={(e) =>
-                    form.setData('hospitalization.pastTwoYearsMedical', {
-                    ...form.data.hospitalization.pastTwoYearsMedical,
+                form.setData('hospitalization.pastTwoYearsMedical', {
                     yes: e.target.checked,
                     no: e.target.checked ? false : form.data.hospitalization.pastTwoYearsMedical.no,
-                    })
+                    remarks: e.target.checked
+                    ? form.data.hospitalization.pastTwoYearsMedical.remarks
+                    : '',
+                })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -815,14 +1010,14 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.hospitalization.pastTwoYearsMedical.no}
                 onChange={(e) =>
-                    form.setData('hospitalization.pastTwoYearsMedical', {
-                    ...form.data.hospitalization.pastTwoYearsMedical,
+                form.setData('hospitalization.pastTwoYearsMedical', {
                     yes: e.target.checked ? false : form.data.hospitalization.pastTwoYearsMedical.yes,
                     no: e.target.checked,
-                    })
+                    remarks: e.target.checked ? '' : form.data.hospitalization.pastTwoYearsMedical.remarks,
+                })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -830,7 +1025,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.hospitalization.pastTwoYearsMedical.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Specify"
                 value={form.data.hospitalization.pastTwoYearsMedical.remarks}
                 onChange={(e) =>
@@ -844,7 +1043,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Surgery */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <span className="md:w-1/2">
-            Have you ever undergone surgery for any medical illness or injury? If yes, please explain.
+            Have you ever undergone surgery for any medical illness or injury? If yes, please explain. <span className="text-red-600">*</span>
             </span>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -853,14 +1052,16 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.hospitalization.surgery.yes}
                 onChange={(e) =>
-                    form.setData('hospitalization.surgery', {
-                    ...form.data.hospitalization.surgery,
+                form.setData('hospitalization.surgery', {
                     yes: e.target.checked,
                     no: e.target.checked ? false : form.data.hospitalization.surgery.no,
-                    })
+                    remarks: e.target.checked
+                    ? form.data.hospitalization.surgery.remarks
+                    : '',
+                })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -868,14 +1069,14 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.hospitalization.surgery.no}
                 onChange={(e) =>
-                    form.setData('hospitalization.surgery', {
-                    ...form.data.hospitalization.surgery,
+                form.setData('hospitalization.surgery', {
                     yes: e.target.checked ? false : form.data.hospitalization.surgery.yes,
                     no: e.target.checked,
-                    })
+                    remarks: e.target.checked ? '' : form.data.hospitalization.surgery.remarks,
+                })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -883,7 +1084,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.hospitalization.surgery.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Explain"
                 value={form.data.hospitalization.surgery.remarks}
                 onChange={(e) =>
@@ -905,7 +1110,7 @@ export default function AthletePage5({ patient }: Props) {
             className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2"
             >
             {/* Question */}
-            <div className="md:w-1/2">{question}</div>
+            <div className="md:w-1/2">{question} <span className="text-red-600">*</span></div>
 
             {/* YES / NO */}
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -916,15 +1121,15 @@ export default function AthletePage5({ patient }: Props) {
                     onChange={(e) => {
                     const prev = form.data.miscellaneous || [];
                     const newItem = {
-                        yes: e.target.checked,
-                        no: e.target.checked ? false : prev[index]?.no || false,
-                        details: prev[index]?.details || '',
+                    yes: e.target.checked,
+                    no: e.target.checked ? false : prev[index]?.no || false,
+                    details: e.target.checked ? prev[index]?.details || '' : '',
                     };
                     prev[index] = newItem;
                     form.setData('miscellaneous', [...prev]);
                     }}
                 />
-                YES
+                Yes
                 </label>
 
                 <label className="flex items-center gap-1">
@@ -934,15 +1139,15 @@ export default function AthletePage5({ patient }: Props) {
                     onChange={(e) => {
                     const prev = form.data.miscellaneous || [];
                     const newItem = {
-                        yes: e.target.checked ? false : prev[index]?.yes || false,
-                        no: e.target.checked,
-                        details: prev[index]?.details || '',
+                    yes: e.target.checked ? false : prev[index]?.yes || false,
+                    no: e.target.checked,
+                    details: e.target.checked ? '' : prev[index]?.details || '',
                     };
                     prev[index] = newItem;
                     form.setData('miscellaneous', [...prev]);
                     }}
                 />
-                NO
+                No
                 </label>
             </div>
 
@@ -951,7 +1156,9 @@ export default function AthletePage5({ patient }: Props) {
                 <div className="w-full md:w-1/4 mt-1 md:mt-0">
                 <input
                     type="text"
-                    className={lineInput}
+                    className={`${lineInput} ${
+                    miscErrors[index].details ? 'border-red-600' : ''
+                    }`}
                     placeholder="Details / Explanation"
                     value={form.data.miscellaneous?.[index]?.details || ''}
                     onChange={(e) => {
@@ -978,7 +1185,7 @@ export default function AthletePage5({ patient }: Props) {
             {/* Irregular / Heavy periods */}
             <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
                 <div className="md:w-1/2">
-                Do you experience irregular or heavy menstrual periods?
+                Do you experience irregular or heavy menstrual periods? <span className="text-red-600">*</span>
                 </div>
 
                 <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -993,7 +1200,7 @@ export default function AthletePage5({ patient }: Props) {
                         })
                     }
                     />
-                    YES
+                    Yes
                 </label>
 
                 <label className="flex items-center gap-1">
@@ -1007,7 +1214,7 @@ export default function AthletePage5({ patient }: Props) {
                         })
                     }
                     />
-                    NO
+                    No
                 </label>
                 </div>
             </div>
@@ -1015,12 +1222,16 @@ export default function AthletePage5({ patient }: Props) {
             {/* Period frequency */}
             <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
                 <div className="md:w-1/2">
-                How frequently do you typically have your period in a year? (Indicate if regular or irregular)
+                How frequently do you typically have your period in a year? (Indicate if regular or irregular) <span className="text-red-600">*</span>
                 </div>
                 <div className="md:w-1/2 mt-1 md:mt-0">
                 <input
                     type="text"
-                    className={lineInput}
+                    className={`${lineInput} ${
+                    form.data.sex === 'Female' && !form.data.female_history.period_frequency.trim()
+                        ? 'border-red-600'
+                        : ''
+                    }`}
                     value={form.data.female_history.period_frequency}
                     onChange={(e) =>
                     form.setData('female_history.period_frequency', e.target.value)
@@ -1032,7 +1243,7 @@ export default function AthletePage5({ patient }: Props) {
             {/* Other gynecological issues */}
             <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
                 <div className="md:w-1/2">
-                Do you have any other gynecological issues? If yes, please specify.
+                Do you have any other gynecological issues? If yes, please specify. <span className="text-red-600">*</span>
                 </div>
 
                 <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1050,7 +1261,7 @@ export default function AthletePage5({ patient }: Props) {
                         })
                     }
                     />
-                    YES
+                    Yes
                 </label>
 
                 <label className="flex items-center gap-1">
@@ -1065,7 +1276,7 @@ export default function AthletePage5({ patient }: Props) {
                         })
                     }
                     />
-                    NO
+                    No
                 </label>
                 </div>
 
@@ -1100,7 +1311,7 @@ export default function AthletePage5({ patient }: Props) {
         {form.data.orthopedic_history?.map((item, index) => (
             <div key={index} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             {/* Question (top on mobile) */}
-            <div className="md:w-1/2">{item.question}</div>
+            <div className="md:w-1/2">{item.question} <span className="text-red-600">*</span></div>
 
             {/* YES / NO (center) */}
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1113,10 +1324,11 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked,
                         no: e.target.checked ? false : item.no,
+                        remarks: e.target.checked ? item.remarks : '',
                     })
                     }
                 />
-                YES
+                Yes
                 </label>
 
                 <label className="flex items-center gap-1">
@@ -1128,10 +1340,11 @@ export default function AthletePage5({ patient }: Props) {
                         ...item,
                         yes: e.target.checked ? false : item.yes,
                         no: e.target.checked,
+                        remarks: e.target.checked ? '' : item.remarks,
                     })
                     }
                 />
-                NO
+                No
                 </label>
             </div>
 
@@ -1140,7 +1353,9 @@ export default function AthletePage5({ patient }: Props) {
                 <div className="md:w-1/4 mt-1 md:mt-0">
                 <input
                     type="text"
-                    className={lineInput}
+                    className={`${lineInput} ${
+                    orthoErrors[index].remarks ? 'border-red-600' : ''
+                    }`}
                     placeholder="Remarks"
                     value={item.remarks}
                     onChange={(e) =>
@@ -1161,7 +1376,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Alcohol */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <div className="md:w-1/2">
-            Do you consume alcohol? If so, please specify the frequency and quantity.
+            Do you consume alcohol? If so, please specify the frequency and quantity. <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1174,10 +1389,13 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.alcohol,
                     yes: e.target.checked,
                     no: e.target.checked ? false : form.data.social_history.alcohol.no,
+                    remarks: e.target.checked
+                        ? form.data.social_history.alcohol.remarks
+                        : '',
                     })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -1185,14 +1403,15 @@ export default function AthletePage5({ patient }: Props) {
                 type="checkbox"
                 checked={form.data.social_history.alcohol.no}
                 onChange={(e) =>
-                    form.setData('social_history.alcohol', {
+                form.setData('social_history.alcohol', {
                     ...form.data.social_history.alcohol,
                     yes: e.target.checked ? false : form.data.social_history.alcohol.yes,
                     no: e.target.checked,
-                    })
+                    remarks: e.target.checked ? '' : form.data.social_history.alcohol.remarks
+                })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -1201,7 +1420,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.social_history.alcohol.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Frequency / Quantity"
                 value={form.data.social_history.alcohol.remarks}
                 onChange={(e) =>
@@ -1215,7 +1438,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Reduce alcohol */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <div className="md:w-1/2">
-            Do you feel the need or desire to reduce your alcohol consumption?
+            Do you feel the need or desire to reduce your alcohol consumption? <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1230,7 +1453,7 @@ export default function AthletePage5({ patient }: Props) {
                     })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -1244,7 +1467,7 @@ export default function AthletePage5({ patient }: Props) {
                     })
                 }
                 />
-                NO
+                No
             </label>
             </div>
         </div>
@@ -1252,7 +1475,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Smoke */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <div className="md:w-1/2">
-            Do you smoke? If yes, please indicate the frequency and amount.
+            Do you smoke? If yes, please indicate the frequency and amount. <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1265,10 +1488,13 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.smoke,
                     yes: e.target.checked,
                     no: e.target.checked ? false : form.data.social_history.smoke.no,
+                    remarks: e.target.checked
+                        ? form.data.social_history.smoke.remarks
+                        : '',
                     })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -1280,10 +1506,11 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.smoke,
                     yes: e.target.checked ? false : form.data.social_history.smoke.yes,
                     no: e.target.checked,
+                    remarks: e.target.checked ? '' : form.data.social_history.smoke.remarks
                     })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -1291,7 +1518,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.social_history.smoke.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Frequency / Amount"
                 value={form.data.social_history.smoke.remarks}
                 onChange={(e) =>
@@ -1305,7 +1536,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Tobacco / Vape */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <div className="md:w-1/2">
-            Have you used smokeless tobacco or vape within the past year? If so, are you aware of the potential risks and dangers associated with its use?
+            Have you used smokeless tobacco or vape within the past year? If so, are you aware of the potential risks and dangers associated with its use? <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1318,10 +1549,13 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.tobacco_or_vape,
                     yes: e.target.checked,
                     no: e.target.checked ? false : form.data.social_history.tobacco_or_vape.no,
+                    remarks: e.target.checked
+                        ? form.data.social_history.tobacco_or_vape.remarks
+                        : '',
                     })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -1333,10 +1567,11 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.tobacco_or_vape,
                     yes: e.target.checked ? false : form.data.social_history.tobacco_or_vape.yes,
                     no: e.target.checked,
+                    remarks: e.target.checked ? '' : form.data.social_history.tobacco_or_vape.remarks
                     })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -1344,7 +1579,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.social_history.tobacco_or_vape.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Explain / Specify"
                 value={form.data.social_history.tobacco_or_vape.remarks}
                 onChange={(e) =>
@@ -1358,7 +1597,7 @@ export default function AthletePage5({ patient }: Props) {
         {/* Other medical conditions */}
         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 mt-2">
             <div className="md:w-1/2">
-            Are there any other medical conditions, illnesses, or relevant information that should be reported to the clinic?
+            Are there any other medical conditions, illnesses, or relevant information that should be reported to the clinic? <span className="text-red-600">*</span>
             </div>
 
             <div className="flex gap-4 md:w-1/4 justify-start md:justify-center mt-1 md:mt-0">
@@ -1371,10 +1610,13 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.other_conditions,
                     yes: e.target.checked,
                     no: e.target.checked ? false : form.data.social_history.other_conditions.no,
+                    remarks: e.target.checked
+                        ? form.data.social_history.other_conditions.remarks
+                        : '',
                     })
                 }
                 />
-                YES
+                Yes
             </label>
 
             <label className="flex items-center gap-1">
@@ -1386,10 +1628,11 @@ export default function AthletePage5({ patient }: Props) {
                     ...form.data.social_history.other_conditions,
                     yes: e.target.checked ? false : form.data.social_history.other_conditions.yes,
                     no: e.target.checked,
+                    remarks: e.target.checked ? '' : form.data.social_history.other_conditions.remarks
                     })
                 }
                 />
-                NO
+                No
             </label>
             </div>
 
@@ -1397,7 +1640,11 @@ export default function AthletePage5({ patient }: Props) {
             <div className="md:w-1/4 mt-1 md:mt-0">
                 <input
                 type="text"
-                className={lineInput}
+                className={`${lineInput} ${
+                !form.data.social_history.other_conditions.remarks.trim()
+                    ? 'border-red-600'
+                    : ''
+                }`}
                 placeholder="Specify / Explain"
                 value={form.data.social_history.other_conditions.remarks}
                 onChange={(e) =>
@@ -1424,7 +1671,7 @@ export default function AthletePage5({ patient }: Props) {
           >
             {savingPrev ? 'Going back…' : 'Previous'}
           </Button>
-          <Button type="submit" onClick={submitPage} disabled={savingNext || savingPrev}>
+          <Button type="submit" onClick={submitPage} disabled={savingNext || savingPrev || !pageValid}>
             {savingNext ? 'Continuing…' : 'Next'}
           </Button>
         </div>

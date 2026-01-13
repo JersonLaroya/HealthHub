@@ -196,6 +196,10 @@ class FileController extends Controller
         $alreadySubmitted = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
             ->exists();
+        
+        if ($alreadySubmitted) {
+            return redirect()->route('user.files.show', 'athlete-medical');
+        }
 
         return Inertia::render('user/files/preEnrollment/Page7', [
             'patient' => $this->patientPayload($user),
@@ -243,6 +247,10 @@ class FileController extends Controller
             ->whereJsonContains('response_data->school_year', $currentSchoolYear)
             ->exists();
 
+        if ($alreadySubmitted) {
+            return redirect()->route('user.files.show', 'athlete-medical');
+        }
+
         return Inertia::render('user/files/preEmployment/Page5', [
             'patient' => $this->patientPayload($user),
             'alreadySubmitted' => $alreadySubmitted,
@@ -271,6 +279,10 @@ class FileController extends Controller
             ->where('service_id', $service->id)
             ->whereJsonContains('response_data->school_year', $currentSchoolYear)
             ->exists();
+
+        if ($alreadySubmitted) {
+            return redirect()->route('user.files.show', 'athlete-medical');
+        }
 
         return Inertia::render('user/files/athlete/Page6', [
             'patient' => $this->patientPayload($user),

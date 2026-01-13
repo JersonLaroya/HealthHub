@@ -53,28 +53,6 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
   }, [flashToast]);
 
 
-  // Add countdown state
-  const [countdown, setCountdown] = useState(30);
-  const [submitDisabled, setSubmitDisabled] = useState(true);
-
-// Run countdown if not already submitted
-  useEffect(() => {
-    if (alreadySubmitted) return; // skip countdown
-
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setSubmitDisabled(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [alreadySubmitted]);
-
   const middleInitial = patient.middle_name
     ? `${patient.middle_name.charAt(0).toUpperCase()}.`
     : '';
@@ -258,9 +236,9 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
                 setSubmitting(true);
                 submitPage(e);
               }}
-              disabled={submitting || savingPrev || submitDisabled}
+              disabled={submitting || savingPrev}
             >
-              {submitDisabled ? `Submit (${countdown}s)` : submitting ? 'Submitting…' : 'Submit'}
+              {submitting ? 'Submitting…' : 'Submit'}
             </Button>
           </div>
         </div>

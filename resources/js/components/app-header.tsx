@@ -102,8 +102,6 @@ const mainNavItems: NavItem[] =
             icon: ClipboardCheck,
             children: [
                 { title: "Form Management", href: "/admin/forms" },
-                { title: "Assign Forms", href: "/admin/form-assignments/create" },
-                { title: "All Assignments", href: "/admin/form-assignments" },
             ],
         },
         {

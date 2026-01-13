@@ -19,6 +19,44 @@ export async function fillAthleteMedicalForm(allPagesData: any, slug: string) {
 
   console.log('Filling Pre-Enrollment Form with data:', allPagesData);
 
+// ----------------------
+// Page 1 (DUHS / Head Nurse)
+// ----------------------
+
+const p1 = allPagesData.page1 || {};
+
+// Head nurse printed name
+form.getTextField('head_nurse_printed_name')?.setText(
+  p1.duhs_name || ''
+);
+
+// DUHS Signature
+if (p1.duhs_signature) {
+  const sigBytes = await fetch(
+    p1.duhs_signature.startsWith('http')
+      ? p1.duhs_signature
+      : `/storage/${p1.duhs_signature}`
+  ).then(r => r.arrayBuffer());
+
+  const pngImage = await pdfDoc.embedPng(sigBytes);
+
+  const sigButton = form.getButton('duhs_signature');
+  if (sigButton) {
+    const widget = sigButton.acroField.getWidgets()[0];
+    const rect = widget.getRectangle();
+
+    // Change page index if Page 1 is not index 0
+    const page = pdfDoc.getPages()[0];
+
+    page.drawImage(pngImage, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+}
+
 
 // ----------------------
 // Page 2
@@ -179,6 +217,13 @@ if (allPagesData.page2?.signature_image) {
 form.getTextField('age')?.setText(
   allPagesData.page5?.age || ''
 );
+
+if (allPagesData.page5?.sex === 'Male') {
+  form.getCheckBox('check_box_sex_male')?.check();
+}
+else {
+  form.getCheckBox('check_box_sex_female')?.check();
+}
 
 const mh = allPagesData.page5?.medical_history;
 
@@ -476,24 +521,25 @@ if (allPagesData.page2?.signature_image) {
   }
 }
 
-const page6 = allPagesData.page6;
-
-form.getTextField('civil_status')?.setText(page6.civil_status || '');
-form.getTextField('sex')?.setText(page6.sex || '');
+form.getTextField('civil_status')?.setText(allPagesData.page5.civil_status || '');
+form.getTextField('sex')?.setText(allPagesData.page5.sex || '');
 
 /////////////
 //  TO BE FILLED OUT BY PHYSICIAN
 ////////////
-if(allPagesData.vitalSigns) {
-  form.getTextField('bp')?.setText(allPagesData.vitalSigns.bp || '');
-  form.getTextField('pr')?.setText(allPagesData.vitalSigns.pr || '');
-  form.getTextField('rr')?.setText(allPagesData.vitalSigns.rr || '');
-  form.getTextField('temp')?.setText(allPagesData.vitalSigns.temp || '');
-  form.getTextField('02_sat')?.setText(allPagesData.vitalSigns.o2sat || '');
+const vitalSigns = allPagesData.vitalSigns || {};
+const anthropometry = allPagesData.anthropometry || {};
 
-  form.getTextField('height')?.setText(allPagesData.anthropometry.height || '');
-  form.getTextField('weight')?.setText(allPagesData.anthropometry.weight || '');
-  form.getTextField('bmi')?.setText(allPagesData.anthropometry.bmi || '');
+form.getTextField('bp')?.setText(vitalSigns.bp || '');
+form.getTextField('pr')?.setText(vitalSigns.pr || '');
+form.getTextField('rr')?.setText(vitalSigns.rr || '');
+form.getTextField('temp')?.setText(vitalSigns.temp || '');
+form.getTextField('02_sat')?.setText(vitalSigns.o2sat || '');
+
+form.getTextField('height')?.setText(anthropometry.height || '');
+form.getTextField('weight')?.setText(anthropometry.weight || '');
+form.getTextField('bmi')?.setText(anthropometry.bmi || '');
+
 
   const generalHealth = allPagesData.generalHealth || '';
 
@@ -559,8 +605,34 @@ if(allPagesData.vitalSigns) {
     form.getTextField(fields.findings)?.setText(system.findings || '');
   }
 
-  form.getTextField('assessment1')?.setText(allPagesData.assessment || '');
-  form.getTextField('recommendations1')?.setText(allPagesData.recommendation || '');
+  function splitTextByLength(text: string, maxLength: number) {
+    if (!text) return { part1: '', part2: '' };
+
+    if (text.length <= maxLength) {
+      return { part1: text, part2: '' };
+    }
+
+    return {
+      part1: text.substring(0, maxLength),
+      part2: text.substring(maxLength),
+    };
+  }
+
+  const assessmentText = allPagesData.assessment || '';
+
+  // adjust this number based on your PDF field size
+  const { part1, part2 } = splitTextByLength(assessmentText, 100);
+
+  form.getTextField('assessment1')?.setText(part1);
+  form.getTextField('assessment2')?.setText(part2);
+  
+  const recommendationText = allPagesData.recommendation || '';
+
+  // adjust limit based on your PDF field size
+  const recSplit = splitTextByLength(recommendationText, 300);
+
+  form.getTextField('recommendations1')?.setText(recSplit.part1);
+  form.getTextField('recommendations2')?.setText(recSplit.part2);
 
   const clearance = allPagesData.clearance || {};
 
@@ -595,7 +667,13 @@ if(allPagesData.vitalSigns) {
   } else {
     form.getCheckBox('check_box_full_clearance')?.uncheck();
   }
-}
+
+  const examiner = allPagesData.examiner || {};
+
+  form.getTextField('examined_by')?.setText(examiner.name);
+  form.getTextField('prc_license_no')?.setText(examiner.prc);
+  form.getTextField('date_examined')?.setText(examiner.date);
+
 
   // Flatten all fields
   // ----------------------

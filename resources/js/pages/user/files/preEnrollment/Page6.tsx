@@ -78,6 +78,64 @@ export default function PreenrollmentPage6({ patient }: Props) {
         }
   );
 
+  const mother = form.data.family.mother;
+const father = form.data.family.father;
+
+const motherAlive = mother.status === 'Alive';
+const motherDeceased = mother.status === 'Deceased';
+
+const fatherAlive = father.status === 'Alive';
+const fatherDeceased = father.status === 'Deceased';
+
+const motherValid =
+  mother.status &&
+  (
+    (motherAlive && mother.age_alive && mother.diseases && mother.medications) ||
+    (motherDeceased && mother.age_death && mother.cause_death)
+  );
+
+const fatherValid =
+  father.status &&
+  (
+    (fatherAlive && father.age_alive && father.diseases && father.medications) ||
+    (fatherDeceased && father.age_death && father.cause_death)
+  );
+
+  const spouse = form.data.family.spouse;
+
+const spouseAlive = spouse.status === 'Alive';
+const spouseDeceased = spouse.status === 'Deceased';
+
+const hereditaryErrors = form.data.family.hereditary.map(h => ({
+  answer: !h.answer,
+  relation: h.answer === 'Yes' && !h.relation
+}));
+
+const hereditaryValid = hereditaryErrors.every(
+  h => !h.answer && !h.relation
+);
+
+
+const spouseValid =
+  !spouse.status ||
+  (
+    (spouseAlive && spouse.age_alive && spouse.diseases && spouse.medications) ||
+    (spouseDeceased && spouse.age_death && spouse.cause_death)
+  );
+
+const social = form.data.social_history;
+
+const socialErrors = {
+  alcohol: !social.alcohol_use.answer || (social.alcohol_use.answer === 'Yes' && !social.alcohol_use.details),
+  reduce: !social.reduce_alcohol.answer || (social.reduce_alcohol.answer === 'Yes' && !social.reduce_alcohol.details),
+  smoking: !social.smoking.answer || (social.smoking.answer === 'Yes' && !social.smoking.details),
+  vape: !social.vape_tobacco.answer || (social.vape_tobacco.answer === 'Yes' && !social.vape_tobacco.details),
+  other: !social.other_conditions.answer || (social.other_conditions.answer === 'Yes' && !social.other_conditions.details),
+};
+
+const socialValid = !Object.values(socialErrors).some(Boolean);
+
+
 
   const lineInput =
     'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 text-sm';
@@ -103,16 +161,31 @@ export default function PreenrollmentPage6({ patient }: Props) {
 
         {/* MOTHER */}
         <div className="space-y-2">
-          <p className="font-medium">Mother:</p>
+          <p className="font-medium">Mother: <span className="text-red-600">*</span></p>
           <div className="flex gap-4">
             {['Alive', 'Deceased'].map((s) => (
               <label key={s} className="flex items-center gap-1">
                 <input
                   type="radio"
                   checked={form.data.family.mother.status === s}
-                  onChange={() =>
-                    form.setData('family.mother.status', s)
-                  }
+                  onChange={() => {
+                    if (s === 'Alive') {
+                      form.setData('family.mother', {
+                        ...form.data.family.mother,
+                        status: 'Alive',
+                        age_death: '',
+                        cause_death: '',
+                      });
+                    } else {
+                      form.setData('family.mother', {
+                        ...form.data.family.mother,
+                        status: 'Deceased',
+                        age_alive: '',
+                        diseases: '',
+                        medications: '',
+                      });
+                    }
+                  }}
                 />
                 {s}
               </label>
@@ -120,20 +193,39 @@ export default function PreenrollmentPage6({ patient }: Props) {
           </div>
 
           {form.data.family.mother.status === 'Alive' && (
-            <input
-              className={lineInput}
-              placeholder="Current age"
-              value={form.data.family.mother.age_alive}
+            <>
+              <input
+                className={`${lineInput} ${!mother.age_alive && motherAlive ? 'border-red-600' : ''}`}
+                placeholder="Current age"
+                value={form.data.family.mother.age_alive}
+                onChange={(e) =>
+                  form.setData('family.mother.age_alive', e.target.value)
+                }
+              />
+
+              <input
+              className={`${lineInput} ${!mother.diseases && motherAlive ? 'border-red-600' : ''}`}
+              placeholder="Diseases"
+              value={form.data.family.mother.diseases}
               onChange={(e) =>
-                form.setData('family.mother.age_alive', e.target.value)
+                form.setData('family.mother.diseases', e.target.value)
               }
             />
+            <input
+              className={`${lineInput} ${!mother.medications && motherAlive ? 'border-red-600' : ''}`}
+              placeholder="Maintenance medications"
+              value={form.data.family.mother.medications}
+              onChange={(e) =>
+                form.setData('family.mother.medications', e.target.value)
+              }
+            />
+            </>
           )}
 
           {form.data.family.mother.status === 'Deceased' && (
             <>
               <input
-                className={lineInput}
+                className={`${lineInput} ${!mother.age_death && motherDeceased ? 'border-red-600' : ''}`}
                 placeholder="Age at time of death"
                 value={form.data.family.mother.age_death}
                 onChange={(e) =>
@@ -141,7 +233,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
                 }
               />
               <input
-                className={lineInput}
+                className={`${lineInput} ${!mother.cause_death && motherDeceased ? 'border-red-600' : ''}`}
                 placeholder="Cause of death"
                 value={form.data.family.mother.cause_death}
                 onChange={(e) =>
@@ -150,37 +242,35 @@ export default function PreenrollmentPage6({ patient }: Props) {
               />
             </>
           )}
-
-          <input
-            className={lineInput}
-            placeholder="Diseases"
-            value={form.data.family.mother.diseases}
-            onChange={(e) =>
-              form.setData('family.mother.diseases', e.target.value)
-            }
-          />
-          <input
-            className={lineInput}
-            placeholder="Maintenance medications"
-            value={form.data.family.mother.medications}
-            onChange={(e) =>
-              form.setData('family.mother.medications', e.target.value)
-            }
-          />
         </div>
 
         {/* FATHER */}
         <div className="space-y-2">
-          <p className="font-medium">Father:</p>
+          <p className="font-medium">Father: <span className="text-red-600">*</span></p>
           <div className="flex gap-4">
             {['Alive', 'Deceased'].map((s) => (
               <label key={s} className="flex items-center gap-1">
                 <input
                   type="radio"
                   checked={form.data.family.father.status === s}
-                  onChange={() =>
-                    form.setData('family.father.status', s)
-                  }
+                  onChange={() => {
+                    if (s === 'Alive') {
+                      form.setData('family.father', {
+                        ...form.data.family.father,
+                        status: 'Alive',
+                        age_death: '',
+                        cause_death: '',
+                      });
+                    } else {
+                      form.setData('family.father', {
+                        ...form.data.family.father,
+                        status: 'Deceased',
+                        age_alive: '',
+                        diseases: '',
+                        medications: '',
+                      });
+                    }
+                  }}
                 />
                 {s}
               </label>
@@ -188,20 +278,38 @@ export default function PreenrollmentPage6({ patient }: Props) {
           </div>
 
           {form.data.family.father.status === 'Alive' && (
+            <>
             <input
-              className={lineInput}
+              className={`${lineInput} ${!father.age_alive && fatherAlive ? 'border-red-600' : ''}`}
               placeholder="Current age"
               value={form.data.family.father.age_alive}
               onChange={(e) =>
                 form.setData('family.father.age_alive', e.target.value)
               }
             />
+            <input
+              className={`${lineInput} ${!father.diseases && fatherAlive ? 'border-red-600' : ''}`}
+              placeholder="Diseases"
+              value={form.data.family.father.diseases}
+              onChange={(e) =>
+                form.setData('family.father.diseases', e.target.value)
+              }
+            />
+            <input
+              className={`${lineInput} ${!father.medications && fatherAlive ? 'border-red-600' : ''}`}
+              placeholder="Maintenance medications"
+              value={form.data.family.father.medications}
+              onChange={(e) =>
+                form.setData('family.father.medications', e.target.value)
+              }
+            />
+            </>
           )}
 
           {form.data.family.father.status === 'Deceased' && (
             <>
               <input
-                className={lineInput}
+                className={`${lineInput} ${!father.age_death && fatherDeceased ? 'border-red-600' : ''}`}
                 placeholder="Age at time of death"
                 value={form.data.family.father.age_death}
                 onChange={(e) =>
@@ -209,7 +317,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
                 }
               />
               <input
-                className={lineInput}
+                className={`${lineInput} ${!father.cause_death && fatherDeceased ? 'border-red-600' : ''}`}
                 placeholder="Cause of death"
                 value={form.data.family.father.cause_death}
                 onChange={(e) =>
@@ -218,23 +326,6 @@ export default function PreenrollmentPage6({ patient }: Props) {
               />
             </>
           )}
-
-          <input
-            className={lineInput}
-            placeholder="Diseases"
-            value={form.data.family.father.diseases}
-            onChange={(e) =>
-              form.setData('family.father.diseases', e.target.value)
-            }
-          />
-          <input
-            className={lineInput}
-            placeholder="Maintenance medications"
-            value={form.data.family.father.medications}
-            onChange={(e) =>
-              form.setData('family.father.medications', e.target.value)
-            }
-          />
         </div>
 
         {/* SIBLINGS */}
@@ -274,9 +365,24 @@ export default function PreenrollmentPage6({ patient }: Props) {
                 <input
                   type="radio"
                   checked={form.data.family.spouse.status === s}
-                  onChange={() =>
-                    form.setData('family.spouse.status', s)
-                  }
+                  onChange={() => {
+                    if (s === 'Alive') {
+                      form.setData('family.spouse', {
+                        ...spouse,
+                        status: 'Alive',
+                        age_death: '',
+                        cause_death: '',
+                      });
+                    } else {
+                      form.setData('family.spouse', {
+                        ...spouse,
+                        status: 'Deceased',
+                        age_alive: '',
+                        diseases: '',
+                        medications: '',
+                      });
+                    }
+                  }}
                 />
                 {s}
               </label>
@@ -284,20 +390,38 @@ export default function PreenrollmentPage6({ patient }: Props) {
           </div>
 
           {form.data.family.spouse.status === 'Alive' && (
+            <>
             <input
-              className={lineInput}
+              className={`${lineInput} ${!spouse.age_alive && spouseAlive ? 'border-red-600' : ''}`}
               placeholder="Current age"
               value={form.data.family.spouse.age_alive}
               onChange={(e) =>
                 form.setData('family.spouse.age_alive', e.target.value)
               }
             />
+            <input
+              className={`${lineInput} ${!spouse.diseases && spouseAlive ? 'border-red-600' : ''}`}
+              placeholder="Diseases"
+              value={form.data.family.spouse.diseases}
+              onChange={(e) =>
+                form.setData('family.spouse.diseases', e.target.value)
+              }
+            />
+            <input
+              className={`${lineInput} ${!spouse.medications && spouseAlive ? 'border-red-600' : ''}`}
+              placeholder="Maintenance medications"
+              value={form.data.family.spouse.medications}
+              onChange={(e) =>
+                form.setData('family.spouse.medications', e.target.value)
+              }
+            />
+            </>
           )}
 
           {form.data.family.spouse.status === 'Deceased' && (
             <>
               <input
-                className={lineInput}
+                className={`${lineInput} ${!spouse.age_death && spouseDeceased  ? 'border-red-600' : ''}`}
                 placeholder="Age at time of death"
                 value={form.data.family.spouse.age_death}
                 onChange={(e) =>
@@ -305,7 +429,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
                 }
               />
               <input
-                className={lineInput}
+                className={`${lineInput} ${!spouse.cause_death && spouseDeceased  ? 'border-red-600' : ''}`}
                 placeholder="Cause of death"
                 value={form.data.family.spouse.cause_death}
                 onChange={(e) =>
@@ -314,23 +438,6 @@ export default function PreenrollmentPage6({ patient }: Props) {
               />
             </>
           )}
-
-          <input
-            className={lineInput}
-            placeholder="Diseases"
-            value={form.data.family.spouse.diseases}
-            onChange={(e) =>
-              form.setData('family.spouse.diseases', e.target.value)
-            }
-          />
-          <input
-            className={lineInput}
-            placeholder="Maintenance medications"
-            value={form.data.family.spouse.medications}
-            onChange={(e) =>
-              form.setData('family.spouse.medications', e.target.value)
-            }
-          />
 
           {/* CHILDREN */}
           <p className="font-medium mt-2">Children:</p>
@@ -355,7 +462,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
         {/* HEREDITARY TABLE */}
         <div className="overflow-x-auto">
           <p className="font-medium mb-2">
-            Among your blood relatives, is there a history of:
+            Among your blood relatives, is there a history of: <span className="text-red-600"> *</span>
           </p>
 
           <table className="w-full border text-sm">
@@ -370,7 +477,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
             <tbody>
               {form.data.family.hereditary.map((item, index) => (
                 <tr key={index}>
-                  <td className="border px-2 py-1">{item.disease}</td>
+                  <td className="border px-2 py-1">{item.disease} <span className="text-red-600">*</span></td>
                   <td className="border text-center">
                     <input
                       type="radio"
@@ -385,13 +492,17 @@ export default function PreenrollmentPage6({ patient }: Props) {
                       type="radio"
                       checked={item.answer === 'No'}
                       onChange={() =>
-                        form.setData(`family.hereditary.${index}.answer`, 'No')
+                        form.setData(`family.hereditary.${index}`, {
+                          ...item,
+                          answer: 'No',
+                          relation: '',
+                        })
                       }
                     />
                   </td>
                   <td className="border px-2">
                     <input
-                      className={lineInput}
+                      className={`${lineInput} ${hereditaryErrors[index].relation ? 'border-red-600' : ''}`}
                       value={item.relation}
                       onChange={(e) =>
                         form.setData(`family.hereditary.${index}.relation`, e.target.value)
@@ -414,7 +525,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
         {/* 1. Alcohol */}
         <div className="space-y-1">
             <p>
-            1. Do you consume alcohol? If so, please specify the frequency and quantity.
+            1. Do you consume alcohol? If so, please specify the frequency and quantity.  <span className="text-red-600">*</span>
             </p>
             <div className="flex gap-4 items-center">
             {['Yes', 'No'].map((a) => (
@@ -433,7 +544,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
             </div>
             {form.data.social_history.alcohol_use.answer === 'Yes' && (
             <input
-                className={lineInput}
+                className={`${lineInput} ${social.alcohol_use.answer === 'Yes' && !social.alcohol_use.details ? 'border-red-600' : ''}`}
                 placeholder="Frequency and quantity"
                 value={form.data.social_history.alcohol_use.details}
                 onChange={(e) =>
@@ -449,7 +560,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
         {/* 2. Reduce alcohol */}
         <div className="space-y-1">
             <p>
-            2. Do you feel the need or desire to reduce your alcohol consumption?
+            2. Do you feel the need or desire to reduce your alcohol consumption?  <span className="text-red-600">*</span>
             </p>
             <div className="flex gap-4 items-center">
             {['Yes', 'No'].map((a) => (
@@ -468,7 +579,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
             </div>
             {form.data.social_history.reduce_alcohol.answer === 'Yes' && (
             <input
-                className={lineInput}
+                className={`${lineInput} ${social.reduce_alcohol.answer === 'Yes' && !social.reduce_alcohol.details ? 'border-red-600' : ''}`}
                 placeholder="Please specify"
                 value={form.data.social_history.reduce_alcohol.details}
                 onChange={(e) =>
@@ -484,7 +595,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
         {/* 3. Smoking */}
         <div className="space-y-1">
             <p>
-            3. Do you smoke? If yes, please indicate the frequency and amount.
+            3. Do you smoke? If yes, please indicate the frequency and amount.  <span className="text-red-600">*</span>
             </p>
             <div className="flex gap-4 items-center">
             {['Yes', 'No'].map((a) => (
@@ -503,7 +614,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
             </div>
             {form.data.social_history.smoking.answer === 'Yes' && (
             <input
-                className={lineInput}
+                className={`${lineInput} ${social.smoking.answer === 'Yes' && !social.smoking.details ? 'border-red-600' : ''}`}
                 placeholder="Frequency and amount"
                 value={form.data.social_history.smoking.details}
                 onChange={(e) =>
@@ -519,7 +630,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
         {/* 4. Vape / Smokeless tobacco */}
         <div className="space-y-1">
             <p>
-            4. Have you used smokeless tobacco or vape within the past year?
+            4. Have you used smokeless tobacco or vape within the past year?  <span className="text-red-600">*</span>
             </p>
             <div className="flex gap-4 items-center">
             {['Yes', 'No'].map((a) => (
@@ -538,7 +649,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
             </div>
             {form.data.social_history.vape_tobacco.answer === 'Yes' && (
             <input
-                className={lineInput}
+                className={`${lineInput} ${social.vape_tobacco.answer === 'Yes' && !social.vape_tobacco.details ? 'border-red-600' : ''}`}
                 placeholder="Please specify / awareness of risks"
                 value={form.data.social_history.vape_tobacco.details}
                 onChange={(e) =>
@@ -554,7 +665,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
         {/* 5. Other medical conditions */}
         <div className="space-y-1">
             <p>
-            5. Are there any other medical conditions, illnesses, or relevant information that should be reported to the clinic?
+            5. Are there any other medical conditions, illnesses, or relevant information that should be reported to the clinic?  <span className="text-red-600">*</span>
             </p>
             <div className="flex gap-4 items-center">
             {['Yes', 'No'].map((a) => (
@@ -576,7 +687,7 @@ export default function PreenrollmentPage6({ patient }: Props) {
             </div>
             {form.data.social_history.other_conditions.answer === 'Yes' && (
             <input
-                className={lineInput}
+                className={`${lineInput} ${social.other_conditions.answer === 'Yes' && !social.other_conditions.details ? 'border-red-600' : ''}`}
                 placeholder="Please specify"
                 value={form.data.social_history.other_conditions.details}
                 onChange={(e) =>
@@ -605,7 +716,15 @@ export default function PreenrollmentPage6({ patient }: Props) {
           </Button>
 
           <Button
-            disabled={savingNext || savingPrev}
+            disabled={
+              savingNext ||
+              savingPrev ||
+              !motherValid ||
+              !fatherValid ||
+              !spouseValid ||
+              !hereditaryValid ||
+              !socialValid
+            }
             onClick={(e) => {
               setSavingNext(true);
               submitPage(e);

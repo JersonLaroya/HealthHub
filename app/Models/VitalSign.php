@@ -19,6 +19,9 @@ class VitalSign extends Model
         'temp',
         'o2_sat',
         'blood_type',
+        'height',
+        'weight',
+        'bmi',
     ];
 
     /**

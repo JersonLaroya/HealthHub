@@ -16,8 +16,6 @@ interface Props {
 }
 
 export default function AthletePage6({ patient, alreadySubmitted: initialSubmitted = false }: Props) {
-  const [countdown, setCountdown] = useState(30);
-  const [submitDisabled, setSubmitDisabled] = useState(true);
   const [alreadySubmitted, setAlreadySubmitted] = useState(initialSubmitted);
   const [savingPrev, setSavingPrev] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,22 +85,6 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
       physical_exam: JSON.parse(sessionStorage.getItem('athlete_page_6_physical_exam') || '{}'),
     },
   });
-
-  // Update countdown
-  useEffect(() => {
-    if (alreadySubmitted) return;
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setSubmitDisabled(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [alreadySubmitted]);
 
   // Submit handler
   const submitPage = (e: React.FormEvent) => {
@@ -207,8 +189,8 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
             <Button variant="outline" onClick={previewPdf} disabled={loading}>
               {loading ? 'Previewing PDF…' : 'Preview PDF'}
             </Button>
-            <Button onClick={submitPage} disabled={submitting || submitDisabled}>
-              {submitDisabled ? `Submit (${countdown}s)` : submitting ? 'Submitting…' : 'Submit'}
+            <Button onClick={submitPage} disabled={submitting}>
+              {submitting ? 'Submitting…' : 'Submit'}
             </Button>
           </div>
         </div>

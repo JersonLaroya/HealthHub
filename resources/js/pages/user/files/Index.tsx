@@ -65,7 +65,7 @@ export default function Index({ patient, assignments, breadcrumbs = [] }: Props)
             <div>
               <span className="font-medium">{patient.course ? 'Course & Year:' : 'Office:'}</span>{' '}
               {patient.course
-                ? `${patient.course.code || '-'} & ${patient.year?.name || '-'}`
+                ? `${patient.course.code || '-'} ${patient.year?.name || '-'}`
                 : patient.office?.name || '-'}
             </div>
           </div>

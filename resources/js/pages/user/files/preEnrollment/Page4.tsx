@@ -108,10 +108,13 @@ export default function PreenrollmentPage4({ patient }: Props) {
       artificial_limb: false,
       assistance: false,
     },
-    sign_language: false,
-    anxious_medication: false,
+    sign_language: null as null | boolean,
+    anxious_medication: null as null | boolean,
     physical_deformities: '', // fillable
   });
+
+  const equipmentChoiceValid = form.data.equipment_help === 'Yes' || form.data.equipment_help === 'No';
+  const anxiousMedicationValid = form.data.anxious_medication !== null;
 
   // Validation helpers
   const requiredIf = (condition: boolean, value?: string) =>
@@ -120,6 +123,12 @@ export default function PreenrollmentPage4({ patient }: Props) {
   // Check if all age fields are valid
   const ageValid = form.data.age_have.every(
     (a) => a.na || (a.age && a.age.trim())
+  );
+
+  const signLanguageValid = form.data.sign_language !== null;
+
+  const ageWithError = form.data.age_have.map(
+    (a) => !a.na && (!a.age || !a.age.trim())
   );
 
   // Check if all difficulty questions have a selection
@@ -135,7 +144,14 @@ export default function PreenrollmentPage4({ patient }: Props) {
       : true;
 
   // Disable Next if any required validation fails
-  const canNext = ageValid && difficultyValid && tirednessValid && equipmentValid;
+  const canNext =
+  ageValid &&
+  difficultyValid &&
+  tirednessValid &&
+  equipmentChoiceValid &&
+  equipmentValid &&
+  signLanguageValid &&
+  anxiousMedicationValid;
 
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
@@ -174,7 +190,11 @@ export default function PreenrollmentPage4({ patient }: Props) {
                   <span className="w-48">{d}</span>
                   <input
                     type="text"
-                    className={lineInput + ' w-12 text-center'}
+                    className={
+                      lineInput +
+                      ' w-12 text-center ' +
+                      (ageWithError[globalIdx] ? 'border-red-600' : '')
+                    }
                     placeholder="Age"
                     value={form.data.age_have?.[globalIdx]?.age || ''}
                     onChange={(e) => {
@@ -213,7 +233,11 @@ export default function PreenrollmentPage4({ patient }: Props) {
                   <span className="w-48">{d}</span>
                   <input
                     type="text"
-                    className={lineInput + ' w-12 text-center'}
+                    className={
+                      lineInput +
+                      ' w-12 text-center ' +
+                      (ageWithError[globalIdx] ? 'border-red-600' : '')
+                    }
                     placeholder="Age"
                     value={form.data.age_have?.[globalIdx]?.age || ''}
                     onChange={(e) => {
@@ -284,7 +308,9 @@ export default function PreenrollmentPage4({ patient }: Props) {
                       onChange={() => form.setData(`difficulty.${q}`, 'A lot of difficulty')}
                     />
                   </td>
-                  <td className="border px-2 py-1">{q}</td>
+                  <td className="border px-2 py-1">
+                    {q} <span className="text-red-600 font-bold">*</span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -339,7 +365,9 @@ export default function PreenrollmentPage4({ patient }: Props) {
                       onChange={() => form.setData(`tiredness.${q}`, 'Every day')}
                     />
                   </td>
-                  <td className="border px-2 py-1">{q}</td>
+                  <td className="border px-2 py-1">
+                    {q} <span className="text-red-600 font-bold">*</span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -348,7 +376,7 @@ export default function PreenrollmentPage4({ patient }: Props) {
 
         {/* Equipment Assistance Row */}
         <div className="flex items-center gap-4 text-sm">
-        <span className="flex-1">Do you use any equipment or receive help for getting around?</span>
+        <span className="flex-1">Do you use any equipment or receive help for getting around? <span className="text-red-600 font-bold">*</span></span>
         <label className="flex items-center gap-1">
             <input
             type="radio"
@@ -425,7 +453,7 @@ export default function PreenrollmentPage4({ patient }: Props) {
 
         {/* Sign language Row */}
         <div className="flex items-center gap-4 mt-4 text-sm">
-        <span className="flex-1">Do you use sign language?</span>
+        <span className="flex-1">Do you use sign language? <span className="text-red-600 font-bold">*</span></span>
 
         <label className="flex items-center gap-1">
             <input
@@ -453,7 +481,7 @@ export default function PreenrollmentPage4({ patient }: Props) {
         {/* Medication Row */}
         <div className="flex items-center gap-4 mt-2 text-sm">
         <span className="flex-1">
-            Do you take any medication when you feel worried, anxious, or nervous?
+            Do you take any medication when you feel worried, anxious, or nervous?  <span className="text-red-600 font-bold">*</span>
         </span>
 
         <label className="flex items-center gap-1">
