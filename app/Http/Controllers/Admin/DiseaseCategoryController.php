@@ -16,7 +16,7 @@ class DiseaseCategoryController extends Controller
         $sort = $request->input('sort', 'name');
         $direction = $request->input('direction', 'asc');
 
-        $categories = DiseaseCategory::with('creator')
+        $categories = DiseaseCategory::query()
             ->when($search, function ($query, $search) {
                 $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%']);
             })
@@ -44,7 +44,6 @@ class DiseaseCategoryController extends Controller
 
         DiseaseCategory::create([
             'name' => $name,
-            'created_by' => Auth::id(),
         ]);
 
         return back()->with('success', 'Category added successfully.');

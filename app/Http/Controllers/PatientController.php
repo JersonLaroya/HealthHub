@@ -9,6 +9,7 @@ use App\Models\Service;
 use Inertia\Inertia;
 use App\Models\User;
 use App\Models\VitalSign;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -54,8 +55,14 @@ class PatientController extends Controller
             'userRole',
             'homeAddress.barangay.municipality.province',
             'presentAddress.barangay.municipality.province',
-            'vitalSign',
+            'vitalSign' => function ($q) {
+                $q->whereNotNull('blood_type')
+                    ->orderBy('created_at', 'asc') // first baseline record
+                    ->limit(1);
+            },
         ]);
+
+        $schoolYear = Setting::value('school_year');
 
         $consultations = $patient->consultations()
             ->with(['diseases', 'vitalSigns'])
@@ -71,24 +78,35 @@ class PatientController extends Controller
             'patient' => $patient,
             'consultations' => $consultations,
             'diseases' => $diseases,
+            'schoolYear' => $schoolYear,
         ]);
     }
 
     /**
      * Update user personal info (formerly patient info)
      */
-    public function update(UpdatePatientRequest $request, User $user)
+    public function update(UpdatePatientRequest $request, User $patient)
     {
-        // Find the vital signs for this user
-        $vitalSign = VitalSign::firstOrCreate(
-            ['user_id' => $user->id], // If it doesn't exist, create one
-            [] // default values if needed
-        );
+        $data = $request->validated();
 
-        // Update the vital signs with validated data
-        $vitalSign->update($request->validated());
+        if (!empty($data['vital_sign_id'])) {
+            // Update the SAME vital sign coming from Show()
+            $vitalSign = VitalSign::where('id', $data['vital_sign_id'])
+                ->where('user_id', $patient->id)
+                ->firstOrFail();
+        } else {
+            // Only create if none exists yet
+            $vitalSign = VitalSign::create([
+                'user_id' => $patient->id,
+            ]);
+        }
 
-        return redirect()->back()->with('success', 'Vital signs updated successfully.');
+        // never mass-assign IDs
+        unset($data['vital_sign_id'], $data['user_id']);
+
+        $vitalSign->update($data);
+
+        return back()->with('success', 'Vital signs updated successfully.');
     }
 
     /**
@@ -172,7 +190,7 @@ class PatientController extends Controller
         // Get records (actual filled data)
         $records = Record::where('user_id', $patient->id)
             ->where('service_id', $service->id)
-            ->orderByDesc('created_at')
+            ->orderBy('created_at')
             ->get([
                 'id',
                 'created_at',
@@ -183,6 +201,9 @@ class PatientController extends Controller
             'patient' => [
                 'id' => $patient->id,
                 'name' => $patient->name,
+                'course' => $patient->course,
+                'year' => $patient->yearLevel,
+                'office' => $patient->office,
             ],
             'service' => [
                 'id' => $service->id,

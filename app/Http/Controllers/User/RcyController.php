@@ -19,7 +19,9 @@ class RcyController extends Controller
     {
         $user = auth()->user();
 
-        $diseases = Disease::all(['id', 'name']);
+        $diseases = Disease::select('id', 'name')
+            ->orderBy('name', 'asc')
+            ->get();
 
         return Inertia::render('user/rcy/Add', [
             'currentRole' => strtolower(str_replace(' ', '', $user->userRole->name)),
@@ -30,9 +32,11 @@ class RcyController extends Controller
     // Store new RCY DTR with vital signs and diseases
     public function store(StoreRcyDtrRequest $request, User $patient)
     {
-        $user = auth()->user();
+        $authUser = $request->user();
 
-        // Create vital signs
+        $status = 'pending';
+
+        // Create vital signs snapshot
         $vitalSigns = VitalSign::create([
             'user_id' => $patient->id,
             'bp' => $request->bp,
@@ -40,20 +44,24 @@ class RcyController extends Controller
             'pr' => $request->pr,
             'temp' => $request->temp,
             'o2_sat' => $request->o2_sat,
+            'height' => $request->height,
+            'weight' => $request->weight,
+            'bmi' => $request->bmi,
         ]);
 
         // Create consultation
         $consultation = Consultation::create([
             'user_id' => $patient->id,
-            'date' => $request->dtr_date ?? now()->format('Y-m-d'),
-            'time' => $request->dtr_time ?? now()->format('H:i'),
+            'date' => $request->date,
+            'time' => $request->time,
             'vital_signs_id' => $vitalSigns->id,
-            'medical_complaint' => $request->purpose,
-            'management_and_treatment' => $request->management,
-            'created_by' => $user->id,
-            'status' => 'pending',
+            'medical_complaint' => $request->medical_complaint,
+            'management_and_treatment' => $request->management_and_treatment,
+            'created_by' => $authUser->id,
+            'status' => $status,
         ]);
 
+        // Attach diseases (same as clinic side)
         if ($request->filled('disease_ids')) {
             $consultation->diseases()->sync($request->disease_ids);
         }
@@ -61,37 +69,40 @@ class RcyController extends Controller
         return back()->with('success', 'Consultation added successfully.');
     }
 
+
     // Live search for patients
     public function searchPatients(Request $request)
-    {
-        $search = trim($request->input('q'));
-        $terms = explode(' ', $search);
+{
+    $search = trim($request->input('q'));
+    $terms = explode(' ', $search);
 
-        $patients = User::whereHas('userRole', function ($q) {
-                $q->whereIn(\DB::raw('LOWER(category)'), ['user', 'rcy']);
-            })
-            ->where(function ($q) use ($terms) {
-                foreach ($terms as $term) {
-                    $q->where(function ($q2) use ($term) {
-                        $q2->where('first_name', 'ILIKE', "%{$term}%")
-                           ->orWhere('last_name', 'ILIKE', "%{$term}%");
-                    });
-                }
-            })
-            ->limit(10)
-            ->get()
-            ->map(function ($user) {
-                return [
-                    'id' => $user->id,
-                    'name' => trim("{$user->first_name} " . ($user->middle_name ? $user->middle_name . ' ' : '') . $user->last_name),
-                    'birthdate' => $user->birthdate,
-                    'sex' => $user->sex,
-                    'course' => $user->course?->code,
-                    'yearLevel' => $user->yearLevel?->level,
-                    'office' => $user->office?->name,
-                ];
-            });
+    $patients = User::with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
+        ->whereHas('userRole', function ($q) {
+            $q->whereIn(\DB::raw('LOWER(category)'), ['user', 'rcy']);
+        })
+        ->where(function ($q) use ($terms) {
+            foreach ($terms as $term) {
+                $q->where(function ($q2) use ($term) {
+                    $q2->whereRaw('LOWER(first_name) LIKE ?', ["%".strtolower($term)."%"])
+                       ->orWhereRaw('LOWER(last_name) LIKE ?', ["%".strtolower($term)."%"]);
+                });
+            }
+        })
+        ->limit(10)
+        ->get()
+        ->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => trim("{$user->first_name} " . ($user->middle_name ? $user->middle_name . ' ' : '') . $user->last_name),
+                'birthdate' => $user->birthdate,
+                'sex' => $user->sex,
+                'course' => $user->course?->code,
+                'yearLevel' => $user->yearLevel?->level,
+                'office' => $user->office?->name,
+            ];
+        });
 
-        return response()->json($patients);
-    }
+    return response()->json($patients);
+}
+
 }

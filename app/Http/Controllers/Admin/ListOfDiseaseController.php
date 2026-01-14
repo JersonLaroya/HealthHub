@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Disease;
 use App\Models\DiseaseCategory;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class ListOfDiseaseController extends Controller
 {
@@ -16,9 +17,9 @@ class ListOfDiseaseController extends Controller
         $sort = $request->input('sort', 'name');
         $direction = $request->input('direction', 'asc');
 
-        $diseases = Disease::with('category', 'creator')
+        $diseases = Disease::with('category')
             ->when($search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%");
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%']);
             })
             ->orderBy($sort, $direction)
             ->paginate(10)
@@ -40,14 +41,20 @@ class ListOfDiseaseController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string',
+            'name' => [
+                'required',
+                'string',
+                Rule::unique('list_of_diseases')->where(function ($q) use ($request) {
+                    return $q->where('disease_category_id', $request->disease_category_id)
+                            ->whereRaw('LOWER(name) = ?', [strtolower($request->name)]);
+                }),
+            ],
             'disease_category_id' => 'required|exists:disease_categories,id',
         ]);
 
         Disease::create([
             'name' => $request->name,
             'disease_category_id' => $request->disease_category_id,
-            'created_by' => Auth::id(),
         ]);
 
         return back()->with('success', 'Disease added successfully.');
@@ -56,7 +63,16 @@ class ListOfDiseaseController extends Controller
     public function update(Request $request, Disease $disease)
     {
         $request->validate([
-            'name' => 'required|string',
+            'name' => [
+                'required',
+                'string',
+                Rule::unique('list_of_diseases')
+                    ->ignore($disease->id)
+                    ->where(function ($q) use ($request) {
+                        return $q->where('disease_category_id', $request->disease_category_id)
+                                ->whereRaw('LOWER(name) = ?', [strtolower($request->name)]);
+                    }),
+            ],
             'disease_category_id' => 'required|exists:disease_categories,id',
         ]);
 

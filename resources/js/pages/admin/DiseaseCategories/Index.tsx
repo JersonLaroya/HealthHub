@@ -165,7 +165,6 @@ export default function DiseaseCategories({ categories, filters }) {
                     sortDirection={direction}
                     onSort={handleSort}
                   />
-                  <th className="p-2 border-b">Created By</th>
                   <th className="p-2 border-b">Actions</th>
                 </tr>
               </thead>
@@ -179,9 +178,6 @@ export default function DiseaseCategories({ categories, filters }) {
                       <td className="p-2 border-b">{cat.name}</td>
                       <td className="p-2 border-b">
                         {new Date(cat.created_at).toLocaleString()}
-                      </td>
-                      <td className="p-2 border-b">
-                        {cat.creator?.first_name} {cat.creator?.last_name}
                       </td>
                       <td className="p-2 border-b space-x-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(cat)}>
@@ -203,7 +199,7 @@ export default function DiseaseCategories({ categories, filters }) {
                 ) : (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={3}
                       className="p-4 text-center text-gray-500 dark:text-gray-400"
                     >
                       No categories found.

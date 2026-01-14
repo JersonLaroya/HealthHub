@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
 import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
 import { fillAthleteMedicalForm } from "@/utils/fillAthleteMedicalForm";
+import { fillLaboratoryRequests } from "@/utils/fillLaboratoryRequests";
 import { useState } from 'react';
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
     birthdate?: string;
     sex?: string;
     course?: { code: string };
-    year?: { name: string };
+    year?: { level: string };
     office?: { name: string };
   };
 }
@@ -27,6 +28,7 @@ export default function ShowForm({ service, patient }: Props) {
   const { records } = usePage().props;
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const handleOpenPdf = async (serviceSlug: string) => {
     try {
@@ -48,7 +50,9 @@ export default function ShowForm({ service, patient }: Props) {
         pdfBytes = await fillPreEmploymentForm(responses, serviceSlug);
       } else if (serviceSlug === 'athlete-medical') {
         pdfBytes = await fillAthleteMedicalForm(responses, serviceSlug);
-      }else {
+      } else if (serviceSlug === 'laboratory-request-form') {
+        pdfBytes = await fillLaboratoryRequests(responses, serviceSlug, patient);
+      } else {
         alert('Unsupported form type');
         return;
       }
@@ -103,6 +107,36 @@ export default function ShowForm({ service, patient }: Props) {
     window.location.href = path;
   };
 
+  const handleOpenPdfByRecord = async (recordId: number) => {
+  try {
+    setDownloadingId(recordId);
+
+    console.log("slug: ", service.slug)
+    console.log("record id: ", recordId)
+
+    const res = await fetch(
+      `/user/files/${service.slug}/records/${recordId}`
+    );
+
+    if (!res.ok) return alert("Failed to load record");
+
+    const { responses } = await res.json();
+
+
+    let pdfBytes = await fillLaboratoryRequests(responses, service.slug, patient);
+
+    const blob = new Blob([pdfBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  } catch (e) {
+    console.error(e);
+    alert("Failed to generate PDF");
+  } finally {
+    setDownloadingId(null); 
+  }
+};
+
+
   // Check if user already submitted this form
   const isAlreadySubmitted = records?.some((r: any) => r.slug === service.slug);
 
@@ -114,7 +148,7 @@ export default function ShowForm({ service, patient }: Props) {
         {/* Title row with optional download button */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold">{service.title}</h1>
-          {service.id && (
+          {service.id && service.slug !== "laboratory-request-form" && (
              <Button
               variant="default"
               onClick={() => handleOpenPdf(service.slug)}
@@ -136,30 +170,85 @@ export default function ShowForm({ service, patient }: Props) {
             <div>
               <span className="font-medium">{patient.course ? 'Course & Year:' : 'Office:'}</span>{' '}
               {patient.course
-                ? `${patient.course.code || '-'} ${patient.year?.name || '-'}` 
+                ? `${patient.course.code || '-'} ${patient.year?.level || '-'}` 
                 : patient.office?.name || '-'}
             </div>
           </div>
         </div>
 
         {/* Fill-Up Form Section as Card */}
-        <div className="mt-6">
-          <h2 className="text-lg font-medium mb-2">Form Responses</h2>
+        {service.slug !== "laboratory-request-form" && (
+          <div className="mt-6">
+            <h2 className="text-lg font-medium mb-2">Form Responses</h2>
 
-          <div className="p-6 border rounded-lg shadow-md bg-white dark:bg-neutral-800 text-center">
-            <Button
-              variant="default"
-              onClick={() => handleFillForm(service.slug)}
-              disabled={isAlreadySubmitted || isRedirecting} // disable while redirecting
-            >
-              {isAlreadySubmitted
-                ? 'Already Submitted'
-                : isRedirecting
-                ? 'Redirecting…'
-                : `Fill up ${service.title}`}
-            </Button>
+            <div className="p-6 border rounded-lg shadow-md bg-white dark:bg-neutral-800 text-center">
+              <Button
+                variant="default"
+                onClick={() => handleFillForm(service.slug)}
+                disabled={isAlreadySubmitted || isRedirecting} // disable while redirecting
+              >
+                {isAlreadySubmitted
+                  ? 'Already Submitted'
+                  : isRedirecting
+                  ? 'Redirecting…'
+                  : `Fill up ${service.title}`}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Laboratory Requests Section */}
+        {service.slug === "laboratory-request-form" && (
+          <div className="mt-6">
+            <h2 className="text-lg font-medium mb-3">Laboratory Requests</h2>
+
+            <div className="overflow-x-auto border rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-neutral-700">
+                  <tr>
+                    <th className="p-2 text-left border-b">Date Created</th>
+                    <th className="p-2 text-right border-b">Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {records?.length > 0 ? (
+                    records.map((record: any) => (
+                      <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800">
+                        <td className="p-2 border-b">
+                          {new Date(record.created_at).toLocaleString("en-US", {
+                            month: "long",
+                            day: "2-digit",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </td>
+
+                        <td className="p-2 border-b text-right">
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenPdfByRecord(record.id)}
+                            disabled={downloadingId === record.id}
+                          >
+                            {downloadingId === record.id ? "Downloading…" : "Download PDF"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={2} className="p-4 text-center text-gray-500">
+                        No laboratory requests found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
     </AppLayout>

@@ -14,7 +14,6 @@ class Disease extends Model
     protected $fillable = [
         'name',
         'disease_category_id',
-        'created_by',
     ];
 
     /* ======================
@@ -32,10 +31,5 @@ class Disease extends Model
             Consultation::class,
             'consultation_disease'
         );
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
     }
 }

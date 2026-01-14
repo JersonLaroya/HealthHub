@@ -20,15 +20,22 @@ export default function AddDtr({ diseases }: any) {
     age: "",
     sex: "",
     course_year_office: "",
-    purpose: "",
-    management: "",
-    dtr_date: getTodayDate(),
-    dtr_time: getCurrentTime(),
+
+    date: getTodayDate(),
+    time: getCurrentTime(),
+
+    medical_complaint: "",
+    management_and_treatment: "",
+
     bp: "",
     rr: "",
     pr: "",
     temp: "",
     o2_sat: "",
+    height: "",
+    weight: "",
+    bmi: "",
+
     disease_ids: [],
   });
 
@@ -38,6 +45,19 @@ export default function AddDtr({ diseases }: any) {
   const [loading, setLoading] = useState(false);
   const [selectingDiseases, setSelectingDiseases] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const h = parseFloat(data.height);
+    const w = parseFloat(data.weight);
+
+    if (h > 0 && w > 0) {
+      const heightInMeters = h / 100;
+      const bmi = w / (heightInMeters * heightInMeters);
+      setData("bmi", bmi.toFixed(2));
+    } else {
+      setData("bmi", "");
+    }
+  }, [data.height, data.weight]);
   
   const calculateAge = (birthdate: string) => {
     const birth = new Date(birthdate);
@@ -74,7 +94,7 @@ export default function AddDtr({ diseases }: any) {
 
   const handleAddDtr = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!data.name || !data.purpose || !data.management) {
+    if (!data.name || !data.medical_complaint || !data.management_and_treatment) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -87,6 +107,7 @@ if (!selectedPatientId) {
       onSuccess: () => {
         toast.success("Consultation added successfully!");
         reset();
+        setSelectedPatientId(null);
         setPatientQuery("");
         setSearchTerm("");
         setPatientResults([]);
@@ -190,28 +211,28 @@ if (!selectedPatientId) {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Age</Label>
-                      <Input value={data.age} onChange={(e) => setData("age", e.target.value)} />
+                      <Input disabled value={data.age} onChange={(e) => setData("age", e.target.value)} />
                     </div>
                     <div>
                       <Label>Sex</Label>
-                      <Input value={data.sex} onChange={(e) => setData("sex", e.target.value)} />
+                      <Input disabled value={data.sex} onChange={(e) => setData("sex", e.target.value)} />
                     </div>
                   </div>
 
                   <div>
                     <Label>Course & Year / Office</Label>
-                    <Input value={data.course_year_office} onChange={(e) => setData("course_year_office", e.target.value)} />
+                    <Input disabled value={data.course_year_office} onChange={(e) => setData("course_year_office", e.target.value)} />
                   </div>
 
                   {/* Date & Time */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Date</Label>
-                      <Input type="date" value={data.dtr_date} onChange={(e) => setData("dtr_date", e.target.value)} />
+                      <Input type="date" value={data.date} onChange={(e) => setData("date", e.target.value)} />
                     </div>
                     <div>
                       <Label>Time</Label>
-                      <Input type="time" value={data.dtr_time} onChange={(e) => setData("dtr_time", e.target.value)} />
+                      <Input type="time" value={data.time} onChange={(e) => setData("time", e.target.value)} />
                     </div>
                   </div>
 
@@ -224,13 +245,20 @@ if (!selectedPatientId) {
                       <Input placeholder="PR" value={data.pr} onChange={(e) => setData("pr", e.target.value)} />
                       <Input placeholder="Temp (°C)" value={data.temp} onChange={(e) => setData("temp", e.target.value)} />
                       <Input placeholder="O₂ Sat (%)" value={data.o2_sat} onChange={(e) => setData("o2_sat", e.target.value)} />
+                      <Input placeholder="Height (cm)" value={data.height} onChange={(e) => setData("height", e.target.value)} />
+                      <Input placeholder="Weight (kg)" value={data.weight} onChange={(e) => setData("weight", e.target.value)} />
+                      <Input placeholder="BMI" value={data.bmi} onChange={(e) => setData("bmi", e.target.value)} />
                     </div>
                   </div>
 
-                  {/* Purpose */}
+                  {/* Chief Complaint */}
                   <div>
-                    <Label>Purpose</Label>
-                    <Textarea value={data.purpose} onChange={(e) => setData("purpose", e.target.value)} placeholder="Enter purpose" className="min-h-[100px] resize-y" />
+                    <Label>Chief Complaint</Label>
+                    <Textarea
+                      value={data.medical_complaint}
+                      onChange={(e) => setData("medical_complaint", e.target.value)}
+                      placeholder="Enter chief complaint"
+                    />
                   </div>
 
                   {/* Diseases */}
@@ -251,8 +279,12 @@ if (!selectedPatientId) {
 
                   {/* Management */}
                   <div>
-                    <Label>Management</Label>
-                    <Textarea value={data.management} onChange={(e) => setData("management", e.target.value)} placeholder="Enter management" className="min-h-[100px] resize-y" />
+                    <Label>Management & Treatment</Label>
+                    <Textarea
+                      value={data.management_and_treatment}
+                      onChange={(e) => setData("management_and_treatment", e.target.value)}
+                      placeholder="Enter management & treatment"
+                    />
                   </div>
 
                   {/* Buttons */}

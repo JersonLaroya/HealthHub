@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Head, useForm, usePage, router } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { Card } from "@/components/ui/card";
@@ -10,28 +10,19 @@ import { toast } from "sonner";
 import { fillClinicConsultationRecordForm } from '@/utils/fillClinicConsultationRecordForm'
 import { Textarea } from "@/components/ui/textarea";
 
-export default function Show({ patient, consultations, breadcrumbs = [] }) {
+export default function Show({ patient, consultations, breadcrumbs = [], schoolYear }) {
 
   async function handleOpenPdf(patient, consultations) {
-    const pdfBlob = await fillClinicConsultationRecordForm(patient, consultations)
+    const pdfBlob = await fillClinicConsultationRecordForm(patient, consultations, schoolYearState)
     const url = URL.createObjectURL(pdfBlob)
     window.open(url, '_blank')
   }
 
-  console.log('consultation data:', consultations); // Debugging line
+  console.log("initial vital sign: ", patient.vital_sign);
  
   const { auth, diseases } = usePage().props;
 
-  const getCurrentSchoolYear = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth() + 1; // 0 = Jan, so +1
-    const startYear = month >= 6 ? year : year - 1;
-    const endYear = startYear + 1;
-    return `${startYear}-${endYear}`;
-  };
-  const currentSchoolYear = getCurrentSchoolYear();
-  const [schoolYear, setSchoolYear] = useState(currentSchoolYear);
+  const [schoolYearState, setSchoolYearState] = useState(schoolYear ?? "");
   const [selectingDiseases, setSelectingDiseases] = useState(false);
   const [selectingDiseasesEdit, setSelectingDiseasesEdit] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
@@ -39,12 +30,14 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
 
   const { data, setData, put, processing, errors } = useForm({
     user_id: patient.id || "",
-    blood_type: patient.blood_type || "",
-    bp: patient.bp || "",
-    rr: patient.rr || "",
-    pr: patient.pr || "",
-    temp: patient.temp || "",
-    o2_sat: patient.o2_sat || "",
+
+    vital_sign_id: patient.vital_sign?.id || null,
+    blood_type: patient.vital_sign?.blood_type || "",
+    bp: patient.vital_sign?.bp || "",
+    rr: patient.vital_sign?.rr || "",
+    pr: patient.vital_sign?.pr || "",
+    temp: patient.vital_sign?.temp || "",
+    o2_sat: patient.vital_sign?.o2_sat || "",
   });
 
   const getTodayDate = () => {
@@ -84,6 +77,19 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     bmi: "",
   });
 
+  useEffect(() => {
+    const h = parseFloat(consultationData.height);
+    const w = parseFloat(consultationData.weight);
+
+    if (h > 0 && w > 0) {
+      const heightInMeters = h / 100;
+      const bmi = w / (heightInMeters * heightInMeters);
+      setConsultationData("bmi", bmi.toFixed(2));
+    } else {
+      setConsultationData("bmi", "");
+    }
+  }, [consultationData.height, consultationData.weight]);
+
   const handleAddConsultation = (e) => {
     e.preventDefault();
     postConsultation(`/admin/patients/${patient.id}/consultations`, {
@@ -112,8 +118,15 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
 
   const [editing, setEditing] = useState(false);
 
+  const handleViewMedicalFiles = () => {
+    router.get(`/admin/patients/${patient.id}/files`);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    console.log("EDIT SUBMIT DATA:", data);
+
     put(`/admin/patients/${patient.id}`, {
       onSuccess: () => { 
         setEditing(false);
@@ -159,6 +172,18 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
     });
   };
 
+  useEffect(() => {
+    const h = parseFloat(editConsultData.height);
+    const w = parseFloat(editConsultData.weight);
+
+    if (h > 0 && w > 0) {
+      const heightInMeters = h / 100;
+      const bmi = w / (heightInMeters * heightInMeters);
+      setEditConsultData("bmi", bmi.toFixed(2));
+    } else {
+      setEditConsultData("bmi", "");
+    }
+  }, [editConsultData.height, editConsultData.weight]);
 
   const closeEditConsultation = () => {
     setEditingConsultation(null);
@@ -205,6 +230,12 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
             <Button variant="outline" onClick={() => handleOpenPdf(patient, consultations)}>
               Download PDF
             </Button>
+            <Button
+            variant="outline"
+            onClick={handleViewMedicalFiles}
+          >
+            Medical Files
+          </Button>
             <Button onClick={() => setEditing(true)}>Edit</Button>
             <Button
               variant="default"
@@ -246,9 +277,8 @@ export default function Show({ patient, consultations, breadcrumbs = [] }) {
             <div className="col-span-1 flex items-center gap-2">
               <strong>School Year:</strong>
               <Input
-                value={schoolYear}
-                onChange={(e) => setSchoolYear(e.target.value)}
-                size={schoolYear.length} // auto-fit to text
+                value={schoolYearState}
+                disabled
                 className="w-auto"
               />
             </div>

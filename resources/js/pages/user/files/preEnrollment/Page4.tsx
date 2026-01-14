@@ -46,7 +46,7 @@ const diseaseProblemsPage4 = [
   'Syphilis',
   'Thyroid disease',
   'Tonsillitis',
-  'Tuberculosis/Primary complex',
+  'Tuberculosis (Primary Complex)',
   'Typhoid',
   'Ulcer (peptic)',
   'Ulcer (skin)',

@@ -11,7 +11,6 @@ class DiseaseCategory extends Model
 
     protected $fillable = [
         'name',
-        'created_by',
     ];
 
     /* ======================
@@ -21,10 +20,5 @@ class DiseaseCategory extends Model
     public function diseases()
     {
         return $this->hasMany(Disease::class, 'disease_category_id');
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
     }
 }

@@ -165,7 +165,6 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                     sortDirection={direction}
                     onSort={handleSort}
                   />
-                  <th className="p-2 border-b">Created By</th>
                   <th className="p-2 border-b">Actions</th>
                 </tr>
               </thead>
@@ -179,7 +178,6 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                       <td className="p-2 border-b">{d.name}</td>
                       <td className="p-2 border-b">{d.category?.name || "No category"}</td>
                       <td className="p-2 border-b">{new Date(d.created_at).toLocaleString()}</td>
-                      <td className="p-2 border-b">{d.creator?.first_name} {d.creator?.last_name}</td>
                       <td className="p-2 border-b space-x-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(d)}>
                           Edit
@@ -199,7 +197,7 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
                       No diseases found.
                     </td>
                   </tr>

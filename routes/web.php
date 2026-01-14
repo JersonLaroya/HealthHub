@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\DiseaseCategoryController;
+use App\Http\Controllers\Admin\LaboratoryRequestController;
+use App\Http\Controllers\Admin\LabRequestPageController;
 use App\Http\Controllers\Admin\ListOfDiseaseController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -39,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 });
+
 
 
 // Routes for User
@@ -139,6 +142,11 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
         ]);
     })->name('files.confirmation');
 
+    Route::get(
+    '/files/{slug}/records/{record}',
+        [FileController::class, 'downloadByRecord']
+    )->name('user.files.records.download');
+
     Route::get('/records', function () {
         return Inertia::render('user/records');
     })->name('records');
@@ -187,6 +195,14 @@ Route::middleware(['role:Admin'])
         Route::put('/forms/{form}', [ServiceController::class, 'update'])->name('forms.update');
         Route::delete('/forms/{form}', [ServiceController::class, 'destroy'])->name('forms.destroy');
 
+        Route::prefix('lab-requests')->group(function () {
+
+            Route::get('/', [LabRequestPageController::class, 'index']);
+            Route::post('/', [LabRequestPageController::class, 'store']);
+            Route::get('/search-users', [LabRequestPageController::class, 'searchUsers']);
+
+        });
+        
         // Disease Categories
         Route::get('/disease-categories', [DiseaseCategoryController::class, 'index']);
         Route::post('/disease-categories', [DiseaseCategoryController::class, 'store']);

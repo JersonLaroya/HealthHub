@@ -9,8 +9,11 @@ use Auth;
 use Illuminate\Http\Request;
 use App\Models\Service;
 use Inertia\Inertia;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Consultation;
+use App\Models\VitalSign;
+use App\Models\Disease;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class FileController extends Controller
 {
@@ -84,12 +87,17 @@ class FileController extends Controller
             $recordsQuery->whereJsonContains('response_data->school_year', $currentSchoolYear);
         }
 
-        $records = $recordsQuery->get(['service_id', 'created_at'])
+        $records = $recordsQuery->get(['id', 'service_id', 'created_at'])
             ->map(function ($record) {
                 return [
+                    'id'         => $record->id,
                     'service_id' => $record->service_id,
                     'slug'       => optional($record->service)->slug ?? null,
-                    'created_at' => $record->created_at->toDateTimeString(),
+                    
+                    // convert from UTC to Asia/Manila before sending to frontend
+                    'created_at' => $record->created_at
+                        ->setTimezone('Asia/Manila')
+                        ->toDateTimeString(),
                 ];
             });
 
@@ -302,6 +310,93 @@ class FileController extends Controller
     return response()->json($allPagesData);
 }
 
+private function diseaseProblemsPage4(): array
+{
+    return [
+        'Anemia/Blood Disorder',
+        'Asthma',
+        'Cancer',
+        'Chickenpox',
+        'Convulsions',
+        'Dengue',
+        'Diabetes',
+        'Diphtheria',
+        'Ear disease/defect',
+        'Eye disease/defect',
+        'Gonorrhea',
+        'Heart disease',
+        'Hepatitis (indicate type)',
+        'Hernia',
+        'High blood pressure',
+        'Influenza (indicate date)',
+        'Joint pains',
+        'Kidney disease',
+        'Malaria',
+        'Measles',
+        'Mental problem/disorder',
+        'Mumps',
+        'Neurologic problem/disorder',
+        'Pertussis (whooping cough)',
+        'Pleurisy',
+        'Pneumonia',
+        'Poliomyelitis',
+        'Rheumatic fever',
+        'Skin disease',
+        'Syphilis',
+        'Thyroid disease',
+        'Tonsillitis',
+        'Tuberculosis (Primary Complex)',
+        'Typhoid',
+        'Ulcer (peptic)',
+        'Ulcer (skin)',
+        'COVID-19',
+        'Other conditions: please list',
+    ];
+}
+
+private function mapPage4DiseaseToDbName(string $name): ?string
+{
+    $map = [
+        'Anemia/Blood Disorder'        => 'Anemia',
+        'Asthma'                       => 'Asthma',
+        'Cancer'                       => 'Cancer',
+        'Chickenpox'                   => 'Chicken Pox',
+        'Convulsions'                  => 'Convulsions',
+        'Dengue'                       => 'Dengue',
+        'Diabetes'                     => 'Diabetes',
+        'Diphtheria'                   => 'Diphtheria',
+        'Ear disease/defect'           => 'Ear Disease/Defect',
+        'Eye disease/defect'           => 'Eye Disease/Defect',
+        'Gonorrhea'                    => 'Gonorrhea',
+        'Heart disease'                => 'Heart Disease',
+        'Hepatitis (indicate type)'    => 'Hepatitis',
+        'Hernia'                       => 'Hernia',
+        'High blood pressure'          => 'High Blood Pressure',
+        'Influenza (indicate date)'    => 'Influenza',
+        'Joint pains'                  => 'Joint Pain',
+        'Kidney disease'               => 'Chronic Kidney Disease Stage 5', // or remove if unsure
+        'Malaria'                      => 'Malaria',
+        'Measles'                      => 'Measles',
+        'Mental problem/disorder'      => 'Mental Problem/Disorder',
+        'Neurologic problem/disorder'  => 'Neurologic Problem/Disorder',
+        'Pertussis (whooping cough)'   => 'Pertussis',
+        'Pneumonia'                    => 'Pneumonia',
+        'Poliomyelitis'                => 'Poliomyelitis',
+        'Rheumatic fever'              => 'Rheumatic fever',
+        'Skin disease'                 => 'Skin Lesions',
+        'Syphilis'                     => 'Syphilis',
+        'Thyroid disease'              => 'Thyroid Disease',
+        'Tonsillitis'                  => 'Tonsilitis (Suppurative)',
+        'Tuberculosis (Primary Complex)' => 'Tuberculosis (Primary Complex)',
+        'Typhoid'                      => 'Typhoid',
+        'Ulcer (peptic)'               => 'Peptic Ulcer',
+        'Ulcer (skin)'                 => 'Skin Lesions',
+        'COVID-19'                     => 'COVID-19',
+    ];
+
+    return $map[$name] ?? null;
+}
+
 
     public function submitForm(Request $request, string $formType)
     {
@@ -327,13 +422,86 @@ class FileController extends Controller
 
         $service = Service::where('slug', $formType)->firstOrFail();
 
-        Record::create([
+        $record = Record::create([
             'user_id'         => Auth::id(),
             'service_id'      => $service->id,
             'consultation_id' => null,
             'lab_result_id'   => null,
             'response_data'   => $responses,
         ]);
+
+        if ($formType === 'pre-enrollment-health-form') {
+
+            // create empty vital signs snapshot
+            $vital = VitalSign::create([
+                'user_id' => Auth::id(),
+                'bp' => null,
+                'rr' => null,
+                'pr' => null,
+                'temp' => null,
+                'o2_sat' => null,
+                'height' => null,
+                'weight' => null,
+                'bmi' => null,
+            ]);
+
+            $page4 = $responses['page4'] ?? [];
+            $diseases = $page4['diseases'] ?? [];
+
+
+            // create consultation
+            $consultation = Consultation::create([
+                'user_id' => Auth::id(),
+                'date' => now()->toDateString(),
+                'time' => now()->format('H:i'),
+                'vital_signs_id' => $vital->id,
+                'medical_complaint' => 'Initial record / consultation',
+                'management_and_treatment' => 'For evaluation and monitoring.',
+                'created_by' => Auth::id(),
+                'status' => 'pending',
+            ]);
+
+            // attach consultation to the record
+            $record->update([
+                'consultation_id' => $consultation->id,
+            ]);
+
+            // -------------------------------
+            // GET DISEASES FROM PAGE 4 (MAPPED + SAFE)
+            // -------------------------------
+
+            $ageHave = $responses['page4']['age_have'] ?? [];
+            $diseaseLabels = $this->diseaseProblemsPage4();
+
+            $selectedFrontendDiseases = collect($ageHave)
+                ->map(function ($item, $index) use ($diseaseLabels) {
+                    if (isset($item['na']) && $item['na'] === false && isset($diseaseLabels[$index])) {
+                        return $diseaseLabels[$index];
+                    }
+                    return null;
+                })
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $dbDiseaseNames = collect($selectedFrontendDiseases)
+                ->map(fn ($name) => $this->mapPage4DiseaseToDbName($name))
+                ->filter()   // removes not mapped
+                ->unique()
+                ->values()
+                ->toArray();
+
+            if (!empty($dbDiseaseNames)) {
+                $diseaseIds = Disease::whereIn('name', $dbDiseaseNames)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($diseaseIds)) {
+                    $consultation->diseases()->sync($diseaseIds);
+                }
+            }
+
+        }
 
         return redirect()->route('user.files.confirmation', [
             'slug' => $formType,
@@ -395,6 +563,26 @@ class FileController extends Controller
         // Return JSON for frontend PDF-lib (if you want to generate client-side)
         return response()->json([
             'responses' => $responses,
+            'service' => [
+                'title' => $service->title,
+                'slug' => $service->slug,
+            ],
+        ]);
+    }
+
+    public function downloadByRecord($slug, $recordId)
+    {
+        $user = auth()->user();
+
+        $service = Service::where('slug', $slug)->firstOrFail();
+
+        $record = Record::where('id', $recordId)
+            ->where('user_id', $user->id)
+            ->where('service_id', $service->id)
+            ->firstOrFail();
+
+        return response()->json([
+            'responses' => $record->response_data,
             'service' => [
                 'title' => $service->title,
                 'slug' => $service->slug,

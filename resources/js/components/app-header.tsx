@@ -102,6 +102,7 @@ const mainNavItems: NavItem[] =
             icon: ClipboardCheck,
             children: [
                 { title: "Form Management", href: "/admin/forms" },
+                { title: "Laboratory Requests", href: "/admin/lab-requests" },
             ],
         },
         {

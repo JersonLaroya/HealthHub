@@ -15,7 +15,7 @@ class UpdatePatientRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => 'required|exists:users,id',
+            'vital_sign_id' => 'nullable|exists:vital_signs,id',
             'blood_type' => 'required|string|max:5',
             'bp' => 'required|string|max:20',
             'rr' => 'required|string|max:20',

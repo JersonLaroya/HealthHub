@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
 import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
 import { fillAthleteMedicalForm } from "@/utils/fillAthleteMedicalForm";
+import { fillLaboratoryRequests } from "@/utils/fillLaboratoryRequests";
 import { toast } from "sonner";
 import { usePage } from '@inertiajs/react';
 
@@ -63,6 +64,8 @@ export default function ShowFile({ patient, service, records }: Props) {
         pdfBytes = await fillPreEmploymentForm(responses, svc.slug);
         } else if (svc.slug === "athlete-medical") {
         pdfBytes = await fillAthleteMedicalForm(responses, svc.slug);
+        } else if (svc.slug === "laboratory-request-form") {
+        pdfBytes = await fillLaboratoryRequests(responses, svc.slug, patient);
         } else {
         alert("Unsupported form type");
         return;
@@ -139,7 +142,14 @@ export default function ShowFile({ patient, service, records }: Props) {
                       className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
                     >
                       <td className="p-2 border-b">
-                        {new Date(record.created_at).toLocaleString()}
+                        {new Date(record.created_at).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                        })}
                       </td>
 
                       <td className="p-2 border-b text-right space-x-2">

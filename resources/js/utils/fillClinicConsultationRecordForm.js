@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 
-export async function fillClinicConsultationRecordForm(patient, consultations) {
+export async function fillClinicConsultationRecordForm(patient, consultations, schoolYear) {
   const formUrl = "/storage/forms/clinic_consultation_record_form.pdf";
   const formBytes = await fetch(formUrl).then((res) => res.arrayBuffer());
 
@@ -27,7 +27,7 @@ export async function fillClinicConsultationRecordForm(patient, consultations) {
 
   form.getTextField("blood_type").setText(patient.vital_sign?.blood_type ?? "");
   form.getTextField("course_office").setText(patient.course?.code ?? "");
-  form.getTextField("school_year").setText(`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+  form.getTextField("school_year").setText(schoolYear ?? "");
   form.getTextField("contact_number1").setText(patient.contact_no ?? "");
   form.getTextField("bp").setText(patient.vital_sign?.bp ?? "");
   form.getTextField("rr").setText(patient.vital_sign?.rr ?? "");

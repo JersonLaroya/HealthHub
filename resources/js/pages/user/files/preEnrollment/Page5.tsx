@@ -49,9 +49,6 @@ export default function PreenrollmentPage5({ patient }: Props) {
       femaleHealth, // normalized object
     });
 
-  const immunizationErrors = form.data.immunization.map(v => !v || !v.trim());
-  const immunizationValid = immunizationErrors.every(v => v === false);
-
   const isFemale = patient.sex === 'Female';
 
 const femaleErrors = {
@@ -90,9 +87,20 @@ const femaleValid =
     const [savingNext, setSavingNext] = useState(false);
     const [savingPrev, setSavingPrev] = useState(false);
 
-  const submitPage = (e?: React.MouseEvent | React.FormEvent) => {
-    e?.preventDefault();
-    sessionStorage.setItem('preenrollment_page_5', JSON.stringify(form.data));
+    const submitPage = (e?: React.MouseEvent | React.FormEvent) => {
+      e?.preventDefault();
+
+      const fixedImmunization = form.data.immunization.map(v =>
+      v && v.trim() ? v : 'N/A'
+    );
+
+    const newData = {
+      ...form.data,
+      immunization: fixedImmunization,
+    };
+
+    form.setData(newData);
+    sessionStorage.setItem('preenrollment_page_5', JSON.stringify(newData));
     window.location.href = '/user/fill-forms/pre-enrollment-health-form/page-6';
   };
 
@@ -125,10 +133,7 @@ const femaleValid =
             <div key={idx} className="flex items-center gap-3">
               <span className="flex-1">{label}</span>
               <input
-                className={
-                  "w-32 border-b bg-transparent focus:outline-none " +
-                  (immunizationErrors[idx] ? "border-red-600" : "border-black")
-                }
+                className="w-32 border-b border-black bg-transparent focus:outline-none"
                 placeholder="Date / Year or N/A"
                 value={form.data.immunization[idx]}
                 onChange={(e) =>
@@ -156,10 +161,7 @@ const femaleValid =
             <div key={idx} className="flex items-center gap-3">
               <span className="flex-1">{label}</span>
               <input
-                className={
-                  "w-32 border-b bg-transparent focus:outline-none " +
-                  (immunizationErrors[idx] ? "border-red-600" : "border-black")
-                }
+                className="w-32 border-b border-black bg-transparent focus:outline-none"
                 placeholder="Date / Year"
                 value={form.data.immunization[idx]}
                 onChange={(e) =>
@@ -400,7 +402,7 @@ const femaleValid =
           </Button>
 
           <Button
-            disabled={savingNext || savingPrev || !immunizationValid || !femaleValid}
+            disabled={savingNext || savingPrev  || !femaleValid}
             onClick={(e) => {
               setSavingNext(true);
               submitPage(e);
