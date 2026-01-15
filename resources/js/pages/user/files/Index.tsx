@@ -8,7 +8,7 @@ interface Props {
     birthdate?: string;
     sex?: string;
     course?: { code: string };
-    year?: { name: string };
+    year?: { level: number };
     office?: { name: string };
     category?: string;
   };
@@ -65,7 +65,7 @@ export default function Index({ patient, assignments, breadcrumbs = [] }: Props)
             <div>
               <span className="font-medium">{patient.course ? 'Course & Year:' : 'Office:'}</span>{' '}
               {patient.course
-                ? `${patient.course.code || '-'} ${patient.year?.name || '-'}`
+                ? `${patient.course.code || '-'} ${patient.year?.level || '-'}`
                 : patient.office?.name || '-'}
             </div>
           </div>
@@ -76,7 +76,11 @@ export default function Index({ patient, assignments, breadcrumbs = [] }: Props)
           {forms.map((form) => (
             <Link
               key={form.slug}
-              href={`/user/files/${form.slug}`}
+              href={
+                form.slug === 'laboratory-results'
+                  ? '/user/laboratory-results'
+                  : `/user/files/${form.slug}`
+              }
               className="block rounded-lg border border-gray-200 dark:border-neutral-700 p-6 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-neutral-800 min-h-[100px]"
             >
               <h2 className="text-xl font-semibold">{form.title}</h2>

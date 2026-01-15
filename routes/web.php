@@ -12,6 +12,7 @@ use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\FormAssignmentController;
 use App\Http\Controllers\FormResponseController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPdfController;
 use App\Http\Controllers\ServiceController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\User\FileController;
+use App\Http\Controllers\User\LaboratoryResultController;
 use App\Http\Controllers\User\MedicalFormController;
 use App\Http\Controllers\User\PersonalInfoController;
 use App\Http\Controllers\User\RcyController;
@@ -26,6 +28,8 @@ use App\Http\Middleware\ExcludeRolesMiddleware;
 use App\Http\Middleware\RcyRoleMiddleware;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Models\User;
+use App\Services\ChatService;
  
 Route::middleware('web')->group(function () {
     Route::get('/auth/google/redirect', [SocialAuthController::class, 'redirectToGoogle']);
@@ -74,6 +78,23 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
 
     Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate'])
         ->name('files.template');
+
+    // =========================
+    // Laboratory Results
+    // =========================
+    Route::prefix('laboratory-results')
+        ->name('laboratory-results.')
+        ->group(function () {
+
+            Route::get('/', [LaboratoryResultController::class, 'index'])
+                ->name('index');
+
+            Route::get('/{record}', [LaboratoryResultController::class, 'show'])
+                ->name('show');
+
+            Route::post('/{record}', [LaboratoryResultController::class, 'store'])
+                ->name('store');
+        });
 
     // =========================
     // Pre-enrollment
@@ -311,6 +332,9 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::delete('/patients/{patient}/files/{slug}/records/{record}', [PatientController::class, 'deleteRecord'])->name('admin.patients.records.delete');
         Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('admin.patients.consultations.destroy');
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('admin.patients.consultations.approve');
+
+        // delete lab result
+        Route::delete('/lab-results/{record}', [PatientController::class, 'deleteLabResult'])->name('admin.lab-results.delete');
     });
 
     // Nurse
@@ -322,6 +346,32 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         //Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('nurse.patients.forms');
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('nurse.patients.consultations.approve');
     });
+});
+
+//
+Route::get('/test-chat/{a}/{b}', function ($a, $b) {
+    $u1 = User::findOrFail($a);
+    $u2 = User::findOrFail($b);
+
+    return ChatService::canMessage($u1, $u2)
+        ? 'ALLOWED'
+        : 'BLOCKED';
+});
+
+// Message
+Route::middleware(['auth'])->group(function () {
+
+    // Messaging API
+    Route::get('/messages', [MessageController::class, 'index']);
+    Route::get('/messages/conversation/{user}', [MessageController::class, 'conversation']);
+    Route::post('/messages', [MessageController::class, 'store']);
+    Route::post('/messages/{message}/seen', [MessageController::class, 'markSeen']);
+
+    // Messages page (UI)
+    Route::get('/messages-page', function () {
+        return Inertia::render('messages/Chat');
+    })->name('messages.page');
+
 });
 
 

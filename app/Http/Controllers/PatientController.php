@@ -12,6 +12,8 @@ use App\Models\VitalSign;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\LabResult;
+use Illuminate\Support\Facades\Storage;
 
 class PatientController extends Controller
 {
@@ -184,7 +186,27 @@ class PatientController extends Controller
 
     public function showFile(User $patient, string $slug)
     {
-        // Get the service ONLY for template + metadata
+        // LAB RESULTS (special handling)
+        if ($slug === 'laboratory-results') {
+
+            $labService = Service::where('slug', 'laboratory-request-form')->firstOrFail();
+
+            $records = Record::where('user_id', $patient->id)
+                ->where('service_id', $labService->id)   // only lab requests
+                ->with('labResult:id,results')            // preload images
+                ->orderByDesc('created_at')
+                ->get(['id', 'created_at', 'lab_result_id', 'response_data']); // ✅ keep reasons
+
+            return Inertia::render('patients/labResults/Index', [
+                'patient' => [
+                    'id' => $patient->id,
+                    'name' => $patient->name,
+                ],
+                'records' => $records,
+            ]);
+        }
+
+        // NORMAL FORMS (existing behavior)
         $service = Service::where('slug', $slug)->firstOrFail();
 
         // Get records (actual filled data)
@@ -214,39 +236,39 @@ class PatientController extends Controller
         ]);
     }
 
-public function viewRecord(User $patient, string $slug, Record $record)
-{
-    $service = Service::where('slug', $slug)->firstOrFail();
+    public function viewRecord(User $patient, string $slug, Record $record)
+    {
+        $service = Service::where('slug', $slug)->firstOrFail();
 
-    abort_if(
-        $record->user_id !== $patient->id ||
-        $record->service_id !== $service->id,
-        403
-    );
+        abort_if(
+            $record->user_id !== $patient->id ||
+            $record->service_id !== $service->id,
+            403
+        );
 
-    return response()->json([
-        'service' => [
-            'slug' => $service->slug,
-            'file_path' => $service->file_path,
-        ],
-        'responses' => $record->response_data,
-    ]);
-}
+        return response()->json([
+            'service' => [
+                'slug' => $service->slug,
+                'file_path' => $service->file_path,
+            ],
+            'responses' => $record->response_data,
+        ]);
+    }
 
-public function updateRecord(User $patient, string $slug, Record $record, Request $request)
-{
-    abort_if($record->user_id !== $patient->id, 403);
+    public function updateRecord(User $patient, string $slug, Record $record, Request $request)
+    {
+        abort_if($record->user_id !== $patient->id, 403);
 
-    $request->validate([
-        'responses' => 'required|array',
-    ]);
+        $request->validate([
+            'responses' => 'required|array',
+        ]);
 
-    $record->update([
-        'response_data' => $request->responses,
-    ]);
+        $record->update([
+            'response_data' => $request->responses,
+        ]);
 
-    return back()->with('success', 'Record updated successfully.');
-}
+        return back()->with('success', 'Record updated successfully.');
+    }
 
 
 
@@ -261,6 +283,33 @@ public function updateRecord(User $patient, string $slug, Record $record, Reques
         return back()->with('success', 'Record deleted successfully.');
     }
 
+    public function deleteLabResult(Record $record)
+    {
+        abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
+        if (!$record->lab_result_id) {
+            return back()->withErrors(['lab' => 'No laboratory result found.']);
+        }
+
+        $labResult = $record->labResult;
+        abort_if(!$labResult, 404);
+
+        // delete stored images
+        foreach ($labResult->results ?? [] as $images) {
+            foreach ($images as $path) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+
+        // delete lab_results row
+        $labResult->delete();
+
+        // unlink from record
+        $record->update([
+            'lab_result_id' => null,
+        ]);
+
+        return back()->with('success', 'Laboratory result deleted successfully.');
+    }
 
 }

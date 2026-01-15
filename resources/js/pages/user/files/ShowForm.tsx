@@ -166,7 +166,7 @@ export default function ShowForm({ service, patient }: Props) {
             <div><span className="font-medium">Sex:</span> {patient.sex || '-'}</div>
           </div>
           <div className="flex justify-between">
-            <div><span className="font-medium">Birthdate:</span> {formatDate(patient.birthdate)}</div>
+            <div><span className="font-medium">Birthdatesdfsf:</span> {formatDate(patient.birthdate)}</div>
             <div>
               <span className="font-medium">{patient.course ? 'Course & Year:' : 'Office:'}</span>{' '}
               {patient.course

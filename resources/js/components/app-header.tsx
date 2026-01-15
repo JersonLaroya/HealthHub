@@ -319,12 +319,11 @@ const rightNavItems: NavItem[] = mainNavItems;
 
                         <div className="relative flex items-center space-x-1">
                             {/* Messages */}
+                            <Link href="/messages-page">
                             <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                            <MessageCircle className="h-5 w-5" />
-                            {/* <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                                3
-                            </span> */}
+                                <MessageCircle className="h-5 w-5" />
                             </Button>
+                            </Link>
 
                             {/* Notifications */}
                             <Button variant="ghost" size="icon" className="relative h-9 w-9">

@@ -69,11 +69,7 @@ class FileController extends Controller
         }
 
         if ($slug === 'laboratory-results') {
-            $service = (object) [
-                'title' => 'Laboratory Results',
-                'slug' => 'laboratory-results',
-                'description' => null,
-            ];
+            return redirect()->route('user.laboratory-results.index');
         } else {
             $service = Service::where('slug', $slug)->firstOrFail();
         }
