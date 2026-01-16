@@ -15,6 +15,7 @@ class Message extends Model
         'conversation_key',
         'body',
         'image_path',
+        'image_batch_id',
         'is_seen',
     ];
 
@@ -37,4 +38,14 @@ class Message extends Model
     {
         return $this->belongsTo(User::class, 'receiver_id');
     }
+
+    public function conversation()
+    {
+        return $this->hasMany(
+            Message::class,
+            'conversation_key',
+            'conversation_key'
+        );
+    }
+
 }

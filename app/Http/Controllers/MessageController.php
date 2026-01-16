@@ -19,28 +19,35 @@ class MessageController extends Controller
     {
         $userId = Auth::id();
 
-        // subquery: latest message per conversation
+        // latest message per conversation
         $latestMessages = Message::selectRaw('MAX(id) as id')
             ->where(function ($q) use ($userId) {
                 $q->where('sender_id', $userId)
-                  ->orWhere('receiver_id', $userId);
+                ->orWhere('receiver_id', $userId);
             })
             ->groupBy('conversation_key');
 
         $messages = Message::whereIn('id', $latestMessages)
-        ->select(
-            'id',
-            'sender_id',
-            'receiver_id',
-            'conversation_key',
-            'body',
-            'image_path',
-            'is_seen',
-            'created_at'
-        )
-        ->with(['sender:id,first_name,last_name', 'receiver:id,first_name,last_name'])
-        ->orderByDesc('created_at')
-        ->get();
+            ->select(
+                'id',
+                'sender_id',
+                'receiver_id',
+                'conversation_key',
+                'body',
+                'image_path',
+                'image_batch_id',
+                'is_seen',
+                'created_at'
+            )
+            ->with(['sender:id,first_name,last_name', 'receiver:id,first_name,last_name'])
+            ->withExists([
+                'conversation as has_unread' => function ($q) use ($userId) {
+                    $q->where('receiver_id', $userId)
+                    ->where('is_seen', false);
+                }
+            ])
+            ->orderByDesc('created_at')
+            ->get();
 
         return response()->json($messages);
     }
@@ -62,6 +69,7 @@ class MessageController extends Controller
                 'conversation_key',
                 'body',
                 'image_path',
+                'image_batch_id',
                 'is_seen',
                 'created_at'
             )
@@ -93,6 +101,7 @@ class MessageController extends Controller
             'receiver_id' => 'required|exists:users,id',
             'body' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
+            'image_batch_id' => 'nullable|string|max:100',
         ]);
 
         $sender = Auth::user();
@@ -113,10 +122,12 @@ class MessageController extends Controller
             'receiver_id' => $receiver->id,
             'body' => $request->body,
             'image_path' => $imagePath,
+            'image_batch_id' => $request->image_batch_id,
         ]);
 
         // broadcast(new MessageSent($message))->toOthers();
         broadcast(new MessageSent($message));
+        // broadcast(new MessageSent($message))->toOthers();
 
         return response()->json(
             $message->load([
@@ -157,4 +168,24 @@ class MessageController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function markConversationSeen($userId)
+    {
+        Message::where('sender_id', $userId)
+            ->where('receiver_id', auth()->id())
+            ->where('is_seen', false)
+            ->update(['is_seen' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function unreadCount()
+    {
+        $count = Message::where('receiver_id', auth()->id())
+            ->where('is_seen', false)
+            ->count();
+
+        return response()->json(['count' => $count]);
+    }
+
 }

@@ -15,7 +15,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { LayoutGrid, Menu, ClipboardCheck, User, Users, FileChartColumnIcon, CalendarDays, MessageCircle, Bell } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 const activeItemStyles = 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
@@ -47,6 +47,46 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             ? "/nurse/dashboard"
             : "/user/dashboard";
 
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    async function loadUnreadCount() {
+    const res = await fetch("/messages/unread-count");
+    const data = await res.json();
+    setUnreadCount(data.count);
+    }
+
+    useEffect(() => {
+        if (!auth?.user?.id) return;
+
+        loadUnreadCount();
+
+        const refresh = () => loadUnreadCount();
+
+        // listen for manual "seen" event from Chat page
+        window.addEventListener("messages-seen", refresh);
+
+        const channel = window.Echo.private(`chat.${auth.user.id}`);
+
+        // STEP 3 — always resync from DB when message arrives
+        channel.listen(".MessageSent", (e: any) => {
+            const msg = e.message;
+
+            if (msg.receiver_id === auth.user.id) {
+            loadUnreadCount();
+            }
+        });
+
+        return () => {
+            window.removeEventListener("messages-seen", refresh);
+            window.Echo.leave(`chat.${auth.user.id}`);
+        };
+    }, []);
+
+    useEffect(() => {
+    if (page.url.startsWith("/messages")) {
+        loadUnreadCount();
+    }
+    }, [page.url]);
 
 
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
@@ -320,9 +360,17 @@ const rightNavItems: NavItem[] = mainNavItems;
                         <div className="relative flex items-center space-x-1">
                             {/* Messages */}
                             <Link href="/messages-page">
-                            <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                                <MessageCircle className="h-5 w-5" />
-                            </Button>
+                                <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                                    <MessageCircle className="h-5 w-5" />
+
+                                    {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
+                                        flex items-center justify-center rounded-full bg-red-500
+                                        text-[11px] font-bold text-white leading-none">
+                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
+                                    )}
+                                </Button>
                             </Link>
 
                             {/* Notifications */}

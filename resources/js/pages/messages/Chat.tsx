@@ -2,6 +2,7 @@ import { Head } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { useEffect, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import { Image as ImageIcon, Plus, Download, X } from "lucide-react";
 
 interface User {
   id: number;
@@ -12,10 +13,14 @@ interface User {
 interface Message {
   id: number;
   body: string;
+  image_path?: string | null;
+  image_batch_id?: string | null;
   sender: User;
   receiver: User;
   created_at: string;
   is_seen?: boolean;
+  has_unread?: boolean;
+  optimistic?: boolean;
 }
 
 export default function Chat() {
@@ -26,16 +31,32 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
+  const [sendingCount, setSendingCount] = useState(0);
   const [showInbox, setShowInbox] = useState(true); // mobile
   const [contacts, setContacts] = useState<User[]>([]);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const imageLoadedMap = useRef<Record<number, boolean>>({});
+
 
   async function loadContacts() {
     const res = await fetch("/messages/contacts");
     const data = await res.json();
     setContacts(data);
+  }
+
+  function openViewer(src: string) {
+    setViewerSrc(src);
+    setViewerOpen(true);
+  }
+
+  function closeViewer() {
+    setViewerOpen(false);
+    setViewerSrc(null);
   }
 
   function isLastMineAndSeen(m: Message, index: number) {
@@ -50,12 +71,14 @@ export default function Chat() {
     return true;
   }
 
-  function initials(user: User) {
-    return (
-      (user.first_name?.[0] || "") +
-      (user.last_name?.[0] || "")
-    ).toUpperCase();
-  }
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeViewer();
+    }
+
+    if (viewerOpen) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewerOpen]);
 
 
   /* ================================
@@ -79,6 +102,12 @@ export default function Chat() {
     });
   }
 
+  function forceScrollBottom() {
+    if (!boxRef.current) return;
+
+    boxRef.current.scrollTop = boxRef.current.scrollHeight;
+  }
+
   /* ================================
       Fetch conversation
   ================================= */
@@ -91,9 +120,20 @@ export default function Chat() {
 
     const res = await fetch(`/messages/conversation/${user.id}`);
     const data = await res.json();
-
     setMessages(data);
 
+    // MARK AS SEEN IN DATABASE
+    await fetch(`/messages/conversation/${user.id}/seen`, {
+      method: "POST",
+      headers: {
+        "X-CSRF-TOKEN":
+          document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
+      },
+    });
+
+    window.dispatchEvent(new Event("messages-seen"));
+
+    // UI update (optional, for instant feedback)
     setInbox(prev =>
       prev.map(m =>
         otherUser(m).id === user.id
@@ -142,6 +182,17 @@ export default function Chat() {
     u => !inboxUserIds.includes(u.id)
   );
 
+  function matches(user: User) {
+    const q = search.toLowerCase();
+    return (
+      user.first_name.toLowerCase().includes(q) ||
+      user.last_name.toLowerCase().includes(q)
+    );
+  }
+
+  const filteredInbox = inbox.filter(m => matches(otherUser(m)));
+  const filteredNewContacts = newContacts.filter(u => matches(u));
+
   /* ================================
       Realtime listener
   ================================= */
@@ -162,13 +213,24 @@ export default function Chat() {
       let msg: Message = e.message;
 
       const isActiveChat =
-        activeUser &&
-        (msg.sender.id === activeUser.id ||
-        msg.receiver.id === activeUser.id);
+        activeUser && msg.sender.id === activeUser.id;
 
-      // If currently open, mark as seen instantly (UI side)
+      // If currently open, mark as seen instantly
       if (isActiveChat && msg.receiver.id === authId) {
-        msg = { ...msg, is_seen: true };
+        msg = { ...msg, is_seen: true, has_unread: false };
+
+        fetch(`/messages/${msg.id}/seen`, {
+          method: "POST",
+          headers: {
+            "X-CSRF-TOKEN":
+              document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
+          },
+        });
+      }
+
+      // IMPORTANT PART
+      if (!isActiveChat && msg.receiver.id === authId) {
+        msg = { ...msg, has_unread: true };
       }
 
       if (isActiveChat) {
@@ -190,9 +252,9 @@ export default function Chat() {
       });
     });
 
-    return () => {
-      window.Echo.leave(`private-chat.${authId}`);
-    };
+   return () => {
+    window.Echo.leave(`chat.${authId}`);
+  };
   }, [activeUser]);
 
   /* ================================
@@ -202,36 +264,108 @@ export default function Chat() {
   useEffect(() => {
     if (!boxRef.current) return;
 
-    // first load of a conversation → jump
     if (firstLoadRef.current) {
       scrollToBottom("auto");
       firstLoadRef.current = false;
     } else {
-      // new messages → smooth
       scrollToBottom("smooth");
+
+      // extra safety for images
+      setTimeout(() => {
+        scrollToBottom("auto");
+      }, 100);
     }
   }, [messages]);
+
+  async function sendImage(file: File, batchId: string) {
+    if (!activeUser ) return;
+
+    setSendingCount(c => c + 1);
+
+    const tempId = Date.now() + Math.random();
+
+    const optimisticMsg: Message = {
+      id: tempId,
+      body: "",
+      image_path: URL.createObjectURL(file),
+      image_batch_id: batchId,
+      sender: auth.user,
+      receiver: activeUser,
+      created_at: new Date().toISOString(),
+      is_seen: false,
+      optimistic: true,
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    setInbox(prev => {
+      const filtered = prev.filter(
+        m =>
+          !(
+            (m.sender.id === optimisticMsg.sender.id &&
+              m.receiver.id === optimisticMsg.receiver.id) ||
+            (m.sender.id === optimisticMsg.receiver.id &&
+              m.receiver.id === optimisticMsg.sender.id)
+          )
+      );
+
+      return [optimisticMsg, ...filtered];
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("receiver_id", String(activeUser.id));
+      formData.append("image", file);
+      formData.append("image_batch_id", batchId);
+
+      const res = await fetch("/messages", {
+        method: "POST",
+        headers: {
+          "X-CSRF-TOKEN":
+            document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
+        },
+        body: formData,
+      });
+
+      const realMsg: Message = await res.json();
+
+      setMessages(prev =>
+        prev.map(m => (m.id === tempId ? realMsg : m))
+      );
+
+      setInbox(prev =>
+        prev.map(m => (m.id === tempId ? realMsg : m))
+      );
+
+    } catch (e) {
+      console.error(e);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    } finally {
+      setSendingCount(c => Math.max(0, c - 1));
+    }
+  }
 
   /* ================================
       Send message
   ================================= */
   async function send() {
-    if (!text.trim() || !activeUser || sending) return;
+    if (!text.trim() || !activeUser) return;
 
-    const tempId = Date.now(); // temp key
-    const tempText = text;
+    setSendingCount(c => c + 1);
 
-    // create instant fake message
+    const tempId = Date.now();
+
     const optimisticMsg: Message = {
       id: tempId,
-      body: tempText,
+      body: text,
+      image_path: null,
       sender: auth.user,
       receiver: activeUser,
       created_at: new Date().toISOString(),
       is_seen: false,
+      optimistic: true,
     };
 
-    // show instantly
     setMessages(prev => [...prev, optimisticMsg]);
 
     setInbox(prev => {
@@ -249,27 +383,23 @@ export default function Chat() {
     });
 
     setText("");
-    setSending(true);
 
     try {
+      const formData = new FormData();
+      formData.append("receiver_id", String(activeUser.id));
+      formData.append("body", text);
+
       const res = await fetch("/messages", {
         method: "POST",
-        credentials: "same-origin",
         headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
           "X-CSRF-TOKEN":
             document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
         },
-        body: JSON.stringify({
-          receiver_id: activeUser.id,
-          body: tempText,
-        }),
+        body: formData,
       });
 
       const realMsg: Message = await res.json();
 
-      // replace fake with real
       setMessages(prev =>
         prev.map(m => (m.id === tempId ? realMsg : m))
       );
@@ -278,11 +408,11 @@ export default function Chat() {
         prev.map(m => (m.id === tempId ? realMsg : m))
       );
 
-    } catch {
-      // remove fake if failed
+    } catch (e) {
+      console.error(e);
       setMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
-      setSending(false);
+      setSendingCount(c => Math.max(0, c - 1));
     }
   }
 
@@ -294,6 +424,127 @@ export default function Chat() {
   }
 
   console.log(messages);
+
+  function groupMessages(messages: Message[]) {
+    const result: any[] = [];
+
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+
+      // image with batch
+      if (m.image_path && m.image_batch_id) {
+        const last = result[result.length - 1];
+
+        if (
+          last &&
+          last.type === "image-batch" &&
+          last.batchId === m.image_batch_id
+        ) {
+          last.items.push(m);
+        } else {
+          result.push({
+            type: "image-batch",
+            batchId: m.image_batch_id,
+            senderId: m.sender.id,
+            items: [m],
+          });
+        }
+      } else {
+        result.push({
+          type: "single",
+          message: m,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  function ImageGrid({
+    images,
+    onLastImageLoad,
+  }: {
+    images: Message[];
+    onLastImageLoad?: () => void;
+  }) {
+    const [, forceUpdate] = useState(0); // only to refresh UI
+
+    const count = images.length;
+
+    const grid =
+      count === 1
+        ? "grid-cols-1"
+        : count === 2
+        ? "grid-cols-2"
+        : count === 3
+        ? "grid-cols-2 grid-rows-2"
+        : "grid-cols-2";
+
+    return (
+      <div className={`grid ${grid} gap-1.5 max-w-[85%] sm:max-w-[320px] md:max-w-[360px]`}>
+        {images.slice(0, 4).map((img, i) => {
+          const isLoaded = imageLoadedMap.current[img.id];
+
+          return (
+            <div
+              key={img.id}
+              className="relative rounded-xl overflow-hidden bg-gray-300 dark:bg-neutral-700 aspect-square sm:aspect-[4/3]"
+            >
+              {/* Loader */}
+              {!isLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              <img
+                src={
+                  img.image_path!.startsWith("blob:")
+                    ? img.image_path!
+                    : `/storage/${img.image_path}`
+                }
+                onClick={() =>
+                  openViewer(
+                    img.image_path!.startsWith("blob:")
+                      ? img.image_path!
+                      : `/storage/${img.image_path}`
+                  )
+                }
+                onLoad={() => {
+                  if (!imageLoadedMap.current[img.id]) {
+                    imageLoadedMap.current[img.id] = true;
+                    forceUpdate(n => n + 1); // repaint once
+
+                    // if this is the last image, force scroll
+                    if (onLastImageLoad && i === images.length - 1) {
+                      setTimeout(() => {
+                        onLastImageLoad();
+                      }, 50);
+                    }
+                  }
+                }}
+                className="w-full h-full object-cover cursor-pointer hover:opacity-90"
+              />
+
+              {/* Optimistic overlay */}
+              {img.optimistic && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* +N overlay */}
+              {count > 4 && i === 3 && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xl font-bold">
+                  +{count - 4}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   /* ================================
       UI
@@ -317,20 +568,30 @@ export default function Chat() {
             }`}
           >
 
+            <div className="p-3 border-b dark:border-neutral-700">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search people..."
+                className="w-full px-3 py-2 text-sm rounded-lg border 
+                          focus:outline-none focus:ring 
+                          dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+              />
+            </div>
+
             {inbox.length === 0 && (
               <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
                 No conversations yet
               </p>
             )}
 
-            {inbox.map((m, i) => {
+            {filteredInbox.map((m, i) => {
               if (!m.sender || !m.receiver) return null;
 
               const other = otherUser(m);
               const active = activeUser?.id === other.id;
 
-              const isUnread =
-                m.receiver.id === authId && m.is_seen === false;
+              const isUnread = m.has_unread === true;
 
               return (
                 <button
@@ -351,20 +612,24 @@ export default function Chat() {
                         : "text-gray-500 dark:text-gray-400"
                     }`}
                   >
-                    {m.body}
+                    {m.body
+                      ? m.body
+                      : m.image_path
+                        ? (m.sender.id === authId ? "You sent a photo" : "sent a photo")
+                        : ""}
                   </div>
                 </button>
               );
             })}
 
             {/* ===== New Contacts (no conversation yet) ===== */}
-            {newContacts.length > 0 && (
+            {filteredNewContacts.length > 0 && (
               <div className="mt-4 border-t dark:border-neutral-700">
                 <div className="p-3 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
                   New Message
                 </div>
 
-                {newContacts.map(user => {
+                {filteredNewContacts.map(user => {
                   const active = activeUser?.id === user.id;
 
                   return (
@@ -439,72 +704,113 @@ export default function Chat() {
                       No more messages
                     </div>
                   )}
-                  {messages.map((m, i) => {
-                    if (!m.sender || !m.receiver) return null;
+                  {groupMessages(messages).map((group, i) => {
 
-                    const mine = m.sender.id === authId;
+                    if (group.type === "single") {
+                      const m: Message = group.message;
+                      const mine = m.sender.id === authId;
 
-                    return (
-                      <div
-                        key={m.id}
-                        className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                      >
-                        {/* wrapper so Seen can sit under bubble */}
-                        <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
-
-                          {/* bubble */}
-                          <div
-                            className={`
-                              px-3 py-2 rounded-2xl text-sm shadow
-                              ${
+                      return (
+                        <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                          <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
+                            <div
+                              className={`px-3 py-2 rounded-2xl text-sm shadow ${
                                 mine
                                   ? "bg-blue-600 text-white rounded-br-sm"
                                   : "bg-white text-gray-900 border dark:bg-neutral-900 dark:text-gray-100 dark:border-neutral-700 rounded-bl-sm"
-                              }
-                            `}
-                          >
-                            <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                              }`}
+                            >
+                              {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
 
-                            <div className="mt-1 text-[10px] opacity-70 text-right">
-                              {new Date(m.created_at).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              <div className="mt-1 text-[10px] opacity-70 text-right">
+                                {new Date(m.created_at).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
                             </div>
+
+                            {/* Seen */}
+                            {isLastMineAndSeen(m, i) && (
+                              <div className="mt-1 mr-1 text-[11px] text-gray-400">Seen</div>
+                            )}
+
+                            {/* Sending */}
+                            {mine && m.optimistic && (
+                              <div className="mt-1 mr-1 text-[11px] text-gray-400 flex items-center gap-1">
+                                <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                Sending…
+                              </div>
+                            )}
                           </div>
+                        </div>
+                      );
+                    }
 
-                          {/* Seen text (outside bubble) */}
-                          {isLastMineAndSeen(m, i) && (
-                            <div className="mt-1 mr-1 text-[11px] text-gray-400">
-                              Seen
-                            </div>
-                          )}
+                    // IMAGE BATCH
+                    const mine = group.senderId === authId;
 
+                    return (
+                      <div key={group.batchId + i} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                        <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
+                          <ImageGrid
+                            images={group.items}
+                            onLastImageLoad={() => {
+                              scrollToBottom("auto");
+                            }}
+                          />
                         </div>
                       </div>
                     );
                   })}
-
-                  {sending && (
-                    <div className="ml-auto text-xs text-gray-400">
-                      Sending…
-                    </div>
-                  )}
                 </div>
 
                 {/* Input */}
                 <div className="p-3 border-t flex items-center gap-2 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                  <label
+                    htmlFor="chat-image"
+                    className="flex items-center justify-center w-9 h-9 rounded-full 
+                              hover:bg-gray-200 dark:hover:bg-neutral-700 
+                              text-blue-600 dark:text-blue-500 transition cursor-pointer"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </label>
+
+                  <input
+                    id="chat-image"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (!files.length) return;
+
+                      // limit to 5 images
+                      const selected = files.slice(0, 5);
+                      const batchId = crypto.randomUUID();
+
+                      selected.forEach(file => {
+                        sendImage(file, batchId);
+                      });
+
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = "";
+                      }
+                    }}
+                    className="hidden"
+                  />
                   <input
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && send()}
                     placeholder="Type a message..."
                     className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
-                    disabled={sending}
+                    disabled={sendingCount > 0}
                   />
                   <button
                     onClick={send}
-                    disabled={sending || !text.trim()}
+                    disabled={sendingCount > 0 || !text.trim()}
                     className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm disabled:opacity-50"
                   >
                     Send
@@ -515,6 +821,49 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {viewerOpen && viewerSrc && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
+          onClick={closeViewer}
+        >
+          {/* Close */}
+          <button
+            onClick={closeViewer}
+            className="
+              absolute top-4 right-4 
+              p-2 rounded-full 
+              bg-white/10 hover:bg-white/20 backdrop-blur
+              text-white
+            "
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {/* Download */}
+          <a
+            href={viewerSrc}
+            download
+            onClick={e => e.stopPropagation()}
+            className="
+              absolute top-4 left-4 
+              p-2 rounded-full 
+              bg-white/10 hover:bg-white/20 backdrop-blur
+              text-white
+            "
+            title="Download"
+          >
+            <Download className="w-5 h-5" />
+          </a>
+
+          {/* Image */}
+          <img
+            src={viewerSrc}
+            onClick={e => e.stopPropagation()}
+            className="max-w-[95vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
     </AppLayout>
   );
 }
