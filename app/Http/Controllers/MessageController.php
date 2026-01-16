@@ -28,9 +28,19 @@ class MessageController extends Controller
             ->groupBy('conversation_key');
 
         $messages = Message::whereIn('id', $latestMessages)
-            ->with(['sender:id,first_name,last_name', 'receiver:id,first_name,last_name'])
-            ->orderByDesc('created_at')
-            ->get();
+        ->select(
+            'id',
+            'sender_id',
+            'receiver_id',
+            'conversation_key',
+            'body',
+            'image_path',
+            'is_seen',
+            'created_at'
+        )
+        ->with(['sender:id,first_name,last_name', 'receiver:id,first_name,last_name'])
+        ->orderByDesc('created_at')
+        ->get();
 
         return response()->json($messages);
     }
@@ -38,24 +48,38 @@ class MessageController extends Controller
     /**
      * Fetch full conversation with a user
      */
-    public function conversation($userId)
+    public function conversation($userId, Request $request)
     {
         $authId = Auth::id();
 
-        $key = $authId < $userId 
-            ? "{$authId}_{$userId}" 
-            : "{$userId}_{$authId}";
+        $key = $authId < $userId ? "{$authId}_{$userId}" : "{$userId}_{$authId}";
 
-        $messages = Message::where('conversation_key', $key)
-            ->with(['sender:id,first_name,last_name', 'receiver:id,first_name,last_name'])
-            ->orderBy('created_at')
-            ->get();
+        $query = Message::where('conversation_key', $key)
+            ->select(
+                'id',
+                'sender_id',
+                'receiver_id',
+                'conversation_key',
+                'body',
+                'image_path',
+                'is_seen',
+                'created_at'
+            )
+            ->with([
+                'sender:id,first_name,last_name',
+                'receiver:id,first_name,last_name'
+            ]);
 
-        // mark messages as seen
-        Message::where('conversation_key', $key)
-            ->where('receiver_id', $authId)
-            ->where('is_seen', false)
-            ->update(['is_seen' => true]);
+        if ($request->filled('before')) {
+            $query->where('id', '<', $request->before);
+        }
+
+        $messages = $query
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get()
+            ->reverse()
+            ->values();
 
         return response()->json($messages);
     }
@@ -91,7 +115,8 @@ class MessageController extends Controller
             'image_path' => $imagePath,
         ]);
 
-        broadcast(new MessageSent($message))->toOthers();
+        // broadcast(new MessageSent($message))->toOthers();
+        broadcast(new MessageSent($message));
 
         return response()->json(
             $message->load([
@@ -99,6 +124,24 @@ class MessageController extends Controller
                 'receiver:id,first_name,last_name'
             ])
         );
+    }
+
+    public function contacts()
+    {
+        $auth = Auth::user();
+
+        $users = User::with('userRole')
+            ->where('id', '!=', $auth->id)
+            ->get()
+            ->filter(fn ($u) => ChatService::canMessage($auth, $u))
+            ->values()
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'first_name' => $u->first_name,
+                'last_name' => $u->last_name,
+            ]);
+
+        return response()->json($users);
     }
 
     /**

@@ -366,6 +366,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/messages/conversation/{user}', [MessageController::class, 'conversation']);
     Route::post('/messages', [MessageController::class, 'store']);
     Route::post('/messages/{message}/seen', [MessageController::class, 'markSeen']);
+    Route::get('/messages/contacts', [MessageController::class, 'contacts']);
 
     // Messages page (UI)
     Route::get('/messages-page', function () {

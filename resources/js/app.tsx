@@ -8,7 +8,9 @@ import Pusher from 'pusher-js';
   key: import.meta.env.VITE_REVERB_APP_KEY,
   wsHost: import.meta.env.VITE_REVERB_HOST,
   wsPort: Number(import.meta.env.VITE_REVERB_PORT),
+
   forceTLS: false,
+  enabledTransports: ['ws'], // avoid wss fallback
   disableStats: true,
 });
 
