@@ -9,6 +9,10 @@ class Message extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'is_seen' => 'boolean',
+    ];
+
     protected $fillable = [
         'sender_id',
         'receiver_id',

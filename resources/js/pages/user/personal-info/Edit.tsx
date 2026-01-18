@@ -119,6 +119,17 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
   const [presentProvinceCode, setPresentProvinceCode] = useState(personalInfo?.presentAddress?.provinceCode || defaultProvince.code);
   const [presentMunicipalityCode, setPresentMunicipalityCode] = useState(personalInfo?.presentAddress?.municipalityCode || "");
 
+  const isAlreadyComplete = Boolean(
+    personalInfo?.first_name &&
+    personalInfo?.last_name &&
+    personalInfo?.birthdate &&
+    personalInfo?.sex &&
+    personalInfo?.contact_no &&
+    personalInfo?.signature &&
+    personalInfo?.homeAddress &&
+    personalInfo?.presentAddress
+  );
+
   // Load provinces
   useLayoutEffect(() => {
     fetch("https://psgc.gitlab.io/api/provinces/")
@@ -204,19 +215,71 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
   const handleUploadSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+
+    const img = new Image();
     const reader = new FileReader();
+
     reader.onload = () => {
-      const base64 = reader.result as string;
+      img.src = reader.result as string;
+    };
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      let hasTransparency = false;
+
+      // check alpha channel
+      for (let i = 3; i < imageData.length; i += 4) {
+        if (imageData[i] < 255) {
+          hasTransparency = true;
+          break;
+        }
+      }
+
+      if (!hasTransparency) {
+        toast.error("Signature must have a transparent background (PNG with transparency).");
+        return;
+      }
+
+      // ✅ valid transparent image
+      const base64 = canvas.toDataURL("image/png");
       setUploadedSignature(base64);
       setSignaturePreview(base64);
       setData("signature", base64);
     };
+
     reader.readAsDataURL(file);
   };
 
   useEffect(() => {
     console.log("Form data changed:", data);
   }, [data]);
+
+  const normalizePurok = (value: string) => {
+    if (!value) return "";
+
+    let v = value.trim();
+
+    // Remove existing "purok" word (any case)
+    v = v.replace(/^purok\s*/i, "");
+
+    // Capitalize and add "Purok "
+    return v ? `Purok ${v}` : "";
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +288,13 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
       toast.error("Please select or draw a signature before saving.");
       return;
     }
+
+    // normalize purok before sending
+    const normalizedHomePurok = normalizePurok(data.home_purok);
+    const normalizedPresentPurok = normalizePurok(data.present_purok);
+
+    setData("home_purok", normalizedHomePurok);
+    setData("present_purok", normalizedPresentPurok);
 
     if (signaturePadRef.current && !signaturePadRef.current.isEmpty()) {
       setData("signature", signaturePadRef.current.toDataURL());
@@ -237,6 +307,8 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
         toast.success("Personal info updated", {
           description: "Your personal details were saved successfully.",
         });
+
+        window.dispatchEvent(new Event("notifications-updated"));
       },
       onError: () => {
         toast.error("Update failed", {
@@ -255,7 +327,20 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
             Personal Information
           </h1>
           <Card className="p-6 bg-white dark:bg-neutral-800 shadow rounded-lg">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {!isAlreadyComplete && (
+              <div className="p-4 rounded-lg border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+                ℹ️ This form can only be submitted <strong>once</strong>.  
+                Please make sure all information is correct before saving.
+              </div>
+            )}
+            {isAlreadyComplete && (
+              <div className="p-4 rounded-lg border border-yellow-400 bg-yellow-50 text-yellow-800 text-sm">
+                ⚠️ Your personal information has already been submitted and can no longer be edited.
+                If you believe there is a mistake, please contact the clinic administrator.
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-4 opacity-90">
+              <fieldset disabled={isAlreadyComplete || processing} className="space-y-4">
               {/* Name Fields */}
               <div>
                 <Label htmlFor="first_name">First Name</Label>
@@ -347,6 +432,14 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                   //setHomeProvinceName(selectedProvince?.code || "");
                   setData("home_province_name", selectedProvince?.name || "");
                   setData("home_province_code", selectedProvince?.code || "");
+
+                  // RESET municipality & barangay
+                  setData("home_municipality_name", "");
+                  setData("home_municipality_code", "");
+                  setData("home_barangay_name", "");
+                  setData("home_barangay_code", "");
+                  setHomeMunicipalities([]);
+                  setHomeBarangays([]);
                   fetch(`https://psgc.gitlab.io/api/provinces/${e.target.value}/municipalities/`)
                     .then(res => res.json())
                     .then(setHomeMunicipalities);
@@ -411,9 +504,17 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.present_province_code}
                 onChange={(e) => {
                   const selectedProvince = provinces.find(p => p.code === e.target.value);
-                  setPresentProvinceName(selectedProvince?.code);
+                  setPresentProvinceCode(selectedProvince?.code || "");
                   setData("present_province_name", selectedProvince?.name || "");
                   setData("present_province_code", selectedProvince?.code || "");
+
+                  // RESET municipality & barangay
+                  setData("present_municipality_name", "");
+                  setData("present_municipality_code", "");
+                  setData("present_barangay_name", "");
+                  setData("present_barangay_code", "");
+                  setPresentMunicipalities([]);
+                  setPresentBarangays([]);
                   fetch(`https://psgc.gitlab.io/api/provinces/${e.target.value}/municipalities/`)
                     .then(res => res.json())
                     .then(setPresentMunicipalities);
@@ -524,15 +625,31 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                     )}
                     {activeTab === "upload" && (
                       <TabsContent value="upload" forceMount>
-                        <input type="file" accept="image/*" onChange={handleUploadSignature} className="mt-2" />
+                        <div className="mb-2 p-3 rounded-md border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+                          ℹ️ Please upload a <strong>signature image with transparent background</strong> (preferably PNG).
+                          Make sure it is clear and cropped to the signature only.
+                        </div>
+
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={handleUploadSignature}
+                          className="mt-2"
+                        />
+
                         <div className="flex justify-end gap-2 mt-2">
-                          <Button type="button" onClick={() => {
-                            if (uploadedSignature) {
-                              setSignaturePreview(uploadedSignature);
-                              setData("signature", uploadedSignature);
-                            }
-                            setActiveTab("");
-                          }}>Select</Button>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              if (uploadedSignature) {
+                                setSignaturePreview(uploadedSignature);
+                                setData("signature", uploadedSignature);
+                              }
+                              setActiveTab("");
+                            }}
+                          >
+                            Select
+                          </Button>
                         </div>
                       </TabsContent>
                     )}
@@ -541,10 +658,11 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
-                <Button type="submit" disabled={processing || (!hasSelectedSignature && activeTab !== "")}>
-                  {processing ? "Saving..." : "Save"}
+                <Button type="submit" disabled={processing || isAlreadyComplete || (!hasSelectedSignature && activeTab !== "")}>
+                  {isAlreadyComplete ? "Locked" : processing ? "Saving..." : "Save"}
                 </Button>
               </div>
+               </fieldset>
             </form>
           </Card>
         </div>

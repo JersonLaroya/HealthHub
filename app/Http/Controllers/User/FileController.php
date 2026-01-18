@@ -13,6 +13,7 @@ use App\Models\Consultation;
 use App\Models\VitalSign;
 use App\Models\Disease;
 use Illuminate\Support\Facades\Storage;
+use App\Services\MedicalNotificationService;
 use Carbon\Carbon;
 
 class FileController extends Controller
@@ -425,6 +426,21 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             'lab_result_id'   => null,
             'response_data'   => $responses,
         ]);
+
+        // remove related notification
+        if ($formType === 'pre-enrollment-health-form') {
+            auth()->user()->notifications()
+                ->where('data->slug', 'pre-enrollment')
+                ->delete();
+        }
+
+        if ($formType === 'pre-employment-health-form') {
+            auth()->user()->notifications()
+                ->where('data->slug', 'pre-employment')
+                ->delete();
+        }
+
+        MedicalNotificationService::check(auth()->user());
 
         if ($formType === 'pre-enrollment-health-form') {
 

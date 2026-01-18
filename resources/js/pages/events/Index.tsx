@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Head, useForm, router } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { toast } from "sonner";
+import { usePage } from "@inertiajs/react";
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -120,10 +121,18 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
     e.preventDefault();
 
     if (editEvent) {
-      put(updateUrl(editEvent.id), {
+      post(updateUrl(editEvent.id), {
+        forceFormData: true,
+        data: {
+          ...data,
+          _method: "put",
+        },
         onSuccess: () => {
           clearForm();
           setShowModal(false);
+
+          console.log("notifications-updated dispatched");
+
           toast.success("Event updated", {
             description: `${data.title} updated successfully.`,
           });
@@ -134,6 +143,9 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
         onSuccess: () => {
           clearForm();
           setShowModal(false);
+
+          console.log("notifications-updated dispatched");
+
           toast.success("Event added", {
             description: `${data.title} created successfully.`,
           });

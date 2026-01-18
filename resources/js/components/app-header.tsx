@@ -17,6 +17,7 @@ import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { router } from "@inertiajs/react";
 
 const activeItemStyles = 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
@@ -33,6 +34,81 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         name: string; 
         user_role: { id: number; name: string }; 
     } | null;
+
+    const [notifCount, setNotifCount] = useState(0);
+    const [notifications, setNotifications] = useState<any[]>([]);
+
+    async function loadNotifCount() {
+        const res = await fetch("/notifications/unread-count");
+        const data = await res.json();
+        setNotifCount(data.count);
+    }
+
+    async function loadNotifications() {
+        const res = await fetch("/notifications");
+        const data = await res.json();
+        setNotifications(data);
+    }
+
+    async function markNotifRead(id: string, url?: string) {
+        await fetch(`/notifications/${id}/read`, {
+            method: "POST",
+            headers: {
+                "X-CSRF-TOKEN": (document.querySelector('meta[name="csrf-token"]') as any)?.content
+            }
+        });
+
+        // refresh after marking read
+        loadNotifCount();
+        loadNotifications();
+
+        if (url) {
+            router.visit(url);
+        }
+    }
+
+    useEffect(() => {
+        if (!auth?.user?.id) return;
+
+        loadNotifCount();
+        loadNotifications();
+    }, [auth?.user?.id]);
+
+    useEffect(() => {
+  if (!auth?.user?.id) return;
+
+  const echo = (window as any).Echo;
+
+  if (!echo) {
+    console.error("Echo not found on window");
+    return;
+  }
+
+  const channelName = `App.Models.User.${auth.user.id}`;
+
+  console.log("Subscribing to:", channelName);
+
+  const channel = echo.private(channelName);
+
+  channel.subscribed(() => {
+    console.log("Subscribed to notifications channel");
+  });
+
+  channel.error((err: any) => {
+    console.error("Channel error:", err);
+  });
+
+  channel.notification((notification: any) => {
+    console.log("REALTIME NOTIFICATION RECEIVED:", notification);
+    loadNotifCount();
+    loadNotifications();
+  });
+
+  return () => {
+    echo.leave(`private-${channelName}`);
+  };
+}, [auth?.user?.id]);
+
 
     const roleName = user?.user_role?.name ?? '';
 
@@ -54,6 +130,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const data = await res.json();
     setUnreadCount(data.count);
     }
+    
 
     useEffect(() => {
         if (!auth?.user?.id) return;
@@ -71,8 +148,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         channel.listen(".MessageSent", (e: any) => {
             const msg = e.message;
 
-            if (msg.receiver_id === auth.user.id) {
-            loadUnreadCount();
+            if (msg.receiver?.id === auth.user.id) {
+                loadUnreadCount();
             }
         });
 
@@ -80,7 +157,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             window.removeEventListener("messages-seen", refresh);
             window.Echo.leave(`chat.${auth.user.id}`);
         };
-    }, []);
+    }, [auth?.user?.id]);
 
     useEffect(() => {
     if (page.url.startsWith("/messages")) {
@@ -367,19 +444,58 @@ const rightNavItems: NavItem[] = mainNavItems;
                                     <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
                                         flex items-center justify-center rounded-full bg-red-500
                                         text-[11px] font-bold text-white leading-none">
-                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                        {unreadCount}
                                     </span>
                                     )}
                                 </Button>
                             </Link>
 
                             {/* Notifications */}
-                            <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                            <Bell className="h-5 w-5" />
-                            {/* <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                                5
-                            </span> */}
-                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                                    <Bell className="h-5 w-5" />
+
+                                    {notifCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
+                                        flex items-center justify-center rounded-full bg-red-500
+                                        text-[11px] font-bold text-white leading-none">
+                                        {notifCount}
+                                        </span>
+                                    )}
+                                    </Button>
+                                </DropdownMenuTrigger>
+
+                                <DropdownMenuContent 
+                                    align="end" 
+                                    className="w-80 max-h-[420px] overflow-y-auto"
+                                >
+                                    <div className="p-2 text-sm font-semibold border-b">Notifications</div>
+
+                                    {notifications.length === 0 && (
+                                    <div className="p-3 text-sm text-neutral-500">
+                                        No notifications
+                                    </div>
+                                    )}
+
+                                    {notifications.map((n) => (
+                                    <div
+                                        key={n.id}
+                                        onClick={() => markNotifRead(n.id, n.url)}
+                                        className={`px-3 py-2 text-sm cursor-pointer border-b last:border-b-0
+                                        ${n.read_at ? "bg-transparent" : "bg-neutral-100 dark:bg-neutral-800"}`}
+                                    >
+                                        <div className="font-medium">{n.title}</div>
+                                        <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                        {n.message}
+                                        </div>
+                                        <div className="text-[10px] text-neutral-400 mt-1">
+                                        {n.created_at}
+                                        </div>
+                                    </div>
+                                    ))}
+                                </DropdownMenuContent>
+                                </DropdownMenu>
                         </div>
 
                         <DropdownMenu>

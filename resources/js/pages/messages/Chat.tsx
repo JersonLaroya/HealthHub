@@ -3,6 +3,7 @@ import AppLayout from "@/layouts/app-layout";
 import { useEffect, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { Image as ImageIcon, Plus, Download, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface User {
   id: number;
@@ -21,6 +22,7 @@ interface Message {
   is_seen?: boolean;
   has_unread?: boolean;
   optimistic?: boolean;
+  loadingImage?: boolean;
 }
 
 export default function Chat() {
@@ -41,7 +43,10 @@ export default function Chat() {
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const imageLoadedMap = useRef<Record<number, boolean>>({});
-
+  const [loadingInbox, setLoadingInbox] = useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const isPrependingRef = useRef(false);
+  const isNearBottomRef = useRef(true);
 
   async function loadContacts() {
     const res = await fetch("/messages/contacts");
@@ -57,6 +62,35 @@ export default function Chat() {
   function closeViewer() {
     setViewerOpen(false);
     setViewerSrc(null);
+  }
+
+  function isNewDay(curr: Message, prev?: Message) {
+    if (!prev) return true;
+
+    const d1 = new Date(curr.created_at).toDateString();
+    const d2 = new Date(prev.created_at).toDateString();
+
+    return d1 !== d2;
+  }
+
+  function formatDayLabel(dateStr: string) {
+    const date = new Date(dateStr);
+    const today = new Date();
+
+    const diff =
+      new Date(today.toDateString()).getTime() -
+      new Date(date.toDateString()).getTime();
+
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    if (diff === 0) return "Today";
+    if (diff === oneDay) return "Yesterday";
+
+    return date.toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
   }
 
   function isLastMineAndSeen(m: Message, index: number) {
@@ -85,9 +119,14 @@ export default function Chat() {
       Fetch inbox
   ================================= */
   async function loadInbox() {
-    const res = await fetch("/messages");
-    const data = await res.json();
-    setInbox(data);
+    setLoadingInbox(true);
+    try {
+      const res = await fetch("/messages");
+      const data = await res.json();
+      setInbox(data);
+    } finally {
+      setLoadingInbox(false);
+    }
   }
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -108,6 +147,16 @@ export default function Chat() {
     boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }
 
+  function shouldShowTime(curr: Message, next?: Message) {
+    if (!next) return true;
+
+    const t1 = new Date(curr.created_at).getTime();
+    const t2 = new Date(next.created_at).getTime();
+
+    // show if more than 5 minutes gap
+    return Math.abs(t2 - t1) > 5 * 60 * 1000;
+  }
+
   /* ================================
       Fetch conversation
   ================================= */
@@ -117,10 +166,21 @@ export default function Chat() {
     setActiveUser(user);
     setShowInbox(false);
     setHasMore(true);
+    setLoadingConversation(true);
 
     const res = await fetch(`/messages/conversation/${user.id}`);
     const data = await res.json();
-    setMessages(data);
+
+    imageLoadedMap.current = {};
+
+    setMessages(
+      data.map((m: Message) =>
+        m.image_path
+          ? { ...m, loadingImage: true }
+          : m
+      )
+    );
+    setLoadingConversation(false);
 
     // MARK AS SEEN IN DATABASE
     await fetch(`/messages/conversation/${user.id}/seen`, {
@@ -147,7 +207,8 @@ export default function Chat() {
     if (!activeUser || loadingOlder || !hasMore || messages.length === 0) return;
 
     firstLoadRef.current = false;
-    
+    isPrependingRef.current = true; // tell auto-scroll we are prepending
+
     setLoadingOlder(true);
 
     const oldestId = messages[0].id;
@@ -161,15 +222,17 @@ export default function Chat() {
 
     if (data.length === 0) {
       setHasMore(false);
+      isPrependingRef.current = false; // reset
     } else {
       setMessages(prev => [...data, ...prev]);
 
-      // keep scroll position
       setTimeout(() => {
         const newHeight = boxRef.current?.scrollHeight || 0;
         boxRef.current?.scrollTo({
           top: newHeight - prevHeight,
         });
+
+        isPrependingRef.current = false; // reset after restoring scroll
       }, 0);
     }
 
@@ -234,7 +297,10 @@ export default function Chat() {
       }
 
       if (isActiveChat) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          if (prev.some(p => p.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
       }
 
       setInbox(prev => {
@@ -262,20 +328,23 @@ export default function Chat() {
   ================================= */
 
   useEffect(() => {
-    if (!boxRef.current) return;
+  if (!boxRef.current) return;
 
-    if (firstLoadRef.current) {
+  // always scroll on first open
+  if (firstLoadRef.current) {
       scrollToBottom("auto");
       firstLoadRef.current = false;
-    } else {
-      scrollToBottom("smooth");
-
-      // extra safety for images
-      setTimeout(() => {
-        scrollToBottom("auto");
-      }, 100);
+      return;
     }
-  }, [messages]);
+
+    // never scroll when loading older messages
+    if (isPrependingRef.current) return;
+
+    // only auto-scroll if user is near bottom
+    if (isNearBottomRef.current) {
+      scrollToBottom("smooth");
+    }
+  }, [messages])
 
   async function sendImage(file: File, batchId: string) {
     if (!activeUser ) return;
@@ -294,6 +363,7 @@ export default function Chat() {
       created_at: new Date().toISOString(),
       is_seen: false,
       optimistic: true,
+      loadingImage: true,
     };
 
     setMessages(prev => [...prev, optimisticMsg]);
@@ -330,11 +400,19 @@ export default function Chat() {
       const realMsg: Message = await res.json();
 
       setMessages(prev =>
-        prev.map(m => (m.id === tempId ? realMsg : m))
+        prev.map(m =>
+          m.id === tempId
+            ? { ...realMsg, loadingImage: true }
+            : m
+        )
       );
 
       setInbox(prev =>
-        prev.map(m => (m.id === tempId ? realMsg : m))
+        prev.map(m =>
+          m.id === tempId
+            ? { ...realMsg, loadingImage: true }
+            : m
+        )
       );
 
     } catch (e) {
@@ -401,11 +479,19 @@ export default function Chat() {
       const realMsg: Message = await res.json();
 
       setMessages(prev =>
-        prev.map(m => (m.id === tempId ? realMsg : m))
+        prev.map(m =>
+          m.id === tempId
+            ? { ...realMsg, loadingImage: true } // keep bubble alive
+            : m
+        )
       );
 
       setInbox(prev =>
-        prev.map(m => (m.id === tempId ? realMsg : m))
+        prev.map(m =>
+          m.id === tempId
+            ? { ...realMsg, loadingImage: true }
+            : m
+        )
       );
 
     } catch (e) {
@@ -467,7 +553,7 @@ export default function Chat() {
     images: Message[];
     onLastImageLoad?: () => void;
   }) {
-    const [, forceUpdate] = useState(0); // only to refresh UI
+    const [, forceUpdate] = useState(0);
 
     const count = images.length;
 
@@ -480,63 +566,85 @@ export default function Chat() {
         ? "grid-cols-2 grid-rows-2"
         : "grid-cols-2";
 
+    const wrapperSize =
+      count === 1
+        ? "max-w-[70%] sm:max-w-[260px] md:max-w-[320px]"
+        : "max-w-[90%] sm:max-w-[320px] md:max-w-[360px]";
+
     return (
-      <div className={`grid ${grid} gap-1.5 max-w-[85%] sm:max-w-[320px] md:max-w-[360px]`}>
-        {images.slice(0, 4).map((img, i) => {
-          const isLoaded = imageLoadedMap.current[img.id];
+      <div className={`grid ${grid} gap-1.5 ${wrapperSize}`}>
+        {images.map((img, i) => {
+          const isLoaded =
+            imageLoadedMap.current[img.id] === true &&
+            img.loadingImage !== true;
+
+          const isLastSingle =
+            count > 1 && count % 2 === 1 && i === count - 1;
+
+          const src = img.image_path!.startsWith("blob:")
+            ? img.image_path!
+            : `/storage/${img.image_path}`;
 
           return (
             <div
               key={img.id}
-              className="relative rounded-xl overflow-hidden bg-gray-300 dark:bg-neutral-700 aspect-square sm:aspect-[4/3]"
+              className={`relative w-full aspect-square sm:aspect-[4/3]
+                          min-h-[120px]
+                          rounded-xl overflow-hidden
+                          bg-gray-300 dark:bg-neutral-700
+                          ${isLastSingle ? "md:col-start-2" : ""}`}
             >
-              {/* Loader */}
+              {/* PLACEHOLDER (only while loading) */}
               {!isLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-6 h-6 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white text-xs gap-2 bg-black/30 pointer-events-none">
+                  <div className="w-7 h-7 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                  <span className="opacity-90">Photo</span>
                 </div>
               )}
 
+              {/* IMAGE (fades in only when loaded) */}
               <img
-                src={
-                  img.image_path!.startsWith("blob:")
-                    ? img.image_path!
-                    : `/storage/${img.image_path}`
-                }
-                onClick={() =>
-                  openViewer(
-                    img.image_path!.startsWith("blob:")
-                      ? img.image_path!
-                      : `/storage/${img.image_path}`
-                  )
-                }
+                src={src}
+                onClick={() => openViewer(src)}
                 onLoad={() => {
                   if (!imageLoadedMap.current[img.id]) {
                     imageLoadedMap.current[img.id] = true;
-                    forceUpdate(n => n + 1); // repaint once
 
-                    // if this is the last image, force scroll
-                    if (onLastImageLoad && i === images.length - 1) {
+                    if (img.optimistic && img.image_path?.startsWith("blob:")) {
                       setTimeout(() => {
-                        onLastImageLoad();
-                      }, 50);
+                        URL.revokeObjectURL(img.image_path!);
+                      }, 1000);
+                    }
+
+                    setMessages(prev =>
+                      prev.map(m =>
+                        m.id === img.id ? { ...m, loadingImage: false } : m
+                      )
+                    );
+
+                    setInbox(prev =>
+                      prev.map(m =>
+                        m.id === img.id ? { ...m, loadingImage: false } : m
+                      )
+                    );
+
+                    forceUpdate(n => n + 1);
+
+                    if (onLastImageLoad && i === images.length - 1) {
+                      requestAnimationFrame(() => {
+                        requestAnimationFrame(onLastImageLoad);
+                      });
                     }
                   }
                 }}
-                className="w-full h-full object-cover cursor-pointer hover:opacity-90"
+                className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300
+                            ${isLoaded ? "opacity-100" : "opacity-0"}`}
               />
 
               {/* Optimistic overlay */}
               {img.optimistic && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-
-              {/* +N overlay */}
-              {count > 4 && i === 3 && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xl font-bold">
-                  +{count - 4}
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </div>
@@ -567,7 +675,6 @@ export default function Chat() {
               showInbox ? "block" : "hidden md:block"
             }`}
           >
-
             <div className="p-3 border-b dark:border-neutral-700">
               <input
                 value={search}
@@ -579,13 +686,19 @@ export default function Chat() {
               />
             </div>
 
-            {inbox.length === 0 && (
+            {loadingInbox && (
+              <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
+                Loading conversations...
+              </div>
+            )}
+
+            {!loadingInbox && inbox.length === 0 && (
               <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
                 No conversations yet
               </p>
             )}
 
-            {filteredInbox.map((m, i) => {
+            {!loadingInbox && filteredInbox.map((m, i) => {
               if (!m.sender || !m.receiver) return null;
 
               const other = otherUser(m);
@@ -687,12 +800,24 @@ export default function Chat() {
                   ref={boxRef}
                   onScroll={(e) => {
                     const el = e.currentTarget;
+
+                    // detect near bottom (within 120px)
+                    const distanceFromBottom =
+                      el.scrollHeight - el.scrollTop - el.clientHeight;
+
+                    isNearBottomRef.current = distanceFromBottom < 120;
+
                     if (el.scrollTop < 50) {
                       loadOlderMessages();
                     }
                   }}
                   className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-neutral-800"
                 >
+                  {loadingConversation && (
+                    <div className="flex flex-1 items-center justify-center text-sm text-gray-400 py-6">
+                      Loading conversation...
+                    </div>
+                  )}
                   {loadingOlder && (
                     <div className="text-center text-xs text-gray-400 py-2">
                       Loading older messages...
@@ -704,44 +829,76 @@ export default function Chat() {
                       No more messages
                     </div>
                   )}
-                  {groupMessages(messages).map((group, i) => {
+                  {!loadingConversation && groupMessages(messages).map((group, i, arr) => {
+
+                    const current =
+                      group.type === "single" ? group.message : group.items[0];
+
+                    const prevGroup = i > 0 ? arr[i - 1] : null;
+                    const prevMsg = prevGroup
+                      ? prevGroup.type === "single"
+                        ? prevGroup.message
+                        : prevGroup.items[0]
+                      : undefined;
+
+                    const showDate = isNewDay(current, prevMsg);
 
                     if (group.type === "single") {
                       const m: Message = group.message;
                       const mine = m.sender.id === authId;
+                      const nextGroup = arr[i + 1];
+                      const next =
+                        nextGroup
+                          ? nextGroup.type === "single"
+                            ? nextGroup.message
+                            : nextGroup.items[0]
+                          : undefined;
 
                       return (
-                        <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                          <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
-                            <div
-                              className={`px-3 py-2 rounded-2xl text-sm shadow ${
-                                mine
-                                  ? "bg-blue-600 text-white rounded-br-sm"
-                                  : "bg-white text-gray-900 border dark:bg-neutral-900 dark:text-gray-100 dark:border-neutral-700 rounded-bl-sm"
-                              }`}
-                            >
-                              {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-
-                              <div className="mt-1 text-[10px] opacity-70 text-right">
-                                {new Date(m.created_at).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </div>
+                        <div key={m.id}>
+                          
+                          {/* DATE SEPARATOR */}
+                          {showDate && (
+                            <div className="text-center my-4 text-xs text-gray-500 dark:text-gray-400">
+                              {formatDayLabel(current.created_at)}
                             </div>
+                          )}
 
-                            {/* Seen */}
-                            {isLastMineAndSeen(m, i) && (
-                              <div className="mt-1 mr-1 text-[11px] text-gray-400">Seen</div>
-                            )}
+                          <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                            <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
+                              <div
+                                className={`px-3 py-2 rounded-2xl text-sm shadow ${
+                                  mine
+                                    ? "bg-blue-600 text-white rounded-br-sm"
+                                    : "bg-white text-gray-900 border dark:bg-neutral-900 dark:text-gray-100 dark:border-neutral-700 rounded-bl-sm"
+                                }`}
+                              >
+                                {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
 
-                            {/* Sending */}
-                            {mine && m.optimistic && (
-                              <div className="mt-1 mr-1 text-[11px] text-gray-400 flex items-center gap-1">
-                                <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                Sending…
+                                {/* TIME (only when gap exists) */}
+                                {shouldShowTime(m, next) && (
+                                  <div className="mt-1 text-[10px] opacity-70 text-right">
+                                    {new Date(m.created_at).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </div>
+                                )}
                               </div>
-                            )}
+
+                              {/* Seen */}
+                              {isLastMineAndSeen(m, i) && (
+                                <div className="mt-1 mr-1 text-[11px] text-gray-400">Seen</div>
+                              )}
+
+                              {/* Sending */}
+                              {mine && m.optimistic && (
+                                <div className="mt-1 mr-1 text-[11px] text-gray-400 flex items-center gap-1">
+                                  <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                  Sending…
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -751,14 +908,26 @@ export default function Chat() {
                     const mine = group.senderId === authId;
 
                     return (
-                      <div key={group.batchId + i} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                        <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
-                          <ImageGrid
-                            images={group.items}
-                            onLastImageLoad={() => {
-                              scrollToBottom("auto");
-                            }}
-                          />
+                      <div key={group.batchId + i}>
+                        
+                        {/* DATE SEPARATOR */}
+                        {showDate && (
+                          <div className="text-center my-4 text-xs text-gray-500 dark:text-gray-400">
+                            {formatDayLabel(current.created_at)}
+                          </div>
+                        )}
+
+                        <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                          <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
+                            <ImageGrid
+                              images={group.items}
+                              onLastImageLoad={() => {
+                                if (isPrependingRef.current) return; // DO NOT jump when loading older
+                                if (!isNearBottomRef.current) return;
+                                scrollToBottom("auto");
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     );
@@ -785,9 +954,14 @@ export default function Chat() {
                     onChange={(e) => {
                       const files = Array.from(e.target.files || []);
                       if (!files.length) return;
+                      
+                      if (files.length > 10) {
+                        toast.error("You can only send up to 10 images at a time.");
+                        return;
+                      }
 
-                      // limit to 5 images
-                      const selected = files.slice(0, 5);
+                      // limit to 10 images
+                      const selected = files.slice(0, 10);
                       const batchId = crypto.randomUUID();
 
                       selected.forEach(file => {

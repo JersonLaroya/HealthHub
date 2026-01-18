@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\User;
 use App\Services\ChatService;
+use App\Http\Controllers\NotificationController;
  
 Route::middleware('web')->group(function () {
     Route::get('/auth/google/redirect', [SocialAuthController::class, 'redirectToGoogle']);
@@ -256,7 +257,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->middleware('role:Admin')->group(function () {
         Route::get('/events', [EventController::class, 'index'])->name('admin.events.index');
         Route::post('/events', [EventController::class, 'store'])->name('admin.events.store');
-        Route::put('/events/{event}', [EventController::class, 'update'])->name('admin.events.update');
+        Route::post('/events/{event}', [EventController::class, 'update'])->name('admin.events.update');
         Route::delete('/events/{event}', [EventController::class, 'destroy'])->name('admin.events.destroy');
     });
 
@@ -375,6 +376,13 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('messages/Chat');
     })->name('messages.page');
 
+});
+
+// Notifications
+Route::middleware(['auth'])->group(function () {
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 });
 
 

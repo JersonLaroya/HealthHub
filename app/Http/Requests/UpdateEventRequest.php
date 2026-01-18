@@ -24,11 +24,11 @@ class UpdateEventRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title'       => 'required|string|max:255',
-            'description' => 'required|string',
-            'start_at'    => 'required|date',
-            'end_at'      => 'required|date|after_or_equal:start_at',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'title'       => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'start_at'    => 'sometimes|required|date',
+            'end_at'      => 'sometimes|nullable|date|after_or_equal:start_at',
+            'image'       => 'sometimes|nullable|image|max:2048',
         ];
     }
 }

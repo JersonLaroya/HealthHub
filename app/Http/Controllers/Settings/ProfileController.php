@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\MedicalNotificationService;
 
 class ProfileController extends Controller
 {
@@ -111,6 +112,9 @@ class ProfileController extends Controller
         }
 
         $user->save();
+
+        // Re-check required medical notifications after profile update
+        MedicalNotificationService::check($user);
 
         $userRoleName = $user->userRole->name;
 

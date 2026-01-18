@@ -8,6 +8,7 @@ use App\Models\Address;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Province;
+use App\Services\MedicalNotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -63,6 +64,22 @@ class PersonalInfoController extends Controller
     public function update(UpdatePersonalInfoRequest $request)
     {
         $user = $request->user();
+
+        // BLOCK if already completed
+        $alreadyComplete =
+            $user->first_name &&
+            $user->last_name &&
+            $user->birthdate &&
+            $user->sex &&
+            $user->contact_no &&
+            $user->signature &&
+            $user->home_address_id &&
+            $user->present_address_id;
+
+        if ($alreadyComplete) {
+            abort(403, 'Personal information can only be submitted once.');
+        }
+
         $data = $request->validated();
 
         // Handle Signature
@@ -164,6 +181,17 @@ class PersonalInfoController extends Controller
             'home_address_id' => $homeAddress->id,
             'present_address_id' => $presentAddress->id,
         ]);
+
+        $user->notifications()
+            ->whereRaw("data->>'slug' = ?", ['personal-info'])
+            ->delete();
+
+            
+        // IMPORTANT: reload fresh values from DB
+        $user->refresh();
+
+        // Re-check all medical notifications now that personal info is complete
+        MedicalNotificationService::check($user);
 
         return redirect()->back()->with('success', 'Personal info updated successfully.');
     }

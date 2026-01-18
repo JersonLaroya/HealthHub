@@ -9,6 +9,8 @@ use App\Services\ChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
@@ -43,7 +45,7 @@ class MessageController extends Controller
             ->withExists([
                 'conversation as has_unread' => function ($q) use ($userId) {
                     $q->where('receiver_id', $userId)
-                    ->where('is_seen', false);
+                    ->whereRaw('is_seen = false');
                 }
             ])
             ->orderByDesc('created_at')
@@ -164,28 +166,66 @@ class MessageController extends Controller
             abort(403);
         }
 
-        $message->update(['is_seen' => true]);
+        Message::where('id', $message->id)
+            ->update([
+                'is_seen' => DB::raw('true')
+            ]);
 
         return response()->json(['success' => true]);
     }
 
     public function markConversationSeen($userId)
     {
-        Message::where('sender_id', $userId)
-            ->where('receiver_id', auth()->id())
-            ->where('is_seen', false)
-            ->update(['is_seen' => true]);
+        try {
+            Message::where('sender_id', $userId)
+                ->where('receiver_id', auth()->id())
+                ->whereRaw('is_seen IS FALSE')
+                ->update([
+                    'is_seen' => DB::raw('true')
+                ]);
 
-        return response()->json(['success' => true]);
+            return response()->json(['success' => true]);
+
+        } catch (\Throwable $e) {
+            \Log::error('markConversationSeen failed', [
+                'user_id' => auth()->id(),
+                'other_user' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['error' => 'Failed to mark seen'], 500);
+        }
     }
 
-    public function unreadCount()
+        public function unreadCount()
     {
-        $count = Message::where('receiver_id', auth()->id())
-            ->where('is_seen', false)
-            ->count();
+        try {
+            Log::info("Unread count request", [
+                'user_id' => auth()->id()
+            ]);
 
-        return response()->json(['count' => $count]);
+            $count = Message::where('receiver_id', auth()->id())
+                ->whereRaw('is_seen = false')
+                ->count();
+
+            Log::info("Unread count result", [
+                'count' => $count
+            ]);
+
+            return response()->json(['count' => $count]);
+
+        } catch (\Throwable $e) {
+
+            Log::error("Unread count failed", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Unread count failed'
+            ], 500);
+        }
     }
+
 
 }

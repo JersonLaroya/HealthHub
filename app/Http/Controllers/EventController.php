@@ -8,6 +8,9 @@ use App\Models\Event;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
+use App\Notifications\NewEventPosted;
+use App\Notifications\EventUpdated;
 
 class EventController extends Controller
 {
@@ -64,13 +67,25 @@ class EventController extends Controller
             $validated['image'] = $request->file('image')->store('events', 'public');
         }
 
-        Event::create([
+        $event = Event::create([
             ...$validated,
             'created_by' => auth()->id(),
             'edited_by'  => auth()->id(),
         ]);
 
-        return back()->with('success', 'Event created successfully.');
+        // ============================
+        // NOTIFY USERS + RCY
+        // ============================
+
+        $users = $this->eventAudience();
+
+        foreach ($users as $user) {
+            $user->notify(new NewEventPosted($event));
+        }
+
+        return back()->with([
+            'success' => 'Event created successfully.',
+        ]);
     }
 
     public function update(UpdateEventRequest $request, Event $event)
@@ -93,7 +108,16 @@ class EventController extends Controller
 
         $event->update($validated);
 
-        return back()->with('success', 'Event updated successfully.');
+        // get users + rcy
+        $users = $this->eventAudience();
+
+        foreach ($users as $user) {
+            $user->notify(new EventUpdated($event));
+        }
+
+        return back()->with([
+            'success' => 'Event updated successfully.',
+        ]);
     }
 
     public function destroy(Event $event)
@@ -105,5 +129,12 @@ class EventController extends Controller
         $event->delete();
 
         return back()->with('success', 'Event deleted successfully.');
+    }
+
+    private function eventAudience()
+    {
+        return User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('category', ['user', 'rcy'])
+        )->get();
     }
 }
