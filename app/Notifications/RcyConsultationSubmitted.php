@@ -15,7 +15,8 @@ class RcyConsultationSubmitted extends Notification
         public string $title,
         public string $message,
         public ?string $url = null,
-        public ?string $slug = 'rcy-consultation'
+        public ?string $slug = 'rcy-consultation',
+        public ?int $consultationId = null,
     ) {}
 
     public function via($notifiable): array
@@ -30,6 +31,7 @@ class RcyConsultationSubmitted extends Notification
             'message' => $this->message,
             'url' => $this->url,
             'slug' => $this->slug,
+            'consultation_id' => $this->consultationId,
         ];
     }
 

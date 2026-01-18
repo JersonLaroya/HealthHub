@@ -126,6 +126,17 @@ class ConsultationController extends Controller
         // Delete consultation
         $consultation->delete();
 
+        // Delet the notification
+        User::whereHas('notifications', function ($q) use ($consultation) {
+            $q->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
+            ->whereRaw("data->>'consultation_id' = ?", [(string) $consultation->id]);
+        })->each(function ($user) use ($consultation) {
+            $user->notifications()
+                ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
+                ->whereRaw("data->>'consultation_id' = ?", [(string) $consultation->id])
+                ->delete();
+        });
+
         return back()->with('success', 'Consultation deleted successfully.');
     }
 
@@ -146,17 +157,11 @@ class ConsultationController extends Controller
             'updated_by' => auth()->id(),
         ]);
         
-        // mark as read the notification
+        // mark the notification as read
         auth()->user()->unreadNotifications()
             ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
-            ->whereRaw("data->>'url' = ?", ["/admin/patients/{$consultation->user_id}"])
+            ->whereRaw("data->>'consultation_id' = ?", [(string) $consultation->id])
             ->update(['read_at' => now()]);
-        
-        // use this instead if you want to delete notification
-        // auth()->user()->notifications()
-        //     ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
-        //     ->whereRaw("data->>'url' = ?", ["/admin/patients/{$consultation->user_id}"])
-        //     ->delete();
 
         return back()->with('success', 'Consultation approved.');
     }

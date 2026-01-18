@@ -86,8 +86,9 @@ class RcyController extends Controller
             $admin->notify(new RcyConsultationSubmitted(
                 title: 'Consultation Pending Approval',
                 message: "RCY member {$rcyName} submitted a consultation for {$patientName}. Please review and approve.",
-                url: "/admin/patients/{$patient->id}",
-                slug: "rcy-consultation"
+                url: "/admin/patients/{$patient->id}?consultation={$consultation->id}", // 👈 unique per consultation
+                slug: "rcy-consultation",
+                consultationId: $consultation->id
             ));
         }
 

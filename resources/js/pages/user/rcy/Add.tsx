@@ -15,6 +15,38 @@ export default function AddDtr({ diseases }: any) {
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
+  const clearForm = () => {
+    setData({
+      name: "",
+      age: "",
+      sex: "",
+      course_year_office: "",
+
+      date: getTodayDate(),
+      time: getCurrentTime(),
+
+      medical_complaint: "",
+      management_and_treatment: "",
+
+      bp: "",
+      rr: "",
+      pr: "",
+      temp: "",
+      o2_sat: "",
+      height: "",
+      weight: "",
+      bmi: "",
+
+      disease_ids: [],
+    });
+
+    setSelectedPatientId(null);
+    setPatientQuery("");
+    setSearchTerm("");
+    setPatientResults([]);
+    setSelectingDiseases(false);
+  };
+
   const { data, setData, post, reset, processing } = useForm({
     name: "",
     age: "",
@@ -106,11 +138,7 @@ if (!selectedPatientId) {
     post(`/user/rcy/${selectedPatientId}`, {
       onSuccess: () => {
         toast.success("Consultation added successfully!");
-        reset();
-        setSelectedPatientId(null);
-        setPatientQuery("");
-        setSearchTerm("");
-        setPatientResults([]);
+        clearForm();
       },
       onError: () => toast.error("Failed to add Consultation."),
     });
@@ -289,7 +317,7 @@ if (!selectedPatientId) {
 
                   {/* Buttons */}
                   <div className="flex justify-end gap-2 mt-2">
-                    <Button variant="outline" type="button" onClick={() => reset()}>Cancel</Button>
+                    <Button variant="outline" type="button" onClick={clearForm}>Cancel</Button>
                     <Button type="submit" disabled={processing}>{processing ? "Adding..." : "Add"}</Button>
                   </div>
                 </form>

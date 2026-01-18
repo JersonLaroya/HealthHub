@@ -62,6 +62,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         loadNotifCount();
         loadNotifications();
 
+        // keep everything in sync
+        window.dispatchEvent(new Event("notifications-updated"));
+
         if (url) {
             router.visit(url);
         }

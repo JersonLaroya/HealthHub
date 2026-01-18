@@ -214,6 +214,9 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
         toast.success("Consultation deleted.");
         setShowDeleteModal(false);
         setConsultationToDelete(null);
+
+        // refresh notifications
+        window.dispatchEvent(new Event("notifications-updated"));
       },
       onFinish: () => setDeleting(false),
     });
@@ -514,6 +517,9 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                                     preserveScroll: true,
                                     onSuccess: () => {
                                       toast.success("Consultation approved.");
+
+                                      // force header to reload notifications
+                                      window.dispatchEvent(new Event("notifications-updated"));
                                     },
                                     onError: () => {
                                       toast.error("Failed to approve consultation.");

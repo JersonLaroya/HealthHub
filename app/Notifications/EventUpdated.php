@@ -17,7 +17,7 @@ class EventUpdated extends Notification implements ShouldBroadcast
 
     public function via($notifiable)
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', 'mail'];
     }
 
     public function toDatabase($notifiable)
@@ -38,5 +38,16 @@ class EventUpdated extends Notification implements ShouldBroadcast
             'message' => "{$this->event->title} has been updated.",
             'url' => '/user/dashboard',
         ]);
+    }
+
+    public function toMail($notifiable)
+    {
+        return (new MailMessage)
+            ->subject('Event Updated')
+            ->greeting("Hello {$notifiable->first_name},")
+            ->line("The following event was updated:")
+            ->line($this->event->title)
+            ->action('View Event', url('/user/dashboard'))
+            ->line('Please check the updated details.');
     }
 }

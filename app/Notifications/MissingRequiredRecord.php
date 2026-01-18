@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Messages\MailMessage;
 
 class MissingRequiredRecord extends Notification
 {
@@ -20,7 +21,7 @@ class MissingRequiredRecord extends Notification
 
     public function via($notifiable)
     {
-        return ['database'];
+        return ['database', 'mail'];
     }
 
     public function toDatabase($notifiable)
@@ -36,5 +37,15 @@ class MissingRequiredRecord extends Notification
                 default => '/user/files',
             },
         ];
+    }
+
+    public function toMail($notifiable)
+    {
+        return (new MailMessage)
+            ->subject('Medical Requirement Needed')
+            ->greeting("Hello {$notifiable->first_name},")
+            ->line($this->message)
+            ->action('Complete Now', url($this->toDatabase($notifiable)['url']))
+            ->line('This is required to continue using HealthHub services.');
     }
 }
