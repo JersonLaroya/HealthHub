@@ -75,6 +75,19 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     }, [auth?.user?.id]);
 
     useEffect(() => {
+    const refresh = () => {
+        loadNotifCount();
+        loadNotifications();
+    };
+
+    window.addEventListener("notifications-updated", refresh);
+
+    return () => {
+        window.removeEventListener("notifications-updated", refresh);
+    };
+}, []);
+
+    useEffect(() => {
   if (!auth?.user?.id) return;
 
   const echo = (window as any).Echo;

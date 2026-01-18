@@ -219,6 +219,24 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     });
   };
 
+  useEffect(() => {
+    const echo = (window as any).Echo;
+    if (!echo) return;
+
+    const channel = echo.private("admin-consultations");
+
+    channel.listen(".rcy.consultation.created", (e: any) => {
+      // only reload if this is the patient currently open
+      if (e.patientId === patient.id) {
+        router.reload({ only: ["consultations"] });
+      }
+    });
+
+    return () => {
+      echo.leave("private-admin-consultations");
+    };
+  }, [patient.id]);
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -344,6 +362,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                 <th className="p-2 text-left border-b">Chief Complaint</th>
                 <th className="p-2 text-left border-b">Disease</th>
                 <th className="p-2 text-left border-b">Management & Treatment</th>
+                <th className="p-2 text-left border-b">Updated By</th>
                 <th className="p-2 text-left border-b">Status</th>
                 {auth.user?.user_role?.name?.toLowerCase() === 'admin' && (
                   <th className="p-2 text-left border-b">Actions</th>
@@ -456,6 +475,14 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                             "-"
                           )}
                         </div>
+                      </td>
+
+                      <td className="p-2 border-b text-sm">
+                        {c.updater
+                          ? `${c.updater.first_name} ${c.updater.last_name}`
+                          : c.creator
+                          ? `${c.creator.first_name} ${c.creator.last_name}`
+                          : "—"}
                       </td>
 
                       <td className="p-2 border-b">

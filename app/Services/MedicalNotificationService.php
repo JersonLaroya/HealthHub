@@ -11,60 +11,64 @@ class MedicalNotificationService
 {
     public static function check($user): void
     {
-        // ===== 1. PERSONAL INFO CHECK (FIRST) =====
+        $roleCategory = $user->userRole?->category;
 
-        $hasPersonalInfo =
-            $user->first_name &&
-            $user->last_name &&
-            $user->birthdate &&
-            $user->sex &&
-            $user->contact_no &&
-            $user->signature &&
-            $user->home_address_id &&
-            $user->present_address_id;
+        // ======================================================
+        // SKIP personal info for STAFF and SYSTEM
+        // ======================================================
+        if (in_array($roleCategory, ['staff', 'system'])) {
 
-        \Log::info('MedicalNotificationService check', [
-    'user_id' => $user->id,
-    'first_name' => $user->first_name,
-    'last_name' => $user->last_name,
-    'birthdate' => $user->birthdate,
-    'sex' => $user->sex,
-    'contact_no' => $user->contact_no,
-    'signature' => $user->signature,
-    'home_address_id' => $user->home_address_id,
-    'present_address_id' => $user->present_address_id,
-    'hasPersonalInfo' => $hasPersonalInfo,
-]);
-
-        if (! $hasPersonalInfo) {
-
-            $already = $user->notifications()
+            // Remove old personal-info notifications if they exist
+            $user->notifications()
                 ->where('data->slug', 'personal-info')
-                ->exists();
+                ->delete();
 
-            if (! $already) {
-                $user->notify(new MissingPersonalInfo());
+        } else {
+
+            // ======================================================
+            // 1. PERSONAL INFO CHECK (ONLY FOR NON-STAFF / NON-SYSTEM)
+            // ======================================================
+
+            $hasPersonalInfo =
+                $user->first_name &&
+                $user->last_name &&
+                $user->birthdate &&
+                $user->sex &&
+                $user->contact_no &&
+                $user->signature &&
+                $user->home_address_id &&
+                $user->present_address_id;
+
+            if (! $hasPersonalInfo) {
+
+                $already = $user->notifications()
+                    ->where('data->slug', 'personal-info')
+                    ->exists();
+
+                if (! $already) {
+                    $user->notify(new MissingPersonalInfo());
+                }
+
+                // stop here — personal info must come first
+                return;
             }
 
-            // stop here — personal info must come first
-            return;
+            // If personal info is complete, remove old personal-info notif
+            $user->notifications()
+                ->where('data->slug', 'personal-info')
+                ->delete();
         }
 
-        // If personal info is complete, remove old personal-info notif
-        $user->notifications()
-            ->where('data->slug', 'personal-info')
-            ->delete();
+                $currentSY = Setting::value('school_year');
+                if (! $currentSY) return;
 
-        $currentSY = Setting::value('school_year');
-        if (! $currentSY) return;
+                $role = $user->userRole?->name;
+                $yearLevel = $user->yearLevel?->level;
 
-        $role = $user->userRole?->name;
-        $yearLevel = $user->yearLevel?->level;
-
-        \Log::info('MedicalNotificationService role check', [
-    'role' => $role,
-    'yearLevel' => $yearLevel,
-]);
+                \Log::info('MedicalNotificationService role check', [
+            'role' => $role,
+            'yearLevel' => $yearLevel,
+        ]);
 
         // ======================================================
         // STUDENT (FIRST YEAR) → PRE-ENROLLMENT REQUIRED

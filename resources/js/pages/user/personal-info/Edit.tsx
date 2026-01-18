@@ -607,7 +607,11 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                     {activeTab === "draw" && (
                       <TabsContent value="draw" forceMount>
                         <div className="border rounded-md bg-white">
-                          <canvas ref={signatureCanvasRef} className="w-full h-40 border" style={{ touchAction: "none" }} />
+                          <canvas
+                            ref={signatureCanvasRef}
+                            className="w-full h-64 sm:h-48 md:h-40 border"
+                            style={{ touchAction: "none" }}
+                          />
                         </div>
                         <div className="flex justify-end gap-2 mt-2">
                           <Button type="button" variant="outline" onClick={clearSignature}>Clear</Button>

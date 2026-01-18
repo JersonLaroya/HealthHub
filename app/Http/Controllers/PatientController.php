@@ -67,7 +67,12 @@ class PatientController extends Controller
         $schoolYear = Setting::value('school_year');
 
         $consultations = $patient->consultations()
-            ->with(['diseases', 'vitalSigns'])
+            ->with([
+                'diseases',
+                'vitalSigns',
+                'creator:id,first_name,last_name',
+                'updater:id,first_name,last_name',
+            ])
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('date', 'asc')
             ->orderBy('time', 'asc')

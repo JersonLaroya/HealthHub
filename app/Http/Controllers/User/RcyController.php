@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreRcyDtrRequest;
 use App\Models\Consultation;
 use App\Models\Disease;
-use App\Models\Dtr;
 use App\Models\User;
 use App\Models\VitalSign;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Notifications\RcyConsultationSubmitted;
+use App\Events\RcyConsultationCreated;
 
 class RcyController extends Controller
 {
@@ -64,6 +65,30 @@ class RcyController extends Controller
         // Attach diseases (same as clinic side)
         if ($request->filled('disease_ids')) {
             $consultation->diseases()->sync($request->disease_ids);
+        }
+
+        // Event for auto show in Show.tsx
+        event(new RcyConsultationCreated($patient->id));
+
+        // ======================================================
+        // Notify Admins: RCY consultation pending approval
+        // ======================================================
+
+        $rcyName = trim($authUser->first_name . ' ' . $authUser->last_name);
+        $patientName = trim($patient->first_name . ' ' . $patient->last_name);
+
+        // Get all admins
+        $admins = User::whereHas('userRole', function ($q) {
+            $q->whereIn('name', ['Admin', 'Super Admin']);
+        })->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(new RcyConsultationSubmitted(
+                title: 'Consultation Pending Approval',
+                message: "RCY member {$rcyName} submitted a consultation for {$patientName}. Please review and approve.",
+                url: "/admin/patients/{$patient->id}",
+                slug: "rcy-consultation"
+            ));
         }
 
         return back()->with('success', 'Consultation added successfully.');

@@ -51,6 +51,7 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
       start_at: "",
       end_at: "",
     });
+    setImagePreview(null);
     setEditEvent(null);
   };
 
@@ -69,6 +70,7 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
   const handleAdd = () => {
     clearForm();
     setEditEvent(null);
+    setImagePreview(null);
     setShowModal(true);
   };
 
@@ -513,9 +515,14 @@ function EventDescription({ text }: { text: string }) {
 
               <div>
                 <Label>Description</Label>
-                <Input
+                <textarea
                   value={data.description}
                   onChange={(e) => setData("description", e.target.value)}
+                  rows={4}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm
+                            focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
+                            dark:bg-neutral-800"
+                  placeholder="Type event description..."
                 />
               </div>
 

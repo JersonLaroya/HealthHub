@@ -12,6 +12,7 @@ class Consultation extends Model
     protected $fillable = [
         'user_id',
         'created_by',
+        'updated_by',
         'medical_complaint',
         'management_and_treatment',
         'vital_signs_id',
@@ -34,6 +35,11 @@ class Consultation extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function diseases()

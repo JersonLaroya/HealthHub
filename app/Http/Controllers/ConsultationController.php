@@ -94,6 +94,7 @@ class ConsultationController extends Controller
             'time' => $request->time,
             'medical_complaint' => $request->medical_complaint,
             'management_and_treatment' => $request->management_and_treatment,
+            'updated_by' => auth()->id(),
         ]);
 
         if ($request->filled('disease_ids')) {
@@ -142,7 +143,20 @@ class ConsultationController extends Controller
 
         $consultation->update([
             'status' => 'approved',
+            'updated_by' => auth()->id(),
         ]);
+        
+        // mark as read the notification
+        auth()->user()->unreadNotifications()
+            ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
+            ->whereRaw("data->>'url' = ?", ["/admin/patients/{$consultation->user_id}"])
+            ->update(['read_at' => now()]);
+        
+        // use this instead if you want to delete notification
+        // auth()->user()->notifications()
+        //     ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
+        //     ->whereRaw("data->>'url' = ?", ["/admin/patients/{$consultation->user_id}"])
+        //     ->delete();
 
         return back()->with('success', 'Consultation approved.');
     }
