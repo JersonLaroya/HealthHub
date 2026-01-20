@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { useEffect } from "react";
 
 interface Props {
   patient: {
@@ -27,6 +28,28 @@ const hereditaryDiseases = [
 ];
 
 export default function PreenrollmentPage6({ patient }: Props) {
+
+  // 👉 get civil status from page 2 session storage
+  const page2Data = sessionStorage.getItem('preenrollment_page_2');
+  const civilStatus = page2Data ? JSON.parse(page2Data)?.civil_status : null;
+  console.log('civil status: ', civilStatus);
+  const isMarried = civilStatus === 'Married';
+
+  useEffect(() => {
+    if (!isMarried) {
+      form.setData('family.spouse', {
+        status: '',
+        age_alive: '',
+        diseases: '',
+        medications: '',
+        age_death: '',
+        cause_death: '',
+      });
+
+      form.setData('family.children_count', '');
+      form.setData('family.children_health_problems', '');
+    }
+  }, [isMarried]);
 
   const normalizeHereditary = (data: any) => {
     if (!data.family.hereditary) {
@@ -116,12 +139,12 @@ const hereditaryValid = hereditaryErrors.every(
 );
 
 
-const spouseValid =
-  !spouse.status ||
-  (
-    (spouseAlive && spouse.age_alive && spouse.diseases && spouse.medications) ||
-    (spouseDeceased && spouse.age_death && spouse.cause_death)
-  );
+const spouseValid = !isMarried
+  ? true // not married → skip spouse validation
+  : (
+      (spouseAlive && spouse.age_alive && spouse.diseases && spouse.medications) ||
+      (spouseDeceased && spouse.age_death && spouse.cause_death)
+    );
 
 const social = form.data.social_history;
 
@@ -352,112 +375,114 @@ const socialValid = !Object.values(socialErrors).some(Boolean);
         </div>
 
         {/* SPOUSE & CHILDREN */}
-        <div className="space-y-4 mt-4">
-          <h2 className="font-medium">
-            Answer the following questions IF YOU ARE MARRIED:
-          </h2>
+        {isMarried && (
+          <div className="space-y-4 mt-4">
+            <h2 className="font-medium">
+              Answer the following questions IF YOU ARE MARRIED:
+            </h2>
 
-          {/* SPOUSE */}
-          <p className="font-medium mt-2">Spouse:</p>
-          <div className="flex gap-4">
-            {['Alive', 'Deceased'].map((s) => (
-              <label key={s} className="flex items-center gap-1">
+            {/* SPOUSE */}
+            <p className="font-medium mt-2">Spouse:</p>
+            <div className="flex gap-4">
+              {['Alive', 'Deceased'].map((s) => (
+                <label key={s} className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    checked={form.data.family.spouse.status === s}
+                    onChange={() => {
+                      if (s === 'Alive') {
+                        form.setData('family.spouse', {
+                          ...spouse,
+                          status: 'Alive',
+                          age_death: '',
+                          cause_death: '',
+                        });
+                      } else {
+                        form.setData('family.spouse', {
+                          ...spouse,
+                          status: 'Deceased',
+                          age_alive: '',
+                          diseases: '',
+                          medications: '',
+                        });
+                      }
+                    }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
+
+            {form.data.family.spouse.status === 'Alive' && (
+              <>
+              <input
+                className={`${lineInput} ${!spouse.age_alive && spouseAlive ? 'border-red-600' : ''}`}
+                placeholder="Current age"
+                value={form.data.family.spouse.age_alive}
+                onChange={(e) =>
+                  form.setData('family.spouse.age_alive', e.target.value)
+                }
+              />
+              <input
+                className={`${lineInput} ${!spouse.diseases && spouseAlive ? 'border-red-600' : ''}`}
+                placeholder="Diseases"
+                value={form.data.family.spouse.diseases}
+                onChange={(e) =>
+                  form.setData('family.spouse.diseases', e.target.value)
+                }
+              />
+              <input
+                className={`${lineInput} ${!spouse.medications && spouseAlive ? 'border-red-600' : ''}`}
+                placeholder="Maintenance medications"
+                value={form.data.family.spouse.medications}
+                onChange={(e) =>
+                  form.setData('family.spouse.medications', e.target.value)
+                }
+              />
+              </>
+            )}
+
+            {form.data.family.spouse.status === 'Deceased' && (
+              <>
                 <input
-                  type="radio"
-                  checked={form.data.family.spouse.status === s}
-                  onChange={() => {
-                    if (s === 'Alive') {
-                      form.setData('family.spouse', {
-                        ...spouse,
-                        status: 'Alive',
-                        age_death: '',
-                        cause_death: '',
-                      });
-                    } else {
-                      form.setData('family.spouse', {
-                        ...spouse,
-                        status: 'Deceased',
-                        age_alive: '',
-                        diseases: '',
-                        medications: '',
-                      });
-                    }
-                  }}
+                  className={`${lineInput} ${!spouse.age_death && spouseDeceased  ? 'border-red-600' : ''}`}
+                  placeholder="Age at time of death"
+                  value={form.data.family.spouse.age_death}
+                  onChange={(e) =>
+                    form.setData('family.spouse.age_death', e.target.value)
+                  }
                 />
-                {s}
-              </label>
-            ))}
+                <input
+                  className={`${lineInput} ${!spouse.cause_death && spouseDeceased  ? 'border-red-600' : ''}`}
+                  placeholder="Cause of death"
+                  value={form.data.family.spouse.cause_death}
+                  onChange={(e) =>
+                    form.setData('family.spouse.cause_death', e.target.value)
+                  }
+                />
+              </>
+            )}
+
+            {/* CHILDREN */}
+            <p className="font-medium mt-2">Children:</p>
+            <input
+              className={lineInput}
+              placeholder="Number of children"
+              value={form.data.family.children_count}
+              onChange={(e) =>
+                form.setData('family.children_count', e.target.value)
+              }
+            />
+            <input
+              className={lineInput}
+              placeholder="Health problems"
+              value={form.data.family.children_health_problems}
+              onChange={(e) =>
+                form.setData('family.children_health_problems', e.target.value)
+              }
+            />
           </div>
-
-          {form.data.family.spouse.status === 'Alive' && (
-            <>
-            <input
-              className={`${lineInput} ${!spouse.age_alive && spouseAlive ? 'border-red-600' : ''}`}
-              placeholder="Current age"
-              value={form.data.family.spouse.age_alive}
-              onChange={(e) =>
-                form.setData('family.spouse.age_alive', e.target.value)
-              }
-            />
-            <input
-              className={`${lineInput} ${!spouse.diseases && spouseAlive ? 'border-red-600' : ''}`}
-              placeholder="Diseases"
-              value={form.data.family.spouse.diseases}
-              onChange={(e) =>
-                form.setData('family.spouse.diseases', e.target.value)
-              }
-            />
-            <input
-              className={`${lineInput} ${!spouse.medications && spouseAlive ? 'border-red-600' : ''}`}
-              placeholder="Maintenance medications"
-              value={form.data.family.spouse.medications}
-              onChange={(e) =>
-                form.setData('family.spouse.medications', e.target.value)
-              }
-            />
-            </>
-          )}
-
-          {form.data.family.spouse.status === 'Deceased' && (
-            <>
-              <input
-                className={`${lineInput} ${!spouse.age_death && spouseDeceased  ? 'border-red-600' : ''}`}
-                placeholder="Age at time of death"
-                value={form.data.family.spouse.age_death}
-                onChange={(e) =>
-                  form.setData('family.spouse.age_death', e.target.value)
-                }
-              />
-              <input
-                className={`${lineInput} ${!spouse.cause_death && spouseDeceased  ? 'border-red-600' : ''}`}
-                placeholder="Cause of death"
-                value={form.data.family.spouse.cause_death}
-                onChange={(e) =>
-                  form.setData('family.spouse.cause_death', e.target.value)
-                }
-              />
-            </>
-          )}
-
-          {/* CHILDREN */}
-          <p className="font-medium mt-2">Children:</p>
-          <input
-            className={lineInput}
-            placeholder="Number of children"
-            value={form.data.family.children_count}
-            onChange={(e) =>
-              form.setData('family.children_count', e.target.value)
-            }
-          />
-          <input
-            className={lineInput}
-            placeholder="Health problems"
-            value={form.data.family.children_health_problems}
-            onChange={(e) =>
-              form.setData('family.children_health_problems', e.target.value)
-            }
-          />
-        </div>
+        )}
 
         {/* HEREDITARY TABLE */}
         <div className="overflow-x-auto">

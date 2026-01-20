@@ -11,7 +11,7 @@ import { fillClinicConsultationRecordForm } from '@/utils/fillClinicConsultation
 import { Textarea } from "@/components/ui/textarea";
 
 export default function Show({ patient, consultations, breadcrumbs = [], schoolYear }) {
-
+  
   async function handleOpenPdf(patient, consultations) {
     const pdfBlob = await fillClinicConsultationRecordForm(patient, consultations, schoolYearState)
     const url = URL.createObjectURL(pdfBlob)
@@ -21,6 +21,12 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   console.log("initial vital sign: ", patient.vital_sign);
  
   const { auth, diseases } = usePage().props;
+
+  const role = auth.user?.user_role?.name?.toLowerCase();
+  const prefix = role === "nurse" ? "nurse" : "admin"; 
+
+  const canApprove = role === 'admin' || role === 'nurse';
+  const isAdmin = role === 'admin';
 
   const [schoolYearState, setSchoolYearState] = useState(schoolYear ?? "");
   const [selectingDiseases, setSelectingDiseases] = useState(false);
@@ -92,7 +98,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
   const handleAddConsultation = (e) => {
     e.preventDefault();
-    postConsultation(`/admin/patients/${patient.id}/consultations`, {
+    postConsultation(`/${prefix}/patients/${patient.id}/consultations`, {
       onSuccess: () => {
         toast.success("Consultation added successfully.");
         setAddingConsultation(false);
@@ -119,7 +125,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   const [editing, setEditing] = useState(false);
 
   const handleViewMedicalFiles = () => {
-    router.get(`/admin/patients/${patient.id}/files`);
+    router.get(`/${prefix}/patients/${patient.id}/files`);
   };
 
   const handleSubmit = (e) => {
@@ -127,7 +133,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
     console.log("EDIT SUBMIT DATA:", data);
 
-    put(`/admin/patients/${patient.id}`, {
+    put(`/${prefix}/patients/${patient.id}`, {
       onSuccess: () => { 
         setEditing(false);
         toast.success("Updated successfully.");
@@ -193,7 +199,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     e.preventDefault();
     if (!editingConsultation) return;
 
-    putConsultation(`/admin/patients/${patient.id}/consultations/${editingConsultation.id}`, {
+    putConsultation(`/${prefix}/patients/${patient.id}/consultations/${editingConsultation.id}`, {
       onSuccess: () => {
         closeEditConsultation();
         toast.success("Consultation updated successfully.");
@@ -209,7 +215,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     if (!consultationToDelete) return;
     setDeleting(true);
 
-    router.delete(`/admin/patients/${patient.id}/consultations/${consultationToDelete.id}`, {
+    router.delete(`/${prefix}/patients/${patient.id}/consultations/${consultationToDelete.id}`, {
       onSuccess: () => {
         toast.success("Consultation deleted.");
         setShowDeleteModal(false);
@@ -229,9 +235,17 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     const channel = echo.private("admin-consultations");
 
     channel.listen(".rcy.consultation.created", (e: any) => {
-      // only reload if this is the patient currently open
       if (e.patientId === patient.id) {
         router.reload({ only: ["consultations"] });
+      }
+    });
+
+    channel.listen(".consultation.approved", (e: any) => {
+      if (e.patientId === patient.id) {
+        router.reload({ only: ["consultations"] });
+
+        // force notification refresh in THIS browser
+        window.dispatchEvent(new Event("notifications-updated"));
       }
     });
 
@@ -290,7 +304,10 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
           {/* BASIC INFO */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm items-center">
             <div className="col-span-1 sm:col-span-2">
-              <strong>Role:</strong> {patient?.user_role?.name || "-"}
+              <strong>Role:</strong>{" "}
+                {["Faculty", "Staff"].includes(patient?.user_role?.name)
+                  ? patient.user_role.name
+                  : "Student"}
             </div>
             <div className="col-span-1 sm:col-span-2">
               <strong>Blood Type:</strong> {patient.vital_sign?.blood_type || "-"}
@@ -367,7 +384,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                 <th className="p-2 text-left border-b">Management & Treatment</th>
                 <th className="p-2 text-left border-b">Updated By</th>
                 <th className="p-2 text-left border-b">Status</th>
-                {auth.user?.user_role?.name?.toLowerCase() === 'admin' && (
+                {canApprove && (
                   <th className="p-2 text-left border-b">Actions</th>
                 )}
               </tr>
@@ -500,50 +517,57 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                         )}
                       </td>
 
-                      {auth.user?.user_role?.name?.toLowerCase() === 'admin' && (
+                      {canApprove && (
                         <td className="p-2 border-b align-bottom">
                           <div className="flex gap-2 justify-start items-end h-full min-h-[100%]">
+
+                            {/* Approve: Admin + Nurse */}
                             <Button
                               size="sm"
                               className="w-full sm:w-auto px-2 sm:px-3"
                               disabled={c.status === 'approved' || approvingId === c.id}
                               onClick={() => {
-                                setApprovingId(c.id); // start approving
+                                setApprovingId(c.id);
 
                                 router.patch(
-                                  `/admin/patients/${patient.id}/consultations/${c.id}/approve`,
+                                  `/${role}/patients/${patient.id}/consultations/${c.id}/approve`,
                                   {},
                                   {
                                     preserveScroll: true,
                                     onSuccess: () => {
                                       toast.success("Consultation approved.");
-
-                                      // force header to reload notifications
                                       window.dispatchEvent(new Event("notifications-updated"));
                                     },
-                                    onError: () => {
-                                      toast.error("Failed to approve consultation.");
-                                    },
-                                    onFinish: () => {
-                                      setApprovingId(null); // reset state
-                                    },
+                                    onError: () => toast.error("Failed to approve consultation."),
+                                    onFinish: () => setApprovingId(null),
                                   }
                                 );
                               }}
                             >
-                              {c.status === 'approved' ? 'Approved' : approvingId === c.id ? 'Approving...' : 'Approve'}
+                              {c.status === 'approved'
+                                ? 'Approved'
+                                : approvingId === c.id
+                                ? 'Approving...'
+                                : 'Approve'}
                             </Button>
-                            <Button size="sm" onClick={() => openEditConsultation(c)}>Edit</Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => { 
-                                setConsultationToDelete(c); 
-                                setShowDeleteModal(true); 
-                              }}
-                            >
-                              Delete
-                            </Button>
+
+                            {/* Edit/Delete: Admin only */}
+                            {isAdmin && (
+                              <>
+                                <Button size="sm" onClick={() => openEditConsultation(c)}>Edit</Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => { 
+                                    setConsultationToDelete(c); 
+                                    setShowDeleteModal(true); 
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       )}

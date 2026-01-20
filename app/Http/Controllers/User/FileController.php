@@ -15,6 +15,8 @@ use App\Models\Disease;
 use Illuminate\Support\Facades\Storage;
 use App\Services\MedicalNotificationService;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Notifications\FormSubmitted;
 
 class FileController extends Controller
 {
@@ -427,11 +429,96 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             'response_data'   => $responses,
         ]);
 
+        // notify Admin & Nurse
+        $staff = User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->get();
+
+        foreach ($staff as $user) {
+            $user->notify(new FormSubmitted(
+                $service->title,
+                auth()->user()->name,
+                auth()->id(),          // patient id
+                $service->slug        // form slug
+            ));
+        }
+
         // remove related notification
-        if ($formType === 'pre-enrollment-health-form') {
-            auth()->user()->notifications()
-                ->where('data->slug', 'pre-enrollment')
-                ->delete();
+        if (in_array($formType, [
+            'pre-enrollment-health-form',
+            'pre-employment-health-form',
+        ])) {
+
+            // create empty vital signs snapshot
+            $vital = VitalSign::create([
+                'user_id' => Auth::id(),
+                'bp' => null,
+                'rr' => null,
+                'pr' => null,
+                'temp' => null,
+                'o2_sat' => null,
+                'height' => null,
+                'weight' => null,
+                'bmi' => null,
+            ]);
+
+            // create consultation
+            $consultation = Consultation::create([
+                'user_id' => Auth::id(),
+                'date' => now()->toDateString(),
+                'time' => now()->format('H:i'),
+                'vital_signs_id' => $vital->id,
+                'medical_complaint' => 'Initial record / consultation',
+                'management_and_treatment' => 'For evaluation and monitoring.',
+                'created_by' => Auth::id(),
+                'status' => 'pending',
+            ]);
+
+            // attach consultation to the record
+            $record->update([
+                'consultation_id' => $consultation->id,
+            ]);
+
+            // -------------------------------
+            // GET DISEASES (DIFFERENT PAGE PER FORM)
+            // -------------------------------
+
+            $diseasePage = $formType === 'pre-employment-health-form'
+                ? ($responses['page3']['age_have'] ?? [])
+                : ($responses['page4']['age_have'] ?? []);
+
+            if (!empty($diseasePage)) {
+
+                $diseaseLabels = $this->diseaseProblemsPage4(); // same labels list
+
+                $selectedFrontendDiseases = collect($diseasePage)
+                    ->map(function ($item, $index) use ($diseaseLabels) {
+                        if (isset($item['na']) && $item['na'] === false && isset($diseaseLabels[$index])) {
+                            return $diseaseLabels[$index];
+                        }
+                        return null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                $dbDiseaseNames = collect($selectedFrontendDiseases)
+                    ->map(fn ($name) => $this->mapPage4DiseaseToDbName($name))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
+                if (!empty($dbDiseaseNames)) {
+                    $diseaseIds = Disease::whereIn('name', $dbDiseaseNames)
+                        ->pluck('id')
+                        ->toArray();
+
+                    if (!empty($diseaseIds)) {
+                        $consultation->diseases()->sync($diseaseIds);
+                    }
+                }
+            }
         }
 
         if ($formType === 'pre-employment-health-form') {

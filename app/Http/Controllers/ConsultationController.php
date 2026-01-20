@@ -11,6 +11,7 @@ use App\Models\Consultation;
 use App\Models\RcyMember;
 use App\Models\VitalSign;
 use Illuminate\Support\Facades\Auth;
+use App\Events\ConsultationApproved;
 
 class ConsultationController extends Controller
 {
@@ -126,7 +127,7 @@ class ConsultationController extends Controller
         // Delete consultation
         $consultation->delete();
 
-        // Delet the notification
+        // Delete the notification
         User::whereHas('notifications', function ($q) use ($consultation) {
             $q->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
             ->whereRaw("data->>'consultation_id' = ?", [(string) $consultation->id]);
@@ -156,12 +157,19 @@ class ConsultationController extends Controller
             'status' => 'approved',
             'updated_by' => auth()->id(),
         ]);
+
+        event(new ConsultationApproved($consultation->user_id, $consultation->id));
         
-        // mark the notification as read
-        auth()->user()->unreadNotifications()
-            ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
-            ->whereRaw("data->>'consultation_id' = ?", [(string) $consultation->id])
-            ->update(['read_at' => now()]);
+        // mark the notification as read for both Admin and Nurse
+        User::whereHas('userRole', function ($q) {
+            $q->whereIn('name', ['Admin', 'Nurse']);
+        })->each(function ($user) use ($consultation) {
+
+            $user->unreadNotifications()
+                ->whereRaw("data->>'slug' = ?", ['rcy-consultation'])
+                ->whereRaw("data->>'consultation_id' = ?", [(string) $consultation->id])
+                ->update(['read_at' => now()]);
+        });
 
         return back()->with('success', 'Consultation approved.');
     }

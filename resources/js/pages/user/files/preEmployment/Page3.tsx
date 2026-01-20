@@ -72,7 +72,7 @@ export default function PreemploymentPage3({ patient }: Props) {
         na: false,
       })),
     immunization:
-      parsedData.immunization ?? Array(15).fill(''),
+      parsedData.immunization ?? Array(15).fill('N/A'),
   });
 
   const canProceedHealthConditions = form.data.age_have.every(
@@ -217,6 +217,10 @@ export default function PreemploymentPage3({ patient }: Props) {
         <h2 className="text-lg font-semibold mt-6">
           IMMUNIZATION RECORD
         </h2>
+        <p className="text-xs text-gray-500 italic">
+          All immunization fields are set to <span className="font-medium">N/A</span> by default.  
+          Please update only those that apply to you.
+        </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm justify-center">
           {/* COLUMN 1 */}
@@ -238,16 +242,24 @@ export default function PreemploymentPage3({ patient }: Props) {
                 <span className="flex-1">
                   {label}
                 </span>
-                <input
-                  className={lineInputWide}
-                  value={form.data.immunization[idx]}
-                  onChange={(e) =>
-                    form.setData(
-                      `immunization.${idx}`,
-                      e.target.value
-                    )
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    className={lineInputWide}
+                    value={form.data.immunization[idx]}
+                    onChange={(e) =>
+                      form.setData(`immunization.${idx}`, e.target.value)
+                    }
+                    onBlur={() => {
+                      if (!form.data.immunization[idx]?.trim()) {
+                        form.setData(`immunization.${idx}`, "N/A");
+                      }
+                    }}
+                  />
+
+                  {form.data.immunization[idx] === "N/A" && (
+                    <span className="text-xs text-gray-500 italic">N/A</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -270,16 +282,24 @@ export default function PreemploymentPage3({ patient }: Props) {
                 <span className="flex-1">
                   {label}
                 </span>
-                <input
-                  className={lineInputWide}
-                  value={form.data.immunization[idx]}
-                  onChange={(e) =>
-                    form.setData(
-                      `immunization.${idx}`,
-                      e.target.value
-                    )
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    className={lineInputWide}
+                    value={form.data.immunization[idx]}
+                    onChange={(e) =>
+                      form.setData(`immunization.${idx}`, e.target.value)
+                    }
+                    onBlur={() => {
+                      if (!form.data.immunization[idx]?.trim()) {
+                        form.setData(`immunization.${idx}`, "N/A");
+                      }
+                    }}
+                  />
+
+                  {form.data.immunization[idx] === "N/A" && (
+                    <span className="text-xs text-gray-500 italic">N/A</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

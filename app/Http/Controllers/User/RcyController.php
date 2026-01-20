@@ -77,16 +77,21 @@ class RcyController extends Controller
         $rcyName = trim($authUser->first_name . ' ' . $authUser->last_name);
         $patientName = trim($patient->first_name . ' ' . $patient->last_name);
 
-        // Get all admins
-        $admins = User::whereHas('userRole', function ($q) {
-            $q->whereIn('name', ['Admin', 'Super Admin']);
+        // Get all admins and Nurses
+        $staff = User::whereHas('userRole', function ($q) {
+            $q->whereIn('name', ['Admin', 'Super Admin', 'Nurse']);
         })->get();
 
-        foreach ($admins as $admin) {
-            $admin->notify(new RcyConsultationSubmitted(
+        foreach ($staff as $user) {
+
+            // choose URL based on role
+            $prefix = strtolower(str_replace(' ', '', $user->userRole->name)); 
+            // admin / nurse / superadmin (if you use it)
+
+            $user->notify(new RcyConsultationSubmitted(
                 title: 'Consultation Pending Approval',
                 message: "RCY member {$rcyName} submitted a consultation for {$patientName}. Please review and approve.",
-                url: "/admin/patients/{$patient->id}?consultation={$consultation->id}", // 👈 unique per consultation
+                url: "/{$prefix}/patients/{$patient->id}?consultation={$consultation->id}",
                 slug: "rcy-consultation",
                 consultationId: $consultation->id
             ));

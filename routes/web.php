@@ -344,7 +344,9 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('nurse.patients.show');
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('nurse.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
-        //Route::get('/patients/{patient}/forms', [PatientController::class, 'forms'])->name('nurse.patients.forms');
+        Route::get('/patients/{patient}/files', [PatientController::class, 'files']);
+        Route::get('/patients/{patient}/files/{slug}', [PatientController::class, 'showFile']);
+        Route::get('/patients/{patient}/files/{slug}/records/{record}', [PatientController::class, 'viewRecord']);
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('nurse.patients.consultations.approve');
     });
 });

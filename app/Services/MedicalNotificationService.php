@@ -82,7 +82,14 @@ class MedicalNotificationService
                 ->where('response_data->school_year', $currentSY)
                 ->exists();
 
-            if (! $exists && ! self::alreadyNotified($user, 'pre-enrollment')) {
+            if (! $exists) {
+
+                // always remove old first
+                $user->notifications()
+                    ->where('data->slug', 'pre-enrollment')
+                    ->delete();
+
+                // then notify again (forces broadcast)
                 $user->notify(new MissingRequiredRecord(
                     "You haven't submitted your Pre-Enrollment form for SY {$currentSY}.",
                     'pre-enrollment'
@@ -102,7 +109,12 @@ class MedicalNotificationService
                 ->where('response_data->school_year', $currentSY)
                 ->exists();
 
-            if (! $exists && ! self::alreadyNotified($user, 'pre-employment')) {
+            if (! $exists) {
+
+                $user->notifications()
+                    ->where('data->slug', 'pre-employment')
+                    ->delete();
+
                 $user->notify(new MissingRequiredRecord(
                     "You haven't submitted your Pre-Employment form for SY {$currentSY}.",
                     'pre-employment'

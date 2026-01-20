@@ -5,47 +5,51 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class MissingRequiredRecord extends Notification
+class MissingRequiredRecord extends Notification implements ShouldBroadcast
 {
     use Queueable;
 
-    protected string $message;
-    protected string $slug;
-
-    public function __construct(string $message, string $slug)
-    {
-        $this->message = $message;
-        $this->slug = $slug;
-    }
+    public function __construct(
+        public string $message,
+        public string $slug
+    ) {}
 
     public function via($notifiable)
     {
-        return ['database', 'mail'];
+        return ['database', 'broadcast', 'mail'];
+    }
+
+    protected function payload()
+    {
+        return [
+            'title' => 'Missing medical requirement',
+            'message' => $this->message,
+            'slug' => $this->slug,
+            'url' => '/user/files',
+        ];
     }
 
     public function toDatabase($notifiable)
     {
-        return [
-            'title'   => 'Medical Requirement',
-            'message' => $this->message,
-            'slug'    => $this->slug,
-            'url'     => match ($this->slug) {
-                'personal-info'  => '/user/personal-info',
-                'pre-enrollment' => '/user/files/pre-enrollment-health-form',
-                'pre-employment' => '/user/files/pre-employment-health-form',
-                default => '/user/files',
-            },
-        ];
+        return $this->payload();
+    }
+
+    public function toBroadcast($notifiable)
+    {
+        return new BroadcastMessage($this->payload());
     }
 
     public function toMail($notifiable)
     {
         return (new MailMessage)
-            ->subject('Medical Requirement Needed')
-            ->greeting("Hello {$notifiable->first_name},")
+            ->subject('Missing Medical Requirement')
+            ->greeting('Hello ' . $notifiable->name . ',')
             ->line($this->message)
-            ->action('Complete Now', url($this->toDatabase($notifiable)['url']))
-            ->line('This is required to continue using HealthHub services.');
+            ->line('Please log in and submit the required medical form.')
+            ->action('Go to my files', url('/user/files'))
+            ->line('Thank you.');
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\LabResult;
 use Illuminate\Support\Facades\Storage;
+use App\Services\MedicalNotificationService;
 
 class PatientController extends Controller
 {
@@ -285,6 +286,9 @@ class PatientController extends Controller
 
         $record->delete();
 
+        // Re-check medical requirements and fire notifications again
+        MedicalNotificationService::check($patient);
+
         return back()->with('success', 'Record deleted successfully.');
     }
 
@@ -313,6 +317,9 @@ class PatientController extends Controller
         $record->update([
             'lab_result_id' => null,
         ]);
+
+        // Re-check medical requirements and fire notifications again
+        MedicalNotificationService::check($record->user);
 
         return back()->with('success', 'Laboratory result deleted successfully.');
     }

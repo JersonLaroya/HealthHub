@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { usePage } from "@inertiajs/react";
 
 interface Props {
   patient: {
@@ -29,6 +30,11 @@ export default function Files({ patient, assignments, breadcrumbs = [] }: Props)
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   };
+
+  const { auth } = usePage().props as any;
+
+  const role = auth?.user?.user_role?.name?.toLowerCase();
+  const prefix = role === "nurse" ? "nurse" : "admin";
 
   // Determine pre-form based on role
   const preForm =
@@ -84,7 +90,7 @@ export default function Files({ patient, assignments, breadcrumbs = [] }: Props)
           {forms.map((form) => (
             <Link
               key={form.slug}
-              href={`/admin/patients/${patient.id}/files/${form.slug}`} // dynamic link to show the form
+              href={`/${prefix}/patients/${patient.id}/files/${form.slug}`}
               className="block rounded-lg border border-gray-200 dark:border-neutral-700 p-6 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-neutral-800 min-h-[100px]"
             >
               <h2 className="text-xl font-semibold">{form.title}</h2>

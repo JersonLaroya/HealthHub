@@ -39,6 +39,9 @@ export default function ShowFile({ patient, service, records }: Props) {
   
   const { props } = usePage();
   const loggedInUser = props.auth.user;
+  const isAdmin = loggedInUser?.user_role?.name === "Admin";
+  const role = loggedInUser?.user_role?.name?.toLowerCase();
+  const prefix = role === "nurse" ? "nurse" : "admin";
 
 
     const handleViewPdf = async (recordId: number) => {
@@ -46,7 +49,7 @@ export default function ShowFile({ patient, service, records }: Props) {
         setViewingRecordId(recordId);
 
         const res = await fetch(
-        `/admin/patients/${patient.id}/files/${service.slug}/records/${recordId}`
+        `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${recordId}`
         );
 
         if (!res.ok) {
@@ -84,13 +87,17 @@ export default function ShowFile({ patient, service, records }: Props) {
     if (!confirm("Are you sure you want to delete this record?")) return;
 
     router.delete(
-        `/admin/patients/${patient.id}/files/${service.slug}/records/${recordId}`,
+        `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${recordId}`,
         {
             onSuccess: () => {
-            setRecordList((prev) => prev.filter((r) => r.id !== recordId));
-            toast.success("Record deleted", {
-                description: `Record #${recordId} removed successfully.`,
-            });
+                setRecordList((prev) => prev.filter((r) => r.id !== recordId));
+
+                toast.success("Record deleted", {
+                    description: `Record #${recordId} removed successfully.`,
+                });
+
+                // force notification refresh (no page reload)
+                window.dispatchEvent(new Event("notifications-updated"));
             },
             onError: (err) => {
             toast.error("Delete failed", { description: "Please try again." });
@@ -162,7 +169,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                             {viewingRecordId === record.id ? "Viewing…" : "View PDF"}
                         </Button>
 
-                        {service.slug === "pre-enrollment-health-form" && (
+                        {isAdmin && service.slug === "pre-enrollment-health-form" && (
                             <Button
                                 size="sm"
                                 variant="secondary"
@@ -176,7 +183,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                             </Button>
                         )}
 
-                        {service.slug === "athlete-medical" && (
+                        {isAdmin && service.slug === "athlete-medical" && (
                             <Button
                                 size="sm"
                                 variant="secondary"
@@ -230,13 +237,15 @@ export default function ShowFile({ patient, service, records }: Props) {
                             </Button>
                             )}
 
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDeletingRecord(record)}
-                        >
-                          Delete
-                        </Button>
+                        {isAdmin && (
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setDeletingRecord(record)}
+                            >
+                                Delete
+                            </Button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -553,7 +562,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                 onClick={async () => {
                     try {
                     await router.put(
-                        `/admin/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
+                        `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
                         { responses: formData },
                         {
                         onSuccess: () => {
@@ -602,7 +611,7 @@ export default function ShowFile({ patient, service, records }: Props) {
 
                 try {
                 await router.delete(
-                    `/admin/patients/${patient.id}/files/${service.slug}/records/${deletingRecord.id}`,
+                    `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${deletingRecord.id}`,
                     {
                     onSuccess: () => {
                         setRecordList((prev) =>
@@ -611,6 +620,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                         toast.success("Record deleted", {
                         description: `Record #${deletingRecord.id} removed successfully.`,
                         });
+                        window.dispatchEvent(new Event("notifications-updated"));
                         setDeletingRecord(null);
                     },
                     onError: () => {
@@ -690,7 +700,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                     onClick={async () => {
                         try {
                         await router.put(
-                            `/admin/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
+                            `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
                             { responses: formData },
                             {
                             onSuccess: () => {

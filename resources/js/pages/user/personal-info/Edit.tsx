@@ -255,7 +255,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
         return;
       }
 
-      // ✅ valid transparent image
+      // valid transparent image
       const base64 = canvas.toDataURL("image/png");
       setUploadedSignature(base64);
       setSignaturePreview(base64);
@@ -274,10 +274,12 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
 
     let v = value.trim();
 
-    // Remove existing "purok" word (any case)
-    v = v.replace(/^purok\s*/i, "");
+    // remove variations like: purok, puko, pur0k (case-insensitive)
+    v = v.replace(/^(pu?ro?k|puko|pur0k)\s*/i, "");
 
-    // Capitalize and add "Purok "
+    // extract number or text after
+    v = v.trim();
+
     return v ? `Purok ${v}` : "";
   };
 
@@ -316,6 +318,41 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
         });
       },
     });
+  };
+
+  const copyHomeToPresent = async () => {
+    // copy province
+    setData("present_province_name", data.home_province_name);
+    setData("present_province_code", data.home_province_code);
+    setPresentProvinceCode(data.home_province_code);
+
+    // load municipalities of home province
+    const municipalities = await fetch(
+      `https://psgc.gitlab.io/api/provinces/${data.home_province_code}/municipalities/`
+    ).then(res => res.json());
+
+    setPresentMunicipalities(municipalities);
+
+    // copy municipality
+    setData("present_municipality_name", data.home_municipality_name);
+    setData("present_municipality_code", data.home_municipality_code);
+    setPresentMunicipalityCode(data.home_municipality_code);
+
+    // load barangays of home municipality
+    if (data.home_municipality_code) {
+      const barangays = await fetch(
+        `https://psgc.gitlab.io/api/municipalities/${data.home_municipality_code}/barangays/`
+      ).then(res => res.json());
+
+      setPresentBarangays(barangays);
+    }
+
+    // copy barangay & purok
+    setData("present_barangay_name", data.home_barangay_name);
+    setData("present_barangay_code", data.home_barangay_code);
+    setData("present_purok", data.home_purok);
+
+    toast.success("Present address set same as home address");
   };
 
   return (
@@ -430,8 +467,8 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 onChange={(e) => {
                   const selectedProvince = provinces.find(p => p.code === e.target.value);
                   //setHomeProvinceName(selectedProvince?.code || "");
-                  setData("home_province_name", selectedProvince?.name || "");
-                  setData("home_province_code", selectedProvince?.code || "");
+                  setHomeProvinceCode(selectedProvince?.code || "");
+                  setHomeMunicipalityCode("");
 
                   // RESET municipality & barangay
                   setData("home_municipality_name", "");
@@ -456,7 +493,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.home_municipality_code}
                 onChange={(e) => {
                   const selectedMunicipality = homeMunicipalities.find(m => m.code === e.target.value);
-                  //setHomeMunicipalityName(selectedMunicipality?.code || "");
+                  setHomeMunicipalityCode(selectedMunicipality?.code || "");
                   setData("home_municipality_name", selectedMunicipality?.name || "");
                   setData("home_municipality_code", selectedMunicipality?.code || "");
                   if (selectedMunicipality) {
@@ -493,11 +530,26 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 placeholder="ex. Purok 1"
                 value={data.home_purok}
                 onChange={(e) => setData("home_purok", e.target.value)}
+                onBlur={() => setData("home_purok", normalizePurok(data.home_purok))}
               />
 
 
               {/* Present Address */}
               <h2 className="font-semibold mt-4">Present Address</h2>
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  If your present address is the same as your home address
+                </p>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={copyHomeToPresent}
+                >
+                  Same as Home Address
+                </Button>
+              </div>
               <Label>Province</Label>
               <select
                 className="w-full border p-2 rounded"
@@ -565,6 +617,7 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 placeholder="ex. Purok 1"
                 value={data.present_purok}
                 onChange={(e) => setData("present_purok", e.target.value)}
+                onBlur={() => setData("present_purok", normalizePurok(data.present_purok))}
               />
 
 

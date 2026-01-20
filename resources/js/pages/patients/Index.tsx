@@ -6,8 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import SortableHeader from "@/components/custom/sort-table-header";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { usePage } from "@inertiajs/react";
 
 export default function Index({ patients = { data: [] }, filters = {}, breadcrumbs = [] }) {
+  const { auth } = usePage().props as any;
+
+  const role = auth?.user?.user_role?.name?.toLowerCase();
+  const prefix = role === "nurse" ? "nurse" : "admin"; 
+
   const [search, setSearch] = useState(filters.q || "");
   const [sort, setSort] = useState(filters.sort || "created_at");
   const [direction, setDirection] = useState(filters.direction || "desc");
@@ -16,20 +22,20 @@ export default function Index({ patients = { data: [] }, filters = {}, breadcrum
     const newDirection = sort === column && direction === "asc" ? "desc" : "asc";
     setSort(column);
     setDirection(newDirection);
-    router.get(`/admin/patients`, { q: search, sort: column, direction: newDirection }, { preserveState: true });
+    router.get(`/${prefix}/patients`, { q: search, sort: column, direction: newDirection }, { preserveState: true });
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    router.get(`/admin/patients`, { q: search, sort, direction }, { preserveState: true });
+    router.get(`/${prefix}/patients`, { q: search, sort, direction }, { preserveState: true });
   };
 
   const handleViewConsultation = (patient) => {
-    router.get(`/admin/patients/${patient.id}`);
+    router.get(`/${prefix}/patients/${patient.id}`);
   };
 
   const handleViewMedicalFiles = (patient) => {
-    router.get(`/admin/patients/${patient.id}/files`);
+    router.get(`/${prefix}/patients/${patient.id}/files`);
   };
 
   return (

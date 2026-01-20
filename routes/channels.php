@@ -30,9 +30,5 @@ Broadcast::channel('chat.{userId}', function ($user, $userId) {
 });
 
 Broadcast::channel('admin-consultations', function ($user) {
-    return in_array($user->userRole->name, ['Admin', 'Super Admin', 'Nurse']);
-});
-
-Broadcast::channel('admin-consultations', function ($user) {
     return in_array($user->userRole->name, ['Admin', 'Nurse']);
 });
