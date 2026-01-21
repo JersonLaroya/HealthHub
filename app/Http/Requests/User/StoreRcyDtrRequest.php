@@ -40,7 +40,6 @@ class StoreRcyDtrRequest extends FormRequest
             'medical_complaint' => 'required|string|max:255',
             'disease_ids' => 'nullable|array',
             'disease_ids.*' => 'exists:list_of_diseases,id',
-            'management_and_treatment' => 'required|string|max:255',
         ];
     }
 }

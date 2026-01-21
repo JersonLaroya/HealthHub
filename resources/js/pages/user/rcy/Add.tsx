@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { toast } from "sonner";
@@ -15,6 +15,12 @@ export default function AddDtr({ diseases }: any) {
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const clearForm = () => {
     setData({
       name: "",
@@ -26,7 +32,6 @@ export default function AddDtr({ diseases }: any) {
       time: getCurrentTime(),
 
       medical_complaint: "",
-      management_and_treatment: "",
 
       bp: "",
       rr: "",
@@ -57,7 +62,6 @@ export default function AddDtr({ diseases }: any) {
     time: getCurrentTime(),
 
     medical_complaint: "",
-    management_and_treatment: "",
 
     bp: "",
     rr: "",
@@ -77,6 +81,7 @@ export default function AddDtr({ diseases }: any) {
   const [loading, setLoading] = useState(false);
   const [selectingDiseases, setSelectingDiseases] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
     const h = parseFloat(data.height);
@@ -100,33 +105,81 @@ export default function AddDtr({ diseases }: any) {
     return age;
   };
 
+  useEffect(() => {
+    setPatientResults([]);
+    setPage(1);
+    setHasMore(false);
+    setHasSearched(false);
+    isFetchingRef.current = false;
+  }, [searchTerm]);
+
   console.log(data);
 
   // Patient search
   useEffect(() => {
-    if (!searchTerm) return;
+    if (searchTerm.length < 2) {
+      setPatientResults([]);
+      setHasMore(false);
+      return;
+    }
+
+    if (page === 1 && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const timeout = setTimeout(async () => {
-      if (searchTerm.length < 2) {
-        setPatientResults([]);
-        return;
-      }
-      setLoading(true);
       try {
-        const res = await fetch(`/user/patients/search?q=${encodeURIComponent(searchTerm)}`);
-        const data = await res.json();
-        setPatientResults(data);
-      } catch (error) {
-        console.error("Search error:", error);
+        setLoading(true);
+        isFetchingRef.current = true;
+
+        const res = await fetch(
+          `/user/patients/search?q=${encodeURIComponent(searchTerm)}&page=${page}`,
+          { signal: controller.signal }
+        );
+
+        const json = await res.json();
+
+        setPatientResults(prev => {
+          if (page === 1) return json.data || [];
+
+          const ids = new Set(prev.map(p => p.id));
+          const filtered = (json.data || []).filter((p: any) => !ids.has(p.id));
+          return [...prev, ...filtered];
+        });
+
+        setHasMore(!!json.has_more);
+        setHasSearched(true);
+      } catch (e: any) {
+        if (e.name !== "AbortError") console.error(e);
       } finally {
         setLoading(false);
+        isFetchingRef.current = false;
       }
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [searchTerm]);
+    }, 400);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [searchTerm, page]);
+
+  const handleScroll = () => {
+    if (!listRef.current || !hasMore || isFetchingRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+
+    if (scrollTop + clientHeight >= scrollHeight - 10) {
+      isFetchingRef.current = true;
+      setPage(p => p + 1);
+    }
+  };
 
   const handleAddDtr = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!data.name || !data.medical_complaint || !data.management_and_treatment) {
+    if (!data.name || !data.medical_complaint) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -207,8 +260,12 @@ if (!selectedPatientId) {
                       )}
 
                       {/* Search results dropdown */}
-                      {patientResults.length > 0 && (
-                        <div className="absolute z-10 w-full max-h-60 overflow-y-auto border mt-1 bg-white dark:bg-neutral-800">
+                      {searchTerm.length >= 2 && (
+                        <div
+                          ref={listRef}
+                          onScroll={handleScroll}
+                          className="absolute z-10 w-full max-h-60 overflow-y-auto border mt-1 bg-white dark:bg-neutral-800"
+                        >
                           {patientResults.map((patient) => (
                             <button
                               key={patient.id}
@@ -219,17 +276,45 @@ if (!selectedPatientId) {
                                   name: patient.name,
                                   age: calculateAge(patient.birthdate),
                                   sex: patient.sex,
-                                  course_year_office: patient.course ? `${patient.course} ${patient.yearLevel}` : patient.office,
+                                  course_year_office: patient.course
+                                    ? `${patient.course} ${patient.yearLevel ?? ""}`
+                                    : patient.office,
                                 });
                                 setSelectedPatientId(patient.id);
                                 setPatientQuery(patient.name);
                                 setPatientResults([]);
+                                setSearchTerm(""); 
+                                setPage(1);
+                                setHasMore(false);
                               }}
                               className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-neutral-700 text-sm"
                             >
-                              {patient.name} - {patient.course ?? patient.office}
+                              <div className="flex justify-between gap-2">
+                                <span className="font-medium">{patient.name}</span>
+                                <span className="text-xs text-gray-400 whitespace-nowrap">
+                                  {patient.course ?? patient.office} {patient.yearLevel ?? ""}
+                                </span>
+                              </div>
                             </button>
                           ))}
+
+                          {loading && (
+                            <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                              Loading...
+                            </div>
+                          )}
+
+                          {hasMore && !loading && (
+                            <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                              Scroll to load more…
+                            </div>
+                          )}
+
+                          {hasSearched && !loading && patientResults.length === 0 && searchTerm.length >= 2 && (
+                            <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                              No patients found
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -303,16 +388,6 @@ if (!selectedPatientId) {
                         : <span className="text-gray-500 text-sm">No diseases selected</span>}
                     </div>
                     <Button type="button" size="sm" onClick={() => setSelectingDiseases(true)}>Select Diseases</Button>
-                  </div>
-
-                  {/* Management */}
-                  <div>
-                    <Label>Management & Treatment</Label>
-                    <Textarea
-                      value={data.management_and_treatment}
-                      onChange={(e) => setData("management_and_treatment", e.target.value)}
-                      placeholder="Enter management & treatment"
-                    />
                   </div>
 
                   {/* Buttons */}

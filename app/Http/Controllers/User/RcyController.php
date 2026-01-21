@@ -57,7 +57,6 @@ class RcyController extends Controller
             'time' => $request->time,
             'vital_signs_id' => $vitalSigns->id,
             'medical_complaint' => $request->medical_complaint,
-            'management_and_treatment' => $request->management_and_treatment,
             'created_by' => $authUser->id,
             'status' => $status,
         ]);
@@ -103,37 +102,66 @@ class RcyController extends Controller
 
     // Live search for patients
     public function searchPatients(Request $request)
-{
-    $search = trim($request->input('q'));
-    $terms = explode(' ', $search);
+    {
+        $search = strtolower(trim($request->input('q', '')));
+        $page = max((int) $request->input('page', 1), 1);
+        $perPage = 10;
+        $offset = ($page - 1) * $perPage;
 
-    $patients = User::with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
-        ->whereHas('userRole', function ($q) {
-            $q->whereIn(\DB::raw('LOWER(category)'), ['user', 'rcy']);
-        })
-        ->where(function ($q) use ($terms) {
-            foreach ($terms as $term) {
-                $q->where(function ($q2) use ($term) {
-                    $q2->whereRaw('LOWER(first_name) LIKE ?', ["%".strtolower($term)."%"])
-                       ->orWhereRaw('LOWER(last_name) LIKE ?', ["%".strtolower($term)."%"]);
-                });
-            }
-        })
-        ->limit(10)
-        ->get()
-        ->map(function ($user) {
-            return [
-                'id' => $user->id,
-                'name' => trim("{$user->first_name} " . ($user->middle_name ? $user->middle_name . ' ' : '') . $user->last_name),
-                'birthdate' => $user->birthdate,
-                'sex' => $user->sex,
-                'course' => $user->course?->code,
-                'yearLevel' => $user->yearLevel?->level,
-                'office' => $user->office?->name,
-            ];
-        });
+        if (strlen($search) < 2) {
+            return response()->json([
+                'data' => [],
+                'has_more' => false,
+                'next_page' => null,
+            ]);
+        }
 
-    return response()->json($patients);
-}
+        $baseQuery = User::with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
+            ->whereHas('userRole', function ($q) {
+                $q->whereIn(\DB::raw('LOWER(category)'), ['user', 'rcy']);
+            })
+            ->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
+                ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
+                ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+            });
+
+        $patientsQuery = $baseQuery
+            ->orderByRaw("
+                CASE
+                    WHEN LOWER(CONCAT(first_name,' ',last_name)) = ? THEN 0
+                    WHEN LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) = ? THEN 1
+                    WHEN LOWER(first_name) = ? THEN 2
+                    WHEN LOWER(last_name) = ? THEN 3
+                    ELSE 4
+                END
+            ", [$search, $search, $search, $search])
+            ->orderBy('id'); // stabilizer
+
+        $patients = $patientsQuery
+            ->offset($offset)
+            ->limit($perPage + 1)
+            ->get();
+
+        $hasMore = $patients->count() > $perPage;
+
+        $patients = $patients->take($perPage)->map(fn($user) => [
+            'id' => $user->id,
+            'name' => trim("{$user->first_name} " . ($user->middle_name ? $user->middle_name . ' ' : '') . $user->last_name),
+            'birthdate' => $user->birthdate,
+            'sex' => $user->sex,
+            'course' => $user->course?->code,
+            'yearLevel' => $user->yearLevel?->level,
+            'office' => $user->office?->name,
+        ]);
+
+        return response()->json([
+            'data' => $patients->values(),
+            'has_more' => $hasMore,
+            'next_page' => $hasMore ? $page + 1 : null,
+        ]);
+    }
 
 }

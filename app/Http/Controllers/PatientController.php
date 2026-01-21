@@ -24,25 +24,41 @@ class PatientController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('q');
+        $courseId = $request->input('course');
+        $yearId = $request->input('year');
+        $officeId = $request->input('office');
 
-        $patients = User::with([
-                'course',
-                'yearLevel',
-                'office'
-            ])
+        $patients = User::with(['course', 'yearLevel', 'office', 'userRole'])
             ->whereDoesntHave('userRole', function ($q) {
                 $q->whereIn('name', ['Admin', 'Nurse', 'Super Admin']);
             })
+
+            // text search
             ->when($search, function ($query, $search) {
-                $query->where('first_name', 'ILIKE', "%{$search}%")
-                      ->orWhere('last_name', 'ILIKE', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'ILIKE', "%{$search}%")
+                    ->orWhere('last_name', 'ILIKE', "%{$search}%")
+                    ->orWhereHas('course', fn ($c) => $c->where('name', 'ILIKE', "%{$search}%"))
+                    ->orWhereHas('yearLevel', fn ($y) => $y->where('name', 'ILIKE', "%{$search}%"))
+                    ->orWhereHas('office', fn ($o) => $o->where('name', 'ILIKE', "%{$search}%"));
+                });
             })
+
+            // dropdown filters
+            ->when($courseId, fn ($q) => $q->where('course_id', $courseId))
+            ->when($yearId, fn ($q) => $q->where('year_level_id', $yearId))
+            ->when($officeId, fn ($q) => $q->where('office_id', $officeId))
+
             ->orderByDesc('created_at')
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         return inertia('patients/Index', [
             'patients' => $patients,
-            'filters' => ['q' => $search],
+            'filters' => $request->only(['q', 'course', 'year', 'office']),
+            'courses' => \App\Models\Course::orderBy('name')->get(['id','name']),
+            'years' => \App\Models\YearLevel::orderBy('name')->get(['id','name']),
+            'offices' => \App\Models\Office::orderBy('name')->get(['id','name']),
         ]);
     }
 

@@ -16,6 +16,8 @@ interface Student {
   id: number;
   name: string;
   email: string;
+  course?: string | null;
+  yearLevel?: string | null;
 }
 
 interface Position {
@@ -35,6 +37,11 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [page, setPage] = useState(1);                
+  const [hasMore, setHasMore] = useState(false);      
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const isFetchingRef = useRef(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const { data, setData, post, reset, processing, errors } = useForm({
@@ -42,36 +49,61 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
     position_id: "",
   });
 
-  // Handle search with debounce
+  // reset paging when search changes
+  useEffect(() => {
+    setResults([]);
+    setPage(1);
+    setHasMore(false);
+    isFetchingRef.current = false;
+  }, [search]);
+
+  // Handle search with debounce + pagination
   useEffect(() => {
     if (search.length < 2) {
       setResults([]);
+      setHasMore(false);
       return;
     }
 
-    // Cancel previous request
-    if (abortControllerRef.current) {
+    // only cancel when starting a NEW search, not when loading more
+    if (page === 1 && abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     const timeout = setTimeout(async () => {
       try {
+        console.log("Fetching page:", page);
         setLoading(true);
+        isFetchingRef.current = true;
+
         const res = await fetch(
-          `/admin/rcy/members/search-students?q=${encodeURIComponent(search)}`,
+          `/admin/rcy/members/search-students?q=${encodeURIComponent(search)}&page=${page}`,
           { signal: controller.signal }
         );
+
         if (!res.ok) throw new Error("Failed to fetch");
-        const students = await res.json();
-        setResults(students);
+
+        const json = await res.json();
+
+        setResults(prev => {
+          if (page === 1) return json.data || [];
+
+          const existingIds = new Set(prev.map(p => p.id));
+          const filtered = (json.data || []).filter(s => !existingIds.has(s.id));
+
+          return [...prev, ...filtered];
+        });
+
+        setHasMore(!!json.has_more);
       } catch (err: any) {
-        if (err.name === "AbortError") return; // Ignore abort errors
+        if (err.name === "AbortError") return;
         console.error(err);
-        setResults([]);
       } finally {
         setLoading(false);
+        isFetchingRef.current = false;
       }
     }, 400);
 
@@ -79,7 +111,23 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [search]);
+  }, [search, page]);
+
+  // scroll handler
+  const handleScroll = () => {
+    if (!listRef.current || loading || !hasMore) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+
+    if (
+      scrollTop + clientHeight >= scrollHeight - 10 &&
+      hasMore &&
+      !isFetchingRef.current
+    ) {
+      isFetchingRef.current = true; // lock immediately
+      setPage(p => p + 1);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +145,8 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
         setSelectedStudent(null);
         setSearch("");
         setResults([]);
+        setPage(1);
+        setHasMore(false);
         onClose(false);
 
         toast.success("RCY member added", {
@@ -145,43 +195,65 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+
                 {loading && (
                   <div className="absolute right-3 top-2.5 text-gray-500">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                 )}
+
                 {(results.length > 0 || (!loading && search.length >= 2)) && (
-                  <ul className="absolute z-10 bg-white border rounded mt-1 max-h-40 overflow-y-auto w-full shadow">
+                  <ul
+                    ref={listRef}
+                    onScroll={handleScroll}
+                    className="absolute z-10 bg-white border rounded mt-1 max-h-40 overflow-y-auto w-full shadow"
+                  >
+                    {results.map((s) => (
+                      <li
+                        key={s.id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setSelectedStudent(s);
+                          setData("user_id", s.id);
+                          setResults([]);
+                          setSearch("");
+                          setPage(1);
+                          setHasMore(false);
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{s.name}</p>
+
+                          {(s.course || s.yearLevel) && (
+                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                              {s.course ?? "-"} {s.yearLevel ?? ""}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+
                     {loading && (
-                      <li className="px-3 py-2 text-gray-500 flex items-center">
+                      <li className="px-3 py-2 text-gray-500 flex items-center justify-center">
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Searching...
+                        Loading...
                       </li>
                     )}
-                    {!loading && results.length > 0
-                      ? results.map((s) => (
-                          <li
-                            key={s.id}
-                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              setSelectedStudent(s);
-                              setData("user_id", s.id);
-                              setResults([]);
-                              setSearch("");
-                            }}
-                          >
-                            <p className="font-medium">{s.name}</p>
-                            <p className="text-sm text-gray-500">{s.email}</p>
-                          </li>
-                        ))
-                      : !loading &&
-                        search.length >= 2 && (
-                          <li className="px-3 py-2 text-gray-500">No students found</li>
-                        )}
+
+                    {hasMore && !loading && (
+                      <li className="px-3 py-2 text-xs text-gray-500 text-center">
+                        Scroll to load more…
+                      </li>
+                    )}
+
+                    {!loading && results.length === 0 && search.length >= 2 && (
+                      <li className="px-3 py-2 text-gray-500">No students found</li>
+                    )}
                   </ul>
                 )}
               </div>
             )}
+
             {errors.user_id && (
               <p className="text-red-500 text-sm mt-1">{errors.user_id}</p>
             )}
@@ -202,6 +274,7 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
                 </option>
               ))}
             </select>
+
             {errors.position_id && (
               <p className="text-red-500 text-sm mt-1">{errors.position_id}</p>
             )}

@@ -469,7 +469,7 @@ private function mapPage4DiseaseToDbName(string $name): ?string
                 'time' => now()->format('H:i'),
                 'vital_signs_id' => $vital->id,
                 'medical_complaint' => 'Initial record / consultation',
-                'management_and_treatment' => 'For evaluation and monitoring.',
+                //'management_and_treatment' => 'For evaluation and monitoring.',
                 'created_by' => Auth::id(),
                 'status' => 'pending',
             ]);
