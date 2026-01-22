@@ -32,3 +32,11 @@ Broadcast::channel('chat.{userId}', function ($user, $userId) {
 Broadcast::channel('admin-consultations', function ($user) {
     return in_array($user->userRole->name, ['Admin', 'Nurse']);
 });
+
+Broadcast::channel('lab-results', function ($user) {
+    return in_array($user->userRole->name, ['Admin', 'Nurse']);
+});
+
+Broadcast::channel('forms', function ($user) {
+    return in_array(optional($user->userRole)->name, ['Admin', 'Nurse']);
+});

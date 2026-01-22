@@ -13,6 +13,11 @@ export default function PreemploymentPage4({ patient }: Props) {
   const savedData = sessionStorage.getItem('preemployment_page_4');
   const parsedData = savedData ? JSON.parse(savedData) : {};
 
+  const page2Raw = sessionStorage.getItem("preemployment_page_2");
+  const page2Data = page2Raw ? JSON.parse(page2Raw) : {};
+
+  const isMarried = page2Data?.civil_status === "Married";
+
   // FEMALE HEALTH (normalized)
   const femaleHealth = parsedData.femaleHealth
     ? {
@@ -223,10 +228,23 @@ const fatherValid =
     : true) &&
   (!fatherDeathRequired || !hasError(form.data.family.father.age_death) && !hasError(form.data.family.father.cause_death));
 
-const hereditaryValid = form.data.family.hereditary.every(
-  (item: { answer: string; relation: string }) =>
-    item.answer && (item.answer === 'No' || (item.answer === 'Yes' && item.relation.trim()))
-);
+  const hereditaryValid = form.data.family.hereditary.every(
+    (item: { answer: string; relation: string }) =>
+      item.answer && (item.answer === 'No' || (item.answer === 'Yes' && item.relation.trim()))
+  );
+
+  const motherDeathStarted =
+    !!form.data.family.mother.age_death ||
+    !!form.data.family.mother.cause_death;
+
+  const fatherDeathStarted =
+    !!form.data.family.father.age_death ||
+    !!form.data.family.father.cause_death;
+
+  const spouseDeathStarted =
+    !!form.data.family.spouse.age_death ||
+    !!form.data.family.spouse.cause_death;
+
 
 // Check if female health field has error
 const femaleFieldRequired = (value: string | undefined, dependent?: boolean) => {
@@ -540,7 +558,9 @@ const femaleHealthValid =
                 className={
                   lineInput +
                   " ml-1 w-20 " +
-                  (hasError(form.data.family.mother.age_death, motherAlive) ? " border-red-600" : "") +
+                  (hasError(form.data.family.mother.age_death) && motherDeathStarted
+                  ? " border-red-600"
+                  : "") +
                   (form.data.family.mother.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
                 value={form.data.family.mother.age_death ?? ''}
@@ -557,7 +577,9 @@ const femaleHealthValid =
                 className={
                   lineInput +
                   " ml-1 w-40 " +
-                  (hasError(form.data.family.mother.cause_death, motherAlive) ? " border-red-600" : "") +
+                  (hasError(form.data.family.mother.cause_death) && motherDeathStarted
+                  ? " border-red-600"
+                  : "") +
                   (form.data.family.mother.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
                 value={form.data.family.mother.cause_death ?? ''}
@@ -621,7 +643,9 @@ const femaleHealthValid =
                 className={
                   lineInput +
                   " ml-1 w-20 " +
-                  (hasError(form.data.family.father.age_death, fatherAlive) ? " border-red-600" : "") +
+                  (hasError(form.data.family.father.age_death) && fatherDeathStarted
+                  ? " border-red-600"
+                  : "") +
                   (form.data.family.father.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
                 value={form.data.family.father.age_death ?? ''}
@@ -638,7 +662,9 @@ const femaleHealthValid =
                 className={
                   lineInput +
                   " ml-1 w-40 " +
-                  (hasError(form.data.family.father.cause_death, fatherAlive) ? " border-red-600" : "") +
+                  (hasError(form.data.family.father.cause_death) && fatherDeathStarted
+                  ? " border-red-600"
+                  : "") +
                   (form.data.family.father.age_alive ? " bg-gray-100 cursor-not-allowed" : "")
                 }
                 value={form.data.family.father.cause_death ?? ''}
@@ -653,158 +679,160 @@ const femaleHealthValid =
         </div>
 
         {/* SPOUSE */}
-        <div className="space-y-2">
-          <p className="font-medium">If married – Spouse:</p>
+        {isMarried && (
+          <div className="space-y-2">
+            <p className="font-medium">If married – Spouse:</p>
 
-          <div className="flex flex-wrap gap-4 items-center">
-            <label>
-              Living:
-              <input
-                className={
-                  lineInput +
-                  " ml-1 w-20 " +
-                  (hasError(form.data.family.spouse.age_alive, !spouseAlive)
-                    ? " border-red-600"
-                    : "")
-                }
-                placeholder="Age"
-                value={form.data.family.spouse.age_alive ?? ""}
-                onChange={(e) => {
-                  form.setData("family.spouse.age_alive", e.target.value);
-                  if (e.target.value) {
-                    form.setData("family.spouse.age_death", "");
-                    form.setData("family.spouse.cause_death", "");
+            <div className="flex flex-wrap gap-4 items-center">
+              <label>
+                Living:
+                <input
+                  className={
+                    lineInput +
+                    " ml-1 w-20 " +
+                    (hasError(form.data.family.spouse.age_alive, !spouseAlive)
+                      ? " border-red-600"
+                      : "")
                   }
-                }}
-                disabled={
-                  !!form.data.family.spouse.age_death ||
-                  !!form.data.family.spouse.cause_death
-                }
-              />
-            </label>
+                  placeholder="Age"
+                  value={form.data.family.spouse.age_alive ?? ""}
+                  onChange={(e) => {
+                    form.setData("family.spouse.age_alive", e.target.value);
+                    if (e.target.value) {
+                      form.setData("family.spouse.age_death", "");
+                      form.setData("family.spouse.cause_death", "");
+                    }
+                  }}
+                  disabled={
+                    !!form.data.family.spouse.age_death ||
+                    !!form.data.family.spouse.cause_death
+                  }
+                />
+              </label>
 
-            <label>
-              General health:
-              <select
-                className={
-                  lineInput +
-                  " ml-1 w-32 " +
-                  (hasError(form.data.family.spouse.generalHealth, !spouseAlive)
-                    ? " border-red-600"
-                    : "")
-                }
-                value={form.data.family.spouse.generalHealth ?? ""}
-                onChange={(e) =>
-                  form.setData("family.spouse.generalHealth", e.target.value)
-                }
-                disabled={
-                  !!form.data.family.spouse.age_death ||
-                  !!form.data.family.spouse.cause_death
-                }
-              >
-                <option value="">Select</option>
-                <option value="Excellent">Excellent</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Poor">Poor</option>
-              </select>
-            </label>
+              <label>
+                General health:
+                <select
+                  className={
+                    lineInput +
+                    " ml-1 w-32 " +
+                    (hasError(form.data.family.spouse.generalHealth, !spouseAlive)
+                      ? " border-red-600"
+                      : "")
+                  }
+                  value={form.data.family.spouse.generalHealth ?? ""}
+                  onChange={(e) =>
+                    form.setData("family.spouse.generalHealth", e.target.value)
+                  }
+                  disabled={
+                    !!form.data.family.spouse.age_death ||
+                    !!form.data.family.spouse.cause_death
+                  }
+                >
+                  <option value="">Select</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Good">Good</option>
+                  <option value="Fair">Fair</option>
+                  <option value="Poor">Poor</option>
+                </select>
+              </label>
 
-            <label>
-              Diseases:
-              <input
-                className={
-                  lineInput +
-                  " ml-1 w-40 " +
-                  (hasError(form.data.family.spouse.diseases, !spouseAlive)
-                    ? " border-red-600"
-                    : "")
-                }
-                value={form.data.family.spouse.diseases ?? ""}
-                onChange={(e) =>
-                  form.setData("family.spouse.diseases", e.target.value)
-                }
-                disabled={
-                  !!form.data.family.spouse.age_death ||
-                  !!form.data.family.spouse.cause_death
-                }
-              />
-            </label>
+              <label>
+                Diseases:
+                <input
+                  className={
+                    lineInput +
+                    " ml-1 w-40 " +
+                    (hasError(form.data.family.spouse.diseases, !spouseAlive)
+                      ? " border-red-600"
+                      : "")
+                  }
+                  value={form.data.family.spouse.diseases ?? ""}
+                  onChange={(e) =>
+                    form.setData("family.spouse.diseases", e.target.value)
+                  }
+                  disabled={
+                    !!form.data.family.spouse.age_death ||
+                    !!form.data.family.spouse.cause_death
+                  }
+                />
+              </label>
 
-            <label>
-              Maintenance medications:
-              <input
-                className={
-                  lineInput +
-                  " ml-1 w-40 " +
-                  (hasError(form.data.family.spouse.medications, !spouseAlive)
-                    ? " border-red-600"
-                    : "")
-                }
-                value={form.data.family.spouse.medications ?? ""}
-                onChange={(e) =>
-                  form.setData("family.spouse.medications", e.target.value)
-                }
-                disabled={
-                  !!form.data.family.spouse.age_death ||
-                  !!form.data.family.spouse.cause_death
-                }
-              />
-            </label>
-          </div>
+              <label>
+                Maintenance medications:
+                <input
+                  className={
+                    lineInput +
+                    " ml-1 w-40 " +
+                    (hasError(form.data.family.spouse.medications, !spouseAlive)
+                      ? " border-red-600"
+                      : "")
+                  }
+                  value={form.data.family.spouse.medications ?? ""}
+                  onChange={(e) =>
+                    form.setData("family.spouse.medications", e.target.value)
+                  }
+                  disabled={
+                    !!form.data.family.spouse.age_death ||
+                    !!form.data.family.spouse.cause_death
+                  }
+                />
+              </label>
+            </div>
 
-          <div className="flex flex-wrap gap-4 items-center mt-1">
-            <label>
-              If deceased (age of death):
-              <input
-                className={
-                  lineInput +
-                  " ml-1 w-20 " +
-                  (hasError(form.data.family.spouse.age_death, spouseAlive)
+            <div className="flex flex-wrap gap-4 items-center mt-1">
+              <label>
+                If deceased (age of death):
+                <input
+                  className={
+                    lineInput +
+                    " ml-1 w-20 " +
+                    (hasError(form.data.family.spouse.age_death) && spouseDeathStarted
                     ? " border-red-600"
                     : "") +
-                  (spouseAlive ? " bg-gray-100 cursor-not-allowed" : "")
-                }
-                value={form.data.family.spouse.age_death ?? ""}
-                onChange={(e) => {
-                  form.setData("family.spouse.age_death", e.target.value);
-                  if (e.target.value) {
-                    form.setData("family.spouse.age_alive", "");
-                    form.setData("family.spouse.generalHealth", "");
-                    form.setData("family.spouse.diseases", "");
-                    form.setData("family.spouse.medications", "");
+                    (spouseAlive ? " bg-gray-100 cursor-not-allowed" : "")
                   }
-                }}
-                disabled={spouseAlive}
-              />
-            </label>
+                  value={form.data.family.spouse.age_death ?? ""}
+                  onChange={(e) => {
+                    form.setData("family.spouse.age_death", e.target.value);
+                    if (e.target.value) {
+                      form.setData("family.spouse.age_alive", "");
+                      form.setData("family.spouse.generalHealth", "");
+                      form.setData("family.spouse.diseases", "");
+                      form.setData("family.spouse.medications", "");
+                    }
+                  }}
+                  disabled={spouseAlive}
+                />
+              </label>
 
-            <label>
-              Cause of death:
-              <input
-                className={
-                  lineInput +
-                  " ml-1 w-40 " +
-                  (hasError(form.data.family.spouse.cause_death, spouseAlive)
+              <label>
+                Cause of death:
+                <input
+                  className={
+                    lineInput +
+                    " ml-1 w-40 " +
+                    (hasError(form.data.family.spouse.cause_death) && spouseDeathStarted
                     ? " border-red-600"
                     : "") +
-                  (spouseAlive ? " bg-gray-100 cursor-not-allowed" : "")
-                }
-                value={form.data.family.spouse.cause_death ?? ""}
-                onChange={(e) => {
-                  form.setData("family.spouse.cause_death", e.target.value);
-                  if (e.target.value) {
-                    form.setData("family.spouse.age_alive", "");
-                    form.setData("family.spouse.generalHealth", "");
-                    form.setData("family.spouse.diseases", "");
-                    form.setData("family.spouse.medications", "");
+                    (spouseAlive ? " bg-gray-100 cursor-not-allowed" : "")
                   }
-                }}
-                disabled={spouseAlive}
-              />
-            </label>
+                  value={form.data.family.spouse.cause_death ?? ""}
+                  onChange={(e) => {
+                    form.setData("family.spouse.cause_death", e.target.value);
+                    if (e.target.value) {
+                      form.setData("family.spouse.age_alive", "");
+                      form.setData("family.spouse.generalHealth", "");
+                      form.setData("family.spouse.diseases", "");
+                      form.setData("family.spouse.medications", "");
+                    }
+                  }}
+                  disabled={spouseAlive}
+                />
+              </label>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* CHILDREN */}
         <div className="space-y-2">

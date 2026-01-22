@@ -61,7 +61,7 @@ class LaboratoryRequestController extends Controller
             Record::create([
                 'user_id'       => $user->id,
                 'service_id'    => $request->service_id,
-                'response_data' => $request->response_data, // ✅ matches model & DB
+                'response_data' => $request->response_data, // matches model & DB
             ]);
         }
 

@@ -141,7 +141,12 @@ export default function ShowForm({ service, patient }: Props) {
   };
 
   // Check if user already submitted this form
-  const isAlreadySubmitted = records?.some((r: any) => r.slug === service.slug);
+  const latestRecord = records?.[records.length - 1];
+
+  const isBlocked =
+    latestRecord && (latestRecord.status === "pending" || latestRecord.status === "approved");
+
+  const canResubmit = latestRecord?.status === "rejected";
 
   return (
     <AppLayout>
@@ -149,7 +154,7 @@ export default function ShowForm({ service, patient }: Props) {
 
       <div className="p-6 space-y-6">
         {/* Title row with optional download button */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <h1 className="text-2xl font-semibold">{service.title}</h1>
           {isPreEnrollment && (
             <Button
@@ -191,13 +196,18 @@ export default function ShowForm({ service, patient }: Props) {
             <div className="p-6 border rounded-lg shadow-md bg-white dark:bg-neutral-800 text-center">
               <Button
                 variant="default"
+                className="w-full sm:w-auto"
                 onClick={() => handleFillForm(service.slug)}
-                disabled={isAlreadySubmitted || isRedirecting} // disable while redirecting
+                disabled={isBlocked || isRedirecting}
               >
-                {isAlreadySubmitted
-                  ? 'Already Submitted'
+                {isBlocked
+                  ? latestRecord.status === "approved"
+                    ? "Already Approved"
+                    : "Pending Review"
+                  : canResubmit
+                  ? "Resubmit Form"
                   : isRedirecting
-                  ? 'Redirecting…'
+                  ? "Redirecting…"
                   : `Fill up ${service.title}`}
               </Button>
             </div>
@@ -285,14 +295,24 @@ export default function ShowForm({ service, patient }: Props) {
                           })}
                         </td>
 
-                        <td className="p-2 border-b text-right">
+                        <td className="p-2 border-b text-right flex flex-col sm:flex-row sm:justify-end gap-2">
                           <Button
                             size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => handleOpenPdfByRecord(record.id)}
                             disabled={downloadingId === record.id}
                           >
                             {downloadingId === record.id ? "Downloading…" : "Download PDF"}
                           </Button>
+
+                          {record.status !== "approved" && (
+                            <Link href="/user/laboratory-results" className="w-full sm:w-auto">
+                              <Button size="sm" className="w-full sm:w-auto">
+                                Submit Result
+                              </Button>
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     ))

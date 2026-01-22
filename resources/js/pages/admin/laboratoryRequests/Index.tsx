@@ -12,7 +12,6 @@ interface User {
   email: string;
   course?: string | null;
   yearLevel?: string | null;
-  office?: string | null;
 }
 
 interface Props {
@@ -21,14 +20,19 @@ interface Props {
     name: string;
   };
   courses: { id: number; code: string }[];
-  offices: { id: number; name: string }[];
+  yearLevels: { id: number; level: string }[];
 }
 
 export default function Index() {
-  const { service, courses, offices } = usePage<Props>().props;
+  const { service, courses, yearLevels } = usePage<Props>().props;
+
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const isFetchingRef = useRef(false);
 
   const [assignType, setAssignType] = useState<
-    "single" | "student_course" | "staff_office"
+    "single" | "student_course" | "faculty_staff"
   >("single");
 
   function formatToMMDDYYYY(date: Date) {
@@ -63,10 +67,11 @@ export default function Index() {
   useEffect(() => {
     if (search.length < 2) {
       setResults([]);
+      setHasMore(false);
       return;
     }
 
-    if (abortControllerRef.current) {
+    if (page === 1 && abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
@@ -76,22 +81,29 @@ export default function Index() {
     const timeout = setTimeout(async () => {
       try {
         setLoading(true);
+        isFetchingRef.current = true;
 
         const res = await fetch(
-          `/admin/lab-requests/search-users?q=${encodeURIComponent(search)}`,
+          `/admin/lab-requests/search-users?q=${encodeURIComponent(search)}&page=${page}`,
           { signal: controller.signal, headers: { Accept: "application/json" } }
         );
 
-        if (!res.ok) throw new Error("Failed to fetch users");
+        const json = await res.json();
 
-        const data = await res.json();
-        setResults(data);
+        setResults(prev => {
+          if (page === 1) return json.data || [];
+
+          const ids = new Set(prev.map(u => u.id));
+          const filtered = (json.data || []).filter((u: any) => !ids.has(u.id));
+          return [...prev, ...filtered];
+        });
+
+        setHasMore(!!json.has_more);
       } catch (err: any) {
-        if (err.name === "AbortError") return;
-        console.error("Search error:", err);
-        setResults([]);
+        if (err.name !== "AbortError") console.error(err);
       } finally {
         setLoading(false);
+        isFetchingRef.current = false;
       }
     }, 400);
 
@@ -99,6 +111,13 @@ export default function Index() {
       clearTimeout(timeout);
       controller.abort();
     };
+  }, [search, page]);
+
+  useEffect(() => {
+    setResults([]);
+    setPage(1);
+    setHasMore(false);
+    isFetchingRef.current = false;
   }, [search]);
 
   // ===== Form =====
@@ -107,7 +126,8 @@ const form = useForm({
 
   user_id: null as number | null,
   course_id: null as string | null,
-  office_id: null as string | null,
+  year_level_id: null as string | null,
+  assign_faculty_staff: false,
 
   response_data: {
     patient_name: "",
@@ -131,84 +151,91 @@ const form = useForm({
 
   useEffect(() => {
   // Clear specific person data
-  setSelectedUser(null);
-  setSearch("");
-  setResults([]);
+    setSelectedUser(null);
+    setSearch("");
+    setResults([]);
 
-  // Clear filters
-form.setData("user_id", null);
-form.setData("course_id", null);
-form.setData("office_id", null);
+    // Clear filters
+  form.setData("user_id", null);
+  form.setData("course_id", null);
+  form.setData("year_level_id", null);
+  form.setData("assign_faculty_staff", false);
 
-  // Clear form fields that came from a person
-  form.setData("response_data.patient_name", "");
-  form.setData("response_data.year_course_or_office", "");
-}, [assignType]);
+    // Clear form fields that came from a person
+    form.setData("response_data.patient_name", "");
+    form.setData("response_data.year_course_or_office", "");
+  }, [assignType]);
+
+  useEffect(() => {
+    // Specific person → already filled by search click
+    if (assignType === "single") return;
+
+    // Students (bulk)
+    if (assignType === "student_course") {
+      const course =
+        courses.find(c => String(c.id) === String(form.data.course_id))?.code
+        ?? "All courses";
+
+      const year =
+        yearLevels.find(y => String(y.id) === String(form.data.year_level_id))?.level
+        ?? "All year levels";
+
+      form.setData(
+        "response_data.year_course_or_office",
+        `${course} - ${year}`
+      );
+
+      form.setData("response_data.patient_name", "Multiple students");
+    }
+
+    // Faculty / Staff
+    if (assignType === "faculty_staff") {
+      form.setData("response_data.patient_name", "Multiple faculty / staff");
+      form.setData("response_data.year_course_or_office", "Faculty / Staff");
+    }
+  }, [
+    assignType,
+    form.data.course_id,
+    form.data.year_level_id,
+  ]);
 
 
   console.log(service.id);
 
-const submit = () => {
-  if (assignType === "student_course" && !form.data.course_id) {
-    toast.error("Please select a course");
-    return;
+  const submit = () => {
+
+    const isFaculty = assignType === "faculty_staff";
+
+    form.transform(data => ({
+      ...data,
+      assign_faculty_staff: isFaculty,
+    }));
+
+    if (assignType === "single" && !selectedUser) {
+      toast.error("Please select a user");
+      return;
     }
 
-    if (assignType === "staff_office" && !form.data.office_id) {
-    toast.error("Please select an office");
-    return;
-    }
-
-  if (assignType === "single" && !selectedUser) {
-    toast.error("Please select a user");
-    return;
-  }
-
-  console.log("assing type: ", assignType);
-  console.log("course id: ", form.data.course_id);
-
-  setTimeout(() => {
     form.post("/admin/lab-requests", {
-    preserveScroll: true,
-    onSuccess: () => {
+      preserveScroll: true,
+      onSuccess: () => {
         toast.success("Laboratory request created");
+        // ... your reset code
+      },
+      onError: () => toast.error("Failed to create laboratory request"),
+    });
+  };
 
-        // Reset Inertia form (back to initial values)
-        form.reset();
+  const handleScroll = () => {
+    if (!listRef.current || !hasMore || isFetchingRef.current) return;
 
-        // Force-reset nested response_data (important for checkboxes)
-        form.setData("response_data", {
-            patient_name: "",
-            date: new Date().toISOString().slice(0, 10),
-            year_course_or_office: "",
-            reasons: {
-            chest_xray: false,
-            stool_exam: false,
-            urinalysis: false,
-            cbc: false,
-            drug_test: false,
-            hbsag: false,
-            ishihara: false,
-            neuro_psych: false,
-            others: false,
-            others_text: "",
-            },
-            remarks: "",
-        });
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
 
-        // Reset UI states
-        setAssignType("single");
-        setSelectedUser(null);
-        setSearch("");
-        setResults([]);
-
-        // Reset date (since reset() will clear it)
-        form.setData("response_data.date", formatToMMDDYYYY(new Date()));
-        },
-    onError: () => toast.error("Failed to create laboratory request"),
-  });
-  }, 0);
-};
+    if (scrollTop + clientHeight >= scrollHeight - 10) {
+      isFetchingRef.current = true;
+      setPage(p => p + 1);
+    }
+  };
 
 
   return (
@@ -235,16 +262,16 @@ const submit = () => {
               checked={assignType === "student_course"}
               onChange={() => setAssignType("student_course")}
             />
-            Students (by course)
+            Students (by course & year)
           </label>
 
           <label className="flex items-center gap-2">
             <input
               type="radio"
-              checked={assignType === "staff_office"}
-              onChange={() => setAssignType("staff_office")}
+              checked={assignType === "faculty_staff"}
+              onChange={() => setAssignType("faculty_staff")}
             />
-            Faculty / Staff (by office)
+            Faculty / Staff (all)
           </label>
         </div>
 
@@ -329,50 +356,65 @@ const submit = () => {
 
                 {(results.length > 0 ||
                   (!loading && search.length >= 2)) && (
-                  <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-48 overflow-y-auto">
-                    {!loading && results.length > 0 ? (
-                      results.map((u) => {
-                        const middle = u.middle_name
-                          ? ` ${u.middle_name[0]}.`
-                          : "";
-                        const fullName = `${u.last_name}, ${u.first_name}${middle}`;
+                  <div
+                      ref={listRef}
+                      onScroll={handleScroll}
+                      className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-48 overflow-y-auto"
+                    >
+                    {/* results */}
+                    {results.map((u) => {
+                      const middle = u.middle_name ? ` ${u.middle_name[0]}.` : "";
+                      const fullName = `${u.last_name}, ${u.first_name}${middle}`;
 
-                        return (
-                          <div
-                            key={u.id}
-                            className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setResults([]);
-                              setSearch("");
+                      return (
+                        <div
+                          key={u.id}
+                          className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                          onClick={() => {
+                            setSelectedUser(u);
+                            setResults([]);
+                            setSearch("");
 
-                              form.setData("user_id", u.id);
-                              form.setData("response_data.patient_name", fullName);
-                              form.setData(
-                                "response_data.year_course_or_office",
-                                u.course && u.yearLevel
-                                    ? `${u.course} ${u.yearLevel}`
-                                    : u.office ?? ""
-                                );
-                            }}
-                          >
-                            <p className="font-medium">{fullName}</p>
-                            <p className="text-xs text-gray-500">
+                            form.setData("user_id", u.id);
+                            form.setData("response_data.patient_name", fullName);
+                            form.setData(
+                              "response_data.year_course_or_office",
+                              u.course && u.yearLevel
+                                ? `${u.course} ${u.yearLevel}`
+                                : u.office ?? ""
+                            );
+                          }}
+                        >
+                          <p className="font-medium">{fullName}</p>
+                          <p className="text-xs text-gray-500">
                             {u.course && u.yearLevel
-                                ? `${u.course} - ${u.yearLevel}`
-                                : u.office
-                                ? u.office
-                                : "—"}
-                            </p>
+                              ? `${u.course} - ${u.yearLevel}`
+                              : u.office
+                              ? u.office
+                              : "—"}
+                          </p>
+                          <p className="text-[11px] text-gray-400">{u.email}</p>
+                        </div>
+                      );
+                    })}
 
-                            <p className="text-[11px] text-gray-400">
-                            {u.email}
-                            </p>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-gray-500">
+                    {/* loading */}
+                    {loading && (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                        Loading...
+                      </div>
+                    )}
+
+                    {/* scroll hint */}
+                    {hasMore && !loading && (
+                      <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                        Scroll to load more…
+                      </div>
+                    )}
+
+                    {/* empty */}
+                    {!loading && results.length === 0 && search.length >= 2 && (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
                         No users found
                       </div>
                     )}
@@ -385,39 +427,38 @@ const submit = () => {
 
         {/* ================= Students by course ================= */}
         {assignType === "student_course" && (
-          <div>
-            <label className="text-sm font-medium">Select course</label>
-            <select
-            className="border px-3 py-2 rounded w-full"
-            value={form.data.course_id ?? ""}
-            onChange={(e) => form.setData("course_id", e.target.value)}
-            >
-              <option value="">-- Select course --</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">Select course</label>
+              <select
+                className="border px-3 py-2 rounded w-full"
+                value={form.data.course_id ?? ""}
+                onChange={(e) => form.setData("course_id", e.target.value)}
+              >
+                <option value="">All courses</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        {/* ================= Staff by office ================= */}
-        {assignType === "staff_office" && (
-          <div>
-            <label className="text-sm font-medium">Select office</label>
-            <select
-            className="border px-3 py-2 rounded w-full"
-            value={form.data.office_id ?? ""}
-            onChange={(e) => form.setData("office_id", e.target.value)}
-            >
-              <option value="">-- Select office --</option>
-              {offices.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="text-sm font-medium">Select year level</label>
+              <select
+                className="border px-3 py-2 rounded w-full"
+                value={form.data.year_level_id ?? ""}
+                onChange={(e) => form.setData("year_level_id", e.target.value)}
+              >
+                <option value="">All year levels</option>
+                {yearLevels.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.level}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
 
@@ -429,12 +470,10 @@ const submit = () => {
             <div>
               <label>Patient Name</label>
               <input
-                className="border-b w-full"
+                className="border-b w-full bg-gray-100 cursor-not-allowed"
                 value={form.data.response_data.patient_name}
-                disabled={assignType !== "single"}
-                onChange={(e) =>
-                form.setData("response_data.patient_name", e.target.value)
-                }
+                disabled
+                readOnly
               />
             </div>
 
@@ -455,14 +494,12 @@ const submit = () => {
             </div>
 
             <div className="sm:col-span-2">
-              <label>Year & Course / Office</label>
+              <label>Course & Year / Office</label>
               <input
-                className="border-b w-full"
+                className="border-b w-full bg-gray-100 cursor-not-allowed"
                 value={form.data.response_data.year_course_or_office}
-                disabled={assignType !== "single"}
-                onChange={(e) =>
-                form.setData("response_data.year_course_or_office", e.target.value)
-                }
+                disabled
+                readOnly
               />
             </div>
           </div>

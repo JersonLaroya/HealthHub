@@ -86,12 +86,13 @@ class FileController extends Controller
             $recordsQuery->whereJsonContains('response_data->school_year', $currentSchoolYear);
         }
 
-        $records = $recordsQuery->get(['id', 'service_id', 'created_at'])
+        $records = $records = $recordsQuery->get(['id', 'service_id', 'created_at', 'status'])
             ->map(function ($record) {
                 return [
                     'id'         => $record->id,
                     'service_id' => $record->service_id,
                     'slug'       => optional($record->service)->slug ?? null,
+                    'status'     => $record->status,
                     
                     // convert from UTC to Asia/Manila before sending to frontend
                     'created_at' => $record->created_at
@@ -200,9 +201,12 @@ class FileController extends Controller
         $user = auth()->user();
         $service = Service::where('slug', 'pre-enrollment-health-form')->first();
 
-        $alreadySubmitted = Record::where('user_id', $user->id)
+        $latest = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
-            ->exists();
+            ->latest()
+            ->first();
+
+        $alreadySubmitted = $latest && in_array($latest->status, ['pending', 'approved']);
         
         if ($alreadySubmitted) {
             return redirect()->route('user.files.show', 'athlete-medical');
@@ -249,10 +253,13 @@ class FileController extends Controller
         $settings = Setting::first();
         $currentSchoolYear = $settings?->school_year;
 
-        $alreadySubmitted = Record::where('user_id', $user->id)
+        $latest = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
             ->whereJsonContains('response_data->school_year', $currentSchoolYear)
-            ->exists();
+            ->latest()
+            ->first();
+
+        $alreadySubmitted = $latest && in_array($latest->status, ['pending', 'approved']);
 
         if ($alreadySubmitted) {
             return redirect()->route('user.files.show', 'athlete-medical');
@@ -282,10 +289,13 @@ class FileController extends Controller
         $settings = Setting::first();
         $currentSchoolYear = $settings?->school_year;
 
-        $alreadySubmitted = Record::where('user_id', $user->id)
+        $latest = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
             ->whereJsonContains('response_data->school_year', $currentSchoolYear)
-            ->exists();
+            ->latest()
+            ->first();
+
+        $alreadySubmitted = $latest && in_array($latest->status, ['pending', 'approved']);
 
         if ($alreadySubmitted) {
             return redirect()->route('user.files.show', 'athlete-medical');
@@ -421,13 +431,34 @@ private function mapPage4DiseaseToDbName(string $name): ?string
 
         $service = Service::where('slug', $formType)->firstOrFail();
 
-        $record = Record::create([
-            'user_id'         => Auth::id(),
-            'service_id'      => $service->id,
-            'consultation_id' => null,
-            'lab_result_id'   => null,
-            'response_data'   => $responses,
-        ]);
+        $currentSchoolYear = $settings?->school_year;
+
+        $rejectedRecord = Record::where('user_id', Auth::id())
+            ->where('service_id', $service->id)
+            ->where('status', Record::STATUS_REJECTED)
+            ->whereJsonContains('response_data->school_year', $currentSchoolYear)
+            ->latest()
+            ->first();
+
+        if ($rejectedRecord) {
+            // UPDATE rejected record
+            $rejectedRecord->update([
+                'response_data' => $responses,
+                'status'        => Record::STATUS_PENDING,
+            ]);
+
+            $record = $rejectedRecord;
+        } else {
+            // CREATE new record
+            $record = Record::create([
+                'user_id'         => Auth::id(),
+                'service_id'      => $service->id,
+                'consultation_id' => null,
+                'lab_result_id'   => null,
+                'response_data'   => $responses,
+                'status'          => Record::STATUS_PENDING,
+            ]);
+        }
 
         // notify Admin & Nurse
         $staff = User::whereHas('userRole', fn ($q) =>
@@ -438,8 +469,9 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             $user->notify(new FormSubmitted(
                 $service->title,
                 auth()->user()->name,
-                auth()->id(),          // patient id
-                $service->slug        // form slug
+                auth()->id(),
+                $service->slug,
+                $record->id 
             ));
         }
 
@@ -447,7 +479,7 @@ private function mapPage4DiseaseToDbName(string $name): ?string
         if (in_array($formType, [
             'pre-enrollment-health-form',
             'pre-employment-health-form',
-        ])) {
+        ]) && !$record->consultation_id) {
 
             // create empty vital signs snapshot
             $vital = VitalSign::create([
@@ -521,86 +553,13 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             }
         }
 
-        if ($formType === 'pre-employment-health-form') {
-            auth()->user()->notifications()
-                ->where('data->slug', 'pre-employment')
-                ->delete();
-        }
+        // if ($formType === 'pre-employment-health-form') {
+        //     auth()->user()->notifications()
+        //         ->where('data->slug', 'pre-employment')
+        //         ->delete();
+        // }
 
         MedicalNotificationService::check(auth()->user());
-
-        if ($formType === 'pre-enrollment-health-form') {
-
-            // create empty vital signs snapshot
-            $vital = VitalSign::create([
-                'user_id' => Auth::id(),
-                'bp' => null,
-                'rr' => null,
-                'pr' => null,
-                'temp' => null,
-                'o2_sat' => null,
-                'height' => null,
-                'weight' => null,
-                'bmi' => null,
-            ]);
-
-            $page4 = $responses['page4'] ?? [];
-            $diseases = $page4['diseases'] ?? [];
-
-
-            // create consultation
-            $consultation = Consultation::create([
-                'user_id' => Auth::id(),
-                'date' => now()->toDateString(),
-                'time' => now()->format('H:i'),
-                'vital_signs_id' => $vital->id,
-                'medical_complaint' => 'Initial record / consultation',
-                'management_and_treatment' => 'For evaluation and monitoring.',
-                'created_by' => Auth::id(),
-                'status' => 'pending',
-            ]);
-
-            // attach consultation to the record
-            $record->update([
-                'consultation_id' => $consultation->id,
-            ]);
-
-            // -------------------------------
-            // GET DISEASES FROM PAGE 4 (MAPPED + SAFE)
-            // -------------------------------
-
-            $ageHave = $responses['page4']['age_have'] ?? [];
-            $diseaseLabels = $this->diseaseProblemsPage4();
-
-            $selectedFrontendDiseases = collect($ageHave)
-                ->map(function ($item, $index) use ($diseaseLabels) {
-                    if (isset($item['na']) && $item['na'] === false && isset($diseaseLabels[$index])) {
-                        return $diseaseLabels[$index];
-                    }
-                    return null;
-                })
-                ->filter()
-                ->values()
-                ->toArray();
-
-            $dbDiseaseNames = collect($selectedFrontendDiseases)
-                ->map(fn ($name) => $this->mapPage4DiseaseToDbName($name))
-                ->filter()   // removes not mapped
-                ->unique()
-                ->values()
-                ->toArray();
-
-            if (!empty($dbDiseaseNames)) {
-                $diseaseIds = Disease::whereIn('name', $dbDiseaseNames)
-                    ->pluck('id')
-                    ->toArray();
-
-                if (!empty($diseaseIds)) {
-                    $consultation->diseases()->sync($diseaseIds);
-                }
-            }
-
-        }
 
         return redirect()->route('user.files.confirmation', [
             'slug' => $formType,

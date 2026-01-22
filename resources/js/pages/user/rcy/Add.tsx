@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-export default function AddDtr({ diseases }: any) {
+export default function Add({ diseases }: any) {
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
@@ -266,37 +266,48 @@ if (!selectedPatientId) {
                           onScroll={handleScroll}
                           className="absolute z-10 w-full max-h-60 overflow-y-auto border mt-1 bg-white dark:bg-neutral-800"
                         >
-                          {patientResults.map((patient) => (
-                            <button
-                              key={patient.id}
-                              type="button"
-                              onClick={() => {
-                                setData({
-                                  ...data,
-                                  name: patient.name,
-                                  age: calculateAge(patient.birthdate),
-                                  sex: patient.sex,
-                                  course_year_office: patient.course
-                                    ? `${patient.course} ${patient.yearLevel ?? ""}`
-                                    : patient.office,
-                                });
-                                setSelectedPatientId(patient.id);
-                                setPatientQuery(patient.name);
-                                setPatientResults([]);
-                                setSearchTerm(""); 
-                                setPage(1);
-                                setHasMore(false);
-                              }}
-                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-neutral-700 text-sm"
-                            >
-                              <div className="flex justify-between gap-2">
-                                <span className="font-medium">{patient.name}</span>
-                                <span className="text-xs text-gray-400 whitespace-nowrap">
-                                  {patient.course ?? patient.office} {patient.yearLevel ?? ""}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
+                          {patientResults.map((patient) => {
+                            const info =
+                              patient.course && patient.yearLevel
+                                ? `${patient.course} - ${patient.yearLevel}`
+                                : patient.office ?? "—";
+
+                            return (
+                              <button
+                                key={patient.id}
+                                type="button"
+                                onClick={() => {
+                                  setData({
+                                    ...data,
+                                    name: patient.name,
+                                    age: calculateAge(patient.birthdate),
+                                    sex: patient.sex,
+                                    course_year_office: patient.course
+                                      ? `${patient.course} ${patient.yearLevel ?? ""}`
+                                      : patient.office,
+                                  });
+
+                                  setSelectedPatientId(patient.id);
+                                  setPatientQuery(patient.name);
+                                  setPatientResults([]);
+                                  setSearchTerm("");
+                                  setPage(1);
+                                  setHasMore(false);
+                                }}
+                                className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-neutral-700 text-sm"
+                              >
+                                <p className="font-medium">{patient.name}</p>
+
+                                <p className="text-xs text-gray-500">
+                                  {info}
+                                </p>
+
+                                <p className="text-[11px] text-gray-400">
+                                  {patient.email}
+                                </p>
+                              </button>
+                            );
+                          })}
 
                           {loading && (
                             <div className="px-3 py-2 text-sm text-gray-500 text-center">

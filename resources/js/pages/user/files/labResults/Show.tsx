@@ -9,10 +9,25 @@ export default function Show({ record, reasons, labResult }: any) {
     results: {} as Record<string, File[]>
   });
 
-  const alreadySubmitted = !!record.lab_result_id;
+  const isApproved = record.status === "approved";
+  const isPending = record.status === "pending";
+  const isRejected = record.status === "rejected";
+
+  const isLocked = isApproved || isPending; // cannot edit
+  const canResubmit = isRejected || !record.lab_result_id;
 
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const getPreviewImages = (reason: string) => {
+    if (selectedFiles[reason]?.length) {
+      // show newly selected images
+      return selectedFiles[reason].map(file => URL.createObjectURL(file));
+    }
+
+    // otherwise show existing images from DB
+    return labResult?.results?.[reason]?.map((img: string) => `/storage/${img}`) || [];
+  };
 
   const reasonList = Object.entries(reasons || {})
     .filter(([_, value]) => value === true)
@@ -36,9 +51,9 @@ export default function Show({ record, reasons, labResult }: any) {
       alert("Only image files are allowed.");
     }
 
-    if (images.length > 5) {
+    if (images.length > 10) {
     toast.error("Too many images", {
-        description: "You can only upload up to 5 images per laboratory test."
+        description: "You can only upload up to 10 images per laboratory test."
     });
     return;
     }
@@ -79,7 +94,11 @@ export default function Show({ record, reasons, labResult }: any) {
 
       <form onSubmit={submit} className="p-6 space-y-6">
         <h1 className="text-2xl font-semibold">Laboratory Results</h1>
-
+        {isRejected && (
+          <div className="p-3 rounded-lg bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-sm">
+            Your submission was rejected. You may resubmit your laboratory results or message the clinic nurses for more information.
+          </div>
+        )}
         {reasonList.map((reason: string) => {
           const files = selectedFiles[reason] || [];
 
@@ -108,13 +127,13 @@ export default function Show({ record, reasons, labResult }: any) {
               {/* Upload box */}
                 <div
                     onClick={() => {
-                        if (!alreadySubmitted) {
+                        if (!isLocked) {
                         fileInputs.current[reason]?.click();
                         }
                     }}
                     className={`w-full rounded-lg p-4 transition
                         flex flex-col items-center justify-center text-center gap-2
-                        ${alreadySubmitted ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+                        ${isLocked  ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
                         ${
                         hasImages
                             ? "border-2 border-green-500 bg-green-50 dark:bg-green-900/20"
@@ -161,12 +180,12 @@ export default function Show({ record, reasons, labResult }: any) {
               )}
 
               {/* Existing uploaded images */}
-              {labResult?.results?.[reason]?.length > 0 && (
+              {getPreviewImages(reason).length > 0 && (
                 <div className="flex gap-3 flex-wrap mt-2">
-                  {labResult.results[reason].map((img: string, i: number) => (
+                  {getPreviewImages(reason).map((src: string, i: number) => (
                     <img
                       key={i}
-                      src={`/storage/${img}`}
+                      src={src}
                       className="w-24 h-24 object-cover rounded border"
                     />
                   ))}
@@ -177,12 +196,16 @@ export default function Show({ record, reasons, labResult }: any) {
         })}
 
         <div className="flex justify-end">
-            <Button type="submit" disabled={processing || alreadySubmitted}>
-                {alreadySubmitted
-                    ? "Laboratory Results Submitted"
-                    : processing
-                    ? "Saving..."
-                    : "Save Laboratory Results"}
+            <Button type="submit" disabled={processing || isLocked}>
+              {isApproved
+                ? "Approved"
+                : isPending
+                ? "Pending Review"
+                : isRejected
+                ? "Resubmit Laboratory Results"
+                : processing
+                ? "Saving..."
+                : "Save Laboratory Results"}
             </Button>
         </div>
       </form>

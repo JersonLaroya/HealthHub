@@ -14,9 +14,12 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 
 
+type RecordStatus = "missing" | "pending" | "approved" | "rejected";
+
 interface RecordItem {
   id: number;
   created_at: string;
+  status: RecordStatus;
   lab_result_id?: number | null;
   lab_result?: {
     results: Record<string, string[]>;
@@ -30,6 +33,40 @@ export default function Index({ records }: { records: RecordItem[] }) {
   const [fullImage, setFullImage] = useState<string | null>(null);
 
   const { flash } = usePage().props as any;
+
+  function getStatusBadge(status: RecordItem["status"]) {
+    switch (status) {
+      case "missing":
+        return {
+          label: "Missing",
+          className:
+            "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
+        };
+      case "pending":
+        return {
+          label: "Pending Review",
+          className:
+            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+        };
+      case "approved":
+        return {
+          label: "Approved",
+          className:
+            "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+        };
+      case "rejected":
+        return {
+          label: "Rejected",
+          className:
+            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        };
+      default:
+        return {
+          label: "Unknown",
+          className: "bg-gray-200 text-gray-600",
+        };
+    }
+  }
 
   useEffect(() => {
     if (flash?.success) {
@@ -50,6 +87,8 @@ export default function Index({ records }: { records: RecordItem[] }) {
           <div className="grid grid-cols-1 gap-4">
             {records.map((record) => {
               const alreadySubmitted = !!record.lab_result_id;
+              const canUpload =
+                record.status === "missing" || record.status === "rejected";
 
               return (
                 <Card
@@ -62,13 +101,17 @@ export default function Index({ records }: { records: RecordItem[] }) {
                         Date Requested
                       </p>
 
-                      {alreadySubmitted && (
-                        <span className="text-xs font-semibold px-2 py-1 rounded-full
-                          bg-green-100 text-green-700
-                          dark:bg-green-900/30 dark:text-green-400">
-                          Already submitted
-                        </span>
-                      )}
+                      {(() => {
+                        const badge = getStatusBadge(record.status);
+
+                        return (
+                          <span
+                            className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <p className="font-medium">
@@ -78,9 +121,15 @@ export default function Index({ records }: { records: RecordItem[] }) {
                         year: "numeric",
                       })}
                     </p>
+                    {record.status === "rejected" && (
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        Your submission was rejected. Please upload a corrected result. You may also message the clinic nurses for more information.
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
+                    {/* Preview always if there is a submission */}
                     {alreadySubmitted && (
                       <Button
                         className="w-full sm:w-auto"
@@ -94,12 +143,27 @@ export default function Index({ records }: { records: RecordItem[] }) {
                       </Button>
                     )}
 
-                    {!alreadySubmitted && (
+                    {/* Upload / Re-upload only if missing or rejected */}
+                    {canUpload && (
                       <Link href={`/user/laboratory-results/${record.id}`}>
-                        <Button className="w-full sm:w-auto" variant="default">
-                          Upload Results
+                        <Button className="w-full sm:w-auto">
+                          {record.status === "rejected" ? "Re-upload Results" : "Upload Results"}
                         </Button>
                       </Link>
+                    )}
+
+                    {/* Pending state */}
+                    {record.status === "pending" && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400 self-center">
+                        Waiting for clinic review
+                      </span>
+                    )}
+
+                    {/* Approved state */}
+                    {record.status === "approved" && (
+                      <span className="text-sm text-green-600 dark:text-green-400 self-center font-medium">
+                        Approved by clinic
+                      </span>
                     )}
                   </div>
                 </Card>

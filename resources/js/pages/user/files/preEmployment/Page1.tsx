@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Props {
   patient: {
@@ -16,6 +17,9 @@ interface Props {
 export default function PreemploymentPage1({ patient }: Props) {
 
     console.log('Patient data:', patient);
+
+    const [signatureLoaded, setSignatureLoaded] = useState(false);
+    const [signatureError, setSignatureError] = useState(false);
 
     const middleInitial = patient.middle_name
         ? `${patient.middle_name.charAt(0).toUpperCase()}.`
@@ -61,6 +65,13 @@ export default function PreemploymentPage1({ patient }: Props) {
     }, [patient.signature]);
 
     useEffect(() => {
+    if (patient.signature) {
+        setSignatureLoaded(false);
+        setSignatureError(false);
+    }
+    }, [patient.signature]);
+
+    useEffect(() => {
         if (consentComplete) {
             setShowError(false);
         }
@@ -71,6 +82,11 @@ export default function PreemploymentPage1({ patient }: Props) {
 
     const submitPage = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!signatureLoaded) {
+        toast.error('Please wait for the signature to fully load.');
+        return;
+        }
 
         if (!consentComplete) {
             setShowError(true);
@@ -175,11 +191,17 @@ export default function PreemploymentPage1({ patient }: Props) {
                         <div className="w-80 text-center space-y-2">
 
                             {patient.signature && (
-                                <img
-                                    src={patient.signature.startsWith('http') ? patient.signature : `/storage/${patient.signature}`}
-                                    alt="Signature"
-                                    className="h-20 mx-auto object-contain w-full"
-                                />
+                            <img
+                                src={
+                                patient.signature.startsWith('http')
+                                    ? patient.signature
+                                    : `/storage/${patient.signature}`
+                                }
+                                alt="Signature"
+                                className="h-20 mx-auto object-contain w-full"
+                                onLoad={() => setSignatureLoaded(true)}
+                                onError={() => setSignatureError(true)}
+                            />
                             )}
 
                             <input
@@ -202,7 +224,7 @@ export default function PreemploymentPage1({ patient }: Props) {
 
                     {/* NEXT */}
                     <div className="flex justify-end">
-                        <Button type="submit" disabled={saving || !consentComplete}>
+                        <Button type="submit" disabled={saving || !consentComplete || !signatureLoaded}>
                             {saving ? 'Continuing...' : 'Next'}
                         </Button>
                     </div>

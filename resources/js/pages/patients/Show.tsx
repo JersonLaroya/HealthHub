@@ -259,21 +259,23 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Patient Record" />
       <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <h1 className="text-xl font-bold">Clinic Consultation Record</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleOpenPdf(patient, consultations)}>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button className="w-full sm:w-auto" variant="outline" onClick={() => handleOpenPdf(patient, consultations)}>
               Download PDF
             </Button>
             <Button
-            variant="outline"
-            onClick={handleViewMedicalFiles}
-          >
-            Medical Files
-          </Button>
-            <Button onClick={() => setEditing(true)}>Edit</Button>
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={handleViewMedicalFiles}
+            >
+              Medical Files
+            </Button>
+            <Button className="w-full sm:w-auto" onClick={() => setEditing(true)}>Edit</Button>
             <Button
               variant="default"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setConsultationData({
                   date: getTodayDate(),
@@ -302,7 +304,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
         {/* Patient Info */}
         <Card className="p-4 bg-white dark:bg-neutral-800 shadow ">
           {/* BASIC INFO */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
             <div className="col-span-1 sm:col-span-2">
               <strong>Role:</strong>{" "}
                 {["Faculty", "Staff"].includes(patient?.user_role?.name)
@@ -374,216 +376,217 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
         {/* Consultation Table */}
         <Card className="p-4 bg-white dark:bg-neutral-800 shadow">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-neutral-700">
-                <th className="p-2 text-left border-b">Date & Time</th>
-                <th className="p-2 text-left border-b">Vital Signs</th>
-                <th className="p-2 text-left border-b">Chief Complaint</th>
-                <th className="p-2 text-left border-b">Disease</th>
-                <th className="p-2 text-left border-b">Management & Treatment</th>
-                <th className="p-2 text-left border-b">Updated By</th>
-                <th className="p-2 text-left border-b">Status</th>
-                {canApprove && (
-                  <th className="p-2 text-left border-b">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {consultations?.data?.length > 0 ? (
-                consultations.data.map((c) => {
-                  const dateTime = new Date(`${c.date}T${c.time}`);
-                  const formattedDateTime = dateTime.toLocaleString("en-US", {
-                    month: "short",   
-                    day: "2-digit",  
-                    year: "numeric", 
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true, 
-                  });
+          <div className="w-full overflow-x-auto">
+            <table className="min-w-[900px] w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-neutral-700">
+                  <th className="p-2 text-left border-b">Date & Time</th>
+                  <th className="p-2 text-left border-b">Vital Signs</th>
+                  <th className="p-2 text-left border-b">Chief Complaint</th>
+                  <th className="p-2 text-left border-b">Disease</th>
+                  <th className="p-2 text-left border-b">Management & Treatment</th>
+                  <th className="p-2 text-left border-b">Updated By</th>
+                  <th className="p-2 text-left border-b">Status</th>
+                  {canApprove && (
+                    <th className="p-2 text-left border-b">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {consultations?.data?.length > 0 ? (
+                  consultations.data.map((c) => {
+                    const dateTime = new Date(`${c.date}T${c.time}`);
+                    const formattedDateTime = dateTime.toLocaleString("en-US", {
+                      month: "short",   
+                      day: "2-digit",  
+                      year: "numeric", 
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true, 
+                    });
 
-                  return (
-                    <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
-                      <td className="p-2 border-b">{formattedDateTime}</td>
-                      <td className="p-2 border-b align-top">
-                        <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md text-sm space-y-1">
-                          {c.vital_signs ? (
-                            <>
-                              {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
-                              {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
-                              {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
-                              {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}°C</div>}
-                              {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
-                              {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
-                              {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
-                              {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
+                    return (
+                      <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
+                        <td className="p-2 border-b">{formattedDateTime}</td>
+                        <td className="p-2 border-b align-top">
+                          <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md text-sm space-y-1">
+                            {c.vital_signs ? (
+                              <>
+                                {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
+                                {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
+                                {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
+                                {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}°C</div>}
+                                {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
+                                {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
+                                {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
+                                {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
 
-                              {/* if all empty */}
-                              {!c.vital_signs.bp &&
-                              !c.vital_signs.rr &&
-                              !c.vital_signs.pr &&
-                              !c.vital_signs.temp &&
-                              !c.vital_signs.o2_sat &&
-                              !c.vital_signs.height &&
-                              !c.vital_signs.weight &&
-                              !c.vital_signs.bmi && (
-                                <div>-</div>
-                              )}
-                            </>
-                          ) : (
-                            <div>-</div>
-                          )}
-                        </div>
-                      </td>
+                                {/* if all empty */}
+                                {!c.vital_signs.bp &&
+                                !c.vital_signs.rr &&
+                                !c.vital_signs.pr &&
+                                !c.vital_signs.temp &&
+                                !c.vital_signs.o2_sat &&
+                                !c.vital_signs.height &&
+                                !c.vital_signs.weight &&
+                                !c.vital_signs.bmi && (
+                                  <div>-</div>
+                                )}
+                              </>
+                            ) : (
+                              <div>-</div>
+                            )}
+                          </div>
+                        </td>
 
-                      <td className="p-2 border-b align-top">
-                        <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.medical_complaint ? (
-                            <>
-                              {(expandedComplaints[c.id] ? c.medical_complaint : c.medical_complaint.slice(0, 20))}
+                        <td className="p-2 border-b align-top">
+                          <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
+                            {c.medical_complaint ? (
+                              <>
+                                {(expandedComplaints[c.id] ? c.medical_complaint : c.medical_complaint.slice(0, 20))}
 
-                                {c.medical_complaint.length > 20 && (
+                                  {c.medical_complaint.length > 20 && (
+                                    <button
+                                      className="ml-1 text-blue-600 text-sm underline"
+                                      onClick={() =>
+                                        setExpandedComplaints((prev) => ({
+                                          ...prev,
+                                          [c.id]: !prev[c.id],
+                                        }))
+                                      }
+                                    >
+                                      {expandedComplaints[c.id] ? "See less" : "See more"}
+                                    </button>
+                                  )}
+                              </>
+                            ) : (
+                              "-"
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="p-2 border-b align-top">
+                          <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
+                            {c.diseases?.length
+                              ? c.diseases.map(d => d.name).join(", ")
+                              : "-"}
+                          </div>
+                        </td>
+
+                        <td className="p-2 border-b align-top">
+                          <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
+                            {c.management_and_treatment ? (
+                              <>
+                                {expandedComplaints[`management_${c.id}`] 
+                                  ? c.management_and_treatment
+                                  : `${c.management_and_treatment.slice(0, 20)}`} {/* truncated to 20 chars */}
+                                {c.management_and_treatment.length > 20 && (
                                   <button
                                     className="ml-1 text-blue-600 text-sm underline"
                                     onClick={() =>
                                       setExpandedComplaints((prev) => ({
                                         ...prev,
-                                        [c.id]: !prev[c.id],
+                                        [`management_${c.id}`]: !prev[`management_${c.id}`],
                                       }))
                                     }
                                   >
-                                    {expandedComplaints[c.id] ? "See less" : "See more"}
+                                    {expandedComplaints[`management_${c.id}`] ? "See less" : "See more"}
                                   </button>
                                 )}
-                            </>
-                          ) : (
-                            "-"
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="p-2 border-b align-top">
-                        <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.diseases?.length
-                            ? c.diseases.map(d => d.name).join(", ")
-                            : "-"}
-                        </div>
-                      </td>
-
-                      <td className="p-2 border-b align-top">
-                        <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                          {c.management_and_treatment ? (
-                            <>
-                              {expandedComplaints[`management_${c.id}`] 
-                                ? c.management_and_treatment
-                                : `${c.management_and_treatment.slice(0, 20)}`} {/* truncated to 20 chars */}
-                              {c.management_and_treatment.length > 20 && (
-                                <button
-                                  className="ml-1 text-blue-600 text-sm underline"
-                                  onClick={() =>
-                                    setExpandedComplaints((prev) => ({
-                                      ...prev,
-                                      [`management_${c.id}`]: !prev[`management_${c.id}`],
-                                    }))
-                                  }
-                                >
-                                  {expandedComplaints[`management_${c.id}`] ? "See less" : "See more"}
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            "-"
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="p-2 border-b text-sm">
-                        {c.updater
-                          ? `${c.updater.first_name} ${c.updater.last_name}`
-                          : c.creator
-                          ? `${c.creator.first_name} ${c.creator.last_name}`
-                          : "—"}
-                      </td>
-
-                      <td className="p-2 border-b">
-                        {c.status === 'pending' ? (
-                          <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
-                            Pending
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
-                            Approved
-                          </span>
-                        )}
-                      </td>
-
-                      {canApprove && (
-                        <td className="p-2 border-b align-bottom">
-                          <div className="flex gap-2 justify-start items-end h-full min-h-[100%]">
-
-                            {/* Approve: Admin + Nurse */}
-                            <Button
-                              size="sm"
-                              className="w-full sm:w-auto px-2 sm:px-3"
-                              disabled={c.status === 'approved' || approvingId === c.id}
-                              onClick={() => {
-                                setApprovingId(c.id);
-
-                                router.patch(
-                                  `/${role}/patients/${patient.id}/consultations/${c.id}/approve`,
-                                  {},
-                                  {
-                                    preserveScroll: true,
-                                    onSuccess: () => {
-                                      toast.success("Consultation approved.");
-                                      window.dispatchEvent(new Event("notifications-updated"));
-                                    },
-                                    onError: () => toast.error("Failed to approve consultation."),
-                                    onFinish: () => setApprovingId(null),
-                                  }
-                                );
-                              }}
-                            >
-                              {c.status === 'approved'
-                                ? 'Approved'
-                                : approvingId === c.id
-                                ? 'Approving...'
-                                : 'Approve'}
-                            </Button>
-
-                            {/* Edit/Delete: Admin only */}
-                            {isAdmin && (
-                              <>
-                                <Button size="sm" onClick={() => openEditConsultation(c)}>Edit</Button>
-
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => { 
-                                    setConsultationToDelete(c); 
-                                    setShowDeleteModal(true); 
-                                  }}
-                                >
-                                  Delete
-                                </Button>
                               </>
+                            ) : (
+                              "-"
                             )}
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
-                    No records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
 
+                        <td className="p-2 border-b text-sm">
+                          {c.updater
+                            ? `${c.updater.first_name} ${c.updater.last_name}`
+                            : c.creator
+                            ? `${c.creator.first_name} ${c.creator.last_name}`
+                            : "—"}
+                        </td>
+
+                        <td className="p-2 border-b">
+                          {c.status === 'pending' ? (
+                            <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
+                              Pending
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                              Approved
+                            </span>
+                          )}
+                        </td>
+
+                        {canApprove && (
+                          <td className="p-2 border-b align-bottom">
+                            <div className="flex flex-col sm:flex-row gap-2 justify-start items-stretch sm:items-end">
+
+                              {/* Approve: Admin + Nurse */}
+                              <Button
+                                size="sm"
+                                className="w-full sm:w-auto px-2 sm:px-3"
+                                disabled={c.status === 'approved' || approvingId === c.id}
+                                onClick={() => {
+                                  setApprovingId(c.id);
+
+                                  router.patch(
+                                    `/${role}/patients/${patient.id}/consultations/${c.id}/approve`,
+                                    {},
+                                    {
+                                      preserveScroll: true,
+                                      onSuccess: () => {
+                                        toast.success("Consultation approved.");
+                                        window.dispatchEvent(new Event("notifications-updated"));
+                                      },
+                                      onError: () => toast.error("Failed to approve consultation."),
+                                      onFinish: () => setApprovingId(null),
+                                    }
+                                  );
+                                }}
+                              >
+                                {c.status === 'approved'
+                                  ? 'Approved'
+                                  : approvingId === c.id
+                                  ? 'Approving...'
+                                  : 'Approve'}
+                              </Button>
+
+                              {/* Edit/Delete: Admin only */}
+                              {isAdmin && (
+                                <>
+                                  <Button size="sm" onClick={() => openEditConsultation(c)}>Edit</Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => { 
+                                      setConsultationToDelete(c); 
+                                      setShowDeleteModal(true); 
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      No records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
           {/* Pagination */}
           {consultations && consultations.links && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4">
@@ -617,7 +620,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
       {/* Edit Modal */}
       <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent className="sm:max-w-lg bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+        <DialogContent className="w-[95%] sm:max-w-lg bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Edit Patient Info</DialogTitle>
           </DialogHeader>

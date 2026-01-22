@@ -1,4 +1,4 @@
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   DialogFooter,
@@ -18,6 +18,7 @@ import {
 interface RecordItem {
   id: number;
   created_at: string;
+  status: "missing" | "pending" | "approved" | "rejected";
   lab_result_id?: number | null;
   lab_result?: {
     results: Record<string, string[]>;
@@ -25,12 +26,50 @@ interface RecordItem {
 }
 
 export default function Index({ records }: { records: RecordItem[] }) {
+  const { auth } = usePage().props as any;
+  const role = auth.user.user_role.name;
+  const isAdmin = role === "Admin";
+  const isNurse = role === "Nurse";
+
+  const [liveRecords, setLiveRecords] = useState(records);
+
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+
   const [open, setOpen] = useState(false);
   const [previewRecord, setPreviewRecord] = useState<RecordItem | null>(null);
   const [fullImage, setFullImage] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<RecordItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const echo = (window as any).Echo;
+    if (!echo) return;
+
+    const channel = echo.private("lab-results");
+
+    channel.listen(".lab-result-approved", (e: any) => {
+      setLiveRecords(prev =>
+        prev.map(r =>
+          r.id === e.id ? { ...r, status: e.status } : r
+        )
+      );
+    });
+
+    channel.listen(".lab-result-rejected", (e: any) => {
+      setLiveRecords(prev =>
+        prev.map(r =>
+          r.id === e.id ? { ...r, status: e.status } : r
+        )
+      );
+    });
+
+    return () => {
+      echo.leave("private-lab-results");
+    };
+  }, []);
+  
 
   return (
     <AppLayout>
@@ -40,86 +79,164 @@ export default function Index({ records }: { records: RecordItem[] }) {
         <h1 className="text-2xl font-semibold">Laboratory Results</h1>
 
         {records.length ? (
-          <div className="overflow-x-auto border rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-neutral-800">
-                <tr>
-                  <th className="p-3 text-left border-b">Date Requested</th>
-                  <th className="p-3 text-left border-b">Status</th>
-                  <th className="p-3 text-right border-b">Actions</th>
-                </tr>
-              </thead>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-neutral-800">
+                  <tr>
+                    <th className="p-3 text-left border-b">Date Requested</th>
+                    <th className="p-3 text-left border-b">Status</th>
+                    <th className="p-3 text-right border-b">Actions</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {records.map((record) => {
-                  const alreadySubmitted = !!record.lab_result_id;
+                <tbody>
+                  {liveRecords.map((record) => {
+                    const status = record.status;
 
-                  return (
-                    <tr
-                      key={record.id}
-                      className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition"
-                    >
-                      <td className="p-3 border-b">
-                        {new Date(record.created_at).toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "2-digit",
-                          year: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
-                      </td>
+                    return (
+                      <tr
+                        key={record.id}
+                        className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition"
+                      >
+                        <td className="p-3 border-b">
+                          {new Date(record.created_at).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "2-digit",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </td>
 
-                      <td className="p-3 border-b">
-                        {alreadySubmitted ? (
-                          <span className="text-green-600 font-medium">
-                            Submitted
-                          </span>
-                        ) : (
-                          <span className="text-yellow-600 font-medium">
-                            Pending
-                          </span>
-                        )}
-                      </td>
+                        <td className="p-3 border-b">
+                          {status === "missing" && (
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full 
+                              bg-gray-100 text-gray-600 dark:bg-neutral-700 dark:text-gray-300">
+                              Missing
+                            </span>
+                          )}
 
-                      <td className="p-3 border-b text-right space-x-2">
-                        {alreadySubmitted && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setPreviewRecord(record);
-                              setOpen(true);
-                            }}
-                          >
-                            View
-                          </Button>
-                        )}
+                          {status === "pending" && (
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full 
+                              bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                              Pending review
+                            </span>
+                          )}
 
-                        {alreadySubmitted && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                                setRecordToDelete(record);
-                                setShowDeleteModal(true);
-                            }}
-                            >
-                            Delete
-                            </Button>
-                        )}
+                          {status === "approved" && (
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full 
+                              bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              Approved
+                            </span>
+                          )}
 
-                        {!alreadySubmitted && (
-                          <span className="text-gray-400 text-sm">
-                            No actions
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          {status === "rejected" && (
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full 
+                              bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                              Rejected
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="p-3 border-b">
+                          <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                            {(isAdmin || isNurse) && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={record.status === "approved" || approvingId === record.id || rejectingId === record.id}
+                                onClick={() => {
+                                  setApprovingId(record.id);
+
+                                  router.post(`/admin/lab-results/${record.id}/approve`, {}, {
+                                    onSuccess: () => {
+                                      toast.success("Approved", { description: "Laboratory result approved." });
+
+                                      setLiveRecords(prev =>
+                                        prev.map(r =>
+                                          r.id === record.id ? { ...r, status: "approved" } : r
+                                        )
+                                      );
+                                    },
+                                    onFinish: () => setApprovingId(null),
+                                  });
+                                }}
+                              >
+                                {record.status === "approved"
+                                  ? "Approved"
+                                  : approvingId === record.id
+                                  ? "Approving..."
+                                  : "Approve"}
+                              </Button>
+                            )}
+                            {(isAdmin || isNurse) && record.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={rejectingId === record.id || approvingId === record.id}
+                                onClick={() => {
+                                  setRejectingId(record.id);
+
+                                  router.post(`/admin/lab-results/${record.id}/reject`, {}, {
+                                    onSuccess: () => {
+                                      toast.error("Rejected", {
+                                        description: "Laboratory result was rejected.",
+                                      });
+
+                                      setLiveRecords(prev =>
+                                        prev.map(r =>
+                                          r.id === record.id ? { ...r, status: "rejected" } : r
+                                        )
+                                      );
+                                    },
+                                    onFinish: () => setRejectingId(null),
+                                  });
+                                }}
+                              >
+                                {rejectingId === record.id ? "Rejecting..." : "Reject"}
+                              </Button>
+                            )}
+                            {(status === "pending" || status === "approved" || status === "rejected") && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setPreviewRecord(record);
+                                  setOpen(true);
+                                }}
+                              >
+                                View
+                              </Button>
+                            )}
+
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setRecordToDelete(record);
+                                  setShowDeleteModal(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            )}
+
+                            {status === "missing" && (
+                              <span className="text-gray-400 text-sm">
+                                No submission yet
+                              </span>
+                            )}
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <Card className="p-6 text-center text-gray-500 dark:text-gray-400">

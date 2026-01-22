@@ -7,8 +7,9 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class NewEventPosted extends Notification implements ShouldBroadcast
+class NewEventPosted extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 

@@ -203,6 +203,29 @@ export default function AthletePage5({ patient }: Props) {
 
   });
 
+  useEffect(() => {
+  console.clear();
+  console.log("FORM DATA (live):", form.data);
+
+  console.log("VALIDATION STATES:", {
+    medicalValid,
+    familyValid,
+    personalValid,
+    headValid,
+    illnessValid,
+    allergyValid,
+    hospitalizationValid,
+    miscValid,
+    orthoValid,
+    socialValid,
+    femaleValid,
+    civilStatusValid,
+    pageValid,
+  });
+}, [form.data]);
+
+
+
   /* =======================
    VALIDATION
 ======================= */

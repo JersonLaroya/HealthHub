@@ -336,6 +336,10 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
 
         // delete lab result
         Route::delete('/lab-results/{record}', [PatientController::class, 'deleteLabResult'])->name('admin.lab-results.delete');
+        Route::post('/lab-results/{record}/approve', [PatientController::class, 'approveLabResult'])->name('admin.lab-results.approve');
+        Route::post('/lab-results/{record}/reject', [PatientController::class, 'rejectLabResult']);
+        Route::post('/forms/{record}/approve', [PatientController::class, 'approveFormRecord']);
+        Route::post('/forms/{record}/reject', [PatientController::class, 'rejectFormRecord']);
     });
 
     // Nurse
@@ -348,6 +352,11 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}/files/{slug}', [PatientController::class, 'showFile']);
         Route::get('/patients/{patient}/files/{slug}/records/{record}', [PatientController::class, 'viewRecord']);
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('nurse.patients.consultations.approve');
+        Route::put('/patients/{patient}/files/{slug}/records/{record}',[PatientController::class, 'updateRecord'])->name('nurse.records.update');
+        Route::post('/lab-results/{record}/approve', [PatientController::class, 'approveLabResult'])->name('admin.lab-results.approve');
+        Route::post('/lab-results/{record}/reject', [PatientController::class, 'rejectLabResult']);
+        Route::post('/forms/{record}/approve', [PatientController::class, 'approveFormRecord']);
+        Route::post('/forms/{record}/reject', [PatientController::class, 'rejectFormRecord']);
     });
 });
 

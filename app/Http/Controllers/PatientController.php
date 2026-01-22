@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\LabNotificationsRead;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Disease;
 use App\Models\Record;
@@ -15,6 +16,12 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\LabResult;
 use Illuminate\Support\Facades\Storage;
 use App\Services\MedicalNotificationService;
+use App\Notifications\LabResultApproved;
+use App\Notifications\LabResultRejected;
+use App\Events\LabResultRejected as LabResultRejectedEvent;
+use App\Events\FormStatusUpdated;
+use App\Notifications\FormApproved;
+use App\Notifications\FormRejected;
 
 class PatientController extends Controller
 {
@@ -217,7 +224,7 @@ class PatientController extends Controller
                 ->where('service_id', $labService->id)   // only lab requests
                 ->with('labResult:id,results')            // preload images
                 ->orderByDesc('created_at')
-                ->get(['id', 'created_at', 'lab_result_id', 'response_data']); // ✅ keep reasons
+                ->get(['id', 'created_at', 'lab_result_id', 'response_data', 'status']);
 
             return Inertia::render('patients/labResults/Index', [
                 'patient' => [
@@ -239,6 +246,7 @@ class PatientController extends Controller
                 'id',
                 'created_at',
                 'response_data',
+                'status',
             ]);
 
         return Inertia::render('patients/ShowFile', [
@@ -256,6 +264,156 @@ class PatientController extends Controller
             ],
             'records' => $records,
         ]);
+    }
+
+    public function approveFormRecord(Record $record)
+    {
+        abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+        $record->update([
+            'status' => Record::STATUS_APPROVED,
+        ]);
+
+        // mark related notifications as read for staff
+        User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->each(function ($staff) use ($record) {
+
+            $staff->unreadNotifications()
+                ->where('type', \App\Notifications\FormSubmitted::class)
+                ->whereRaw("data->>'record_id' = ?", [(string) $record->id])
+                ->update(['read_at' => now()]);
+        });
+
+        // notify user
+        $service = Service::find($record->service_id);
+
+        $record->user->notify(
+            new FormApproved(
+                $service?->title ?? 'Medical Form',
+                $service?->slug ?? ''
+            )
+        );
+
+        // realtime refresh
+        broadcast(new FormStatusUpdated($record))->toOthers();
+
+        return back()->with('success', 'Form approved.');
+    }
+
+
+    public function rejectFormRecord(Record $record)
+    {
+        abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+        $record->update([
+            'status' => Record::STATUS_REJECTED,
+        ]);
+
+        // mark related notifications as read for staff
+        User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->each(function ($staff) use ($record) {
+
+            $staff->unreadNotifications()
+                ->where('type', \App\Notifications\FormSubmitted::class)
+                ->whereRaw("data->>'record_id' = ?", [(string) $record->id])
+                ->update(['read_at' => now()]);
+        });
+
+        // notify user
+        $service = Service::find($record->service_id);
+
+        $record->user->notify(
+            new FormRejected(
+                $service?->title ?? 'Medical Form',
+                $service?->slug ?? ''
+            )
+        );
+
+        // realtime refresh
+        broadcast(new FormStatusUpdated($record))->toOthers();
+
+        return back()->with('success', 'Form rejected.');
+    }
+
+    public function approveLabResult(Record $record)
+    {
+        abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+        if (!$record->lab_result_id) {
+            return back()->withErrors(['lab' => 'No laboratory result found.']);
+        }
+
+        $record->update([
+            'status' => Record::STATUS_APPROVED,
+        ]);
+
+        // mark related notifications as read for the current staff user
+        User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->each(function ($staff) use ($record) {
+
+            $staff->unreadNotifications()
+                ->where('type', \App\Notifications\LabResultSubmitted::class)
+                ->whereRaw("data->>'record_id' = ?", [(string) $record->id])
+                ->update(['read_at' => now()]);
+        });
+
+        // tell all staff browsers to update
+        broadcast(new LabNotificationsRead($record->id))->toOthers();
+
+        // get service name (optional, nice for email)
+        $service = Service::find($record->service_id);
+
+        // notify user
+        $record->user->notify(
+            new LabResultApproved($service?->title ?? 'Laboratory Request')
+        );
+
+        broadcast(new LabResultApproved($record))->toOthers();
+
+        return back()->with('success', 'Laboratory result approved.');
+    }
+
+    
+    public function rejectLabResult(Record $record)
+    {
+        abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+        if (!$record->lab_result_id) {
+            return back()->withErrors(['lab' => 'No laboratory result found.']);
+        }
+
+        $record->update([
+            'status' => Record::STATUS_REJECTED,
+        ]);
+
+        // mark related notifications as read for the current staff user
+        User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->each(function ($staff) use ($record) {
+
+            $staff->unreadNotifications()
+                ->where('type', \App\Notifications\LabResultSubmitted::class)
+                ->whereRaw("data->>'record_id' = ?", [(string) $record->id])
+                ->update(['read_at' => now()]);
+        });
+
+        // tell all staff browsers to update
+        broadcast(new LabNotificationsRead($record->id))->toOthers();
+
+        $service = Service::find($record->service_id);
+
+        // notify user
+        $record->user->notify(
+            new LabResultRejected($service?->title ?? 'Laboratory Request')
+        );
+
+        // broadcast live update
+        broadcast(new LabResultRejectedEvent($record))->toOthers();
+
+        return back()->with('success', 'Laboratory result rejected.');
     }
 
     public function viewRecord(User $patient, string $slug, Record $record)
@@ -279,6 +437,7 @@ class PatientController extends Controller
 
     public function updateRecord(User $patient, string $slug, Record $record, Request $request)
     {
+        abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
         abort_if($record->user_id !== $patient->id, 403);
 
         $request->validate([

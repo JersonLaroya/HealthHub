@@ -6,8 +6,9 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class RcyConsultationSubmitted extends Notification
+class RcyConsultationSubmitted extends Notification //implements ShouldQueue
 {
     use Queueable;
 

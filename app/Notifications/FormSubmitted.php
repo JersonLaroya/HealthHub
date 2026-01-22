@@ -7,8 +7,9 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class FormSubmitted extends Notification implements ShouldBroadcast
+class FormSubmitted extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
@@ -16,7 +17,8 @@ class FormSubmitted extends Notification implements ShouldBroadcast
         public string $formTitle,
         public string $senderName,
         public int $patientId,
-        public string $formSlug
+        public string $formSlug,
+        public int $recordId   
     ) {}
 
     public function via($notifiable)
@@ -31,15 +33,17 @@ class FormSubmitted extends Notification implements ShouldBroadcast
         $prefix = match ($role) {
             'Admin' => 'admin',
             'Nurse' => 'nurse',
-            default => 'admin', // safe fallback
+            default => 'admin',
         };
 
         return [
-            'title' => 'New form submitted',
-            'message' => "{$this->formTitle} submitted by {$this->senderName}",
-            'slug' => 'form-submitted',
+            'title'     => 'New form submitted',
+            'message'   => "{$this->formTitle} submitted by {$this->senderName}",
+            'slug'      => 'form-submitted',
 
-            //role-aware redirect
+            'record_id' => $this->recordId,  
+            'patient_id'=> $this->patientId,
+
             'url' => "/{$prefix}/patients/{$this->patientId}/files/{$this->formSlug}",
         ];
     }

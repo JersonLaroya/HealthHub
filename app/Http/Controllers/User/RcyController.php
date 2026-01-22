@@ -152,6 +152,7 @@ class RcyController extends Controller
             'name' => trim("{$user->first_name} " . ($user->middle_name ? $user->middle_name . ' ' : '') . $user->last_name),
             'birthdate' => $user->birthdate,
             'sex' => $user->sex,
+            'email' => $user->email,
             'course' => $user->course?->code,
             'yearLevel' => $user->yearLevel?->level,
             'office' => $user->office?->name,

@@ -208,30 +208,40 @@ export default function AddRcyModal({ open, onClose, positions = [] }: AddRcyMod
                     onScroll={handleScroll}
                     className="absolute z-10 bg-white border rounded mt-1 max-h-40 overflow-y-auto w-full shadow"
                   >
-                    {results.map((s) => (
-                      <li
-                        key={s.id}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setSelectedStudent(s);
-                          setData("user_id", s.id);
-                          setResults([]);
-                          setSearch("");
-                          setPage(1);
-                          setHasMore(false);
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
+                    {results.map((s) => {
+                      const info =
+                        s.course && s.yearLevel
+                          ? `${s.course} - ${s.yearLevel}`
+                          : "—";
+
+                      return (
+                        <li
+                          key={s.id}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => {
+                            setSelectedStudent(s);
+                            setData("user_id", s.id);
+                            setResults([]);
+                            setSearch("");
+                            setPage(1);
+                            setHasMore(false);
+                          }}
+                        >
+                          {/* name */}
                           <p className="font-medium">{s.name}</p>
 
-                          {(s.course || s.yearLevel) && (
-                            <span className="text-xs text-gray-400 whitespace-nowrap">
-                              {s.course ?? "-"} {s.yearLevel ?? ""}
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    ))}
+                          {/* course & year */}
+                          <p className="text-xs text-gray-500">
+                            {info}
+                          </p>
+
+                          {/* email */}
+                          <p className="text-[11px] text-gray-400">
+                            {s.email}
+                          </p>
+                        </li>
+                      );
+                    })}
 
                     {loading && (
                       <li className="px-3 py-2 text-gray-500 flex items-center justify-center">

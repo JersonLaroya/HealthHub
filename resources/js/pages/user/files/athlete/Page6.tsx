@@ -28,6 +28,14 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
   const middleInitial = patient.middle_name ? `${patient.middle_name.charAt(0)}.` : '';
   const printedName = `${patient.first_name || ''} ${middleInitial} ${patient.last_name || ''}`.trim();
 
+  const [signatureLoaded, setSignatureLoaded] = useState(false);
+
+  useEffect(() => {
+    if (patient.signature) {
+      setSignatureLoaded(false);
+    }
+  }, [patient.signature]);
+
   // Initialize physical exam if not present
   useEffect(() => {
     const savedPhysicalExam = sessionStorage.getItem('athlete_page_6_physical_exam');
@@ -147,7 +155,23 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
             <div className="flex-1 text-center">
               <label className="text-xs font-semibold block mb-1">Signature:</label>
               {patient.signature ? (
-                <img src={patient.signature.startsWith('http') ? patient.signature : `/storage/${patient.signature}`} alt="Signature" className="h-16 mx-auto object-contain w-full border-b border-black" />
+                <>
+                  {!signatureLoaded && (
+                    <div className="h-16 border-b border-black w-full mx-auto flex items-center justify-center text-xs text-gray-400">
+                      Loading signature…
+                    </div>
+                  )}
+
+                  <img
+                    src={patient.signature.startsWith('http') ? patient.signature : `/storage/${patient.signature}`}
+                    alt="Signature"
+                    onLoad={() => setSignatureLoaded(true)}
+                    onError={() => setSignatureLoaded(true)}
+                    className={`h-16 mx-auto object-contain w-full border-b border-black ${
+                      signatureLoaded ? 'block' : 'hidden'
+                    }`}
+                  />
+                </>
               ) : (
                 <div className="h-16 border-b border-black w-full mx-auto" />
               )}
@@ -186,10 +210,11 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
           </Button>
 
           <div className="flex gap-3 items-center">
-            <Button variant="outline" onClick={previewPdf} disabled={loading}>
+            <Button variant="outline" onClick={previewPdf} disabled={loading || !signatureLoaded}>
               {loading ? 'Previewing PDF…' : 'Preview PDF'}
             </Button>
-            <Button onClick={submitPage} disabled={submitting}>
+
+            <Button onClick={submitPage} disabled={submitting || !signatureLoaded}>
               {submitting ? 'Submitting…' : 'Submit'}
             </Button>
           </div>

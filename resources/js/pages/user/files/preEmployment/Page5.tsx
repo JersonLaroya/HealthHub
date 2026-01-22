@@ -51,6 +51,16 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
     }
   }, [flashToast]);
 
+  const [signatureLoaded, setSignatureLoaded] = useState(false);
+  const [signatureError, setSignatureError] = useState(false);
+
+  useEffect(() => {
+    if (patient.signature) {
+      setSignatureLoaded(false);
+      setSignatureError(false);
+    }
+  }, [patient.signature]);
+
 
   const middleInitial = patient.middle_name
     ? `${patient.middle_name.charAt(0).toUpperCase()}.`
@@ -384,11 +394,17 @@ const isFormComplete = () => {
             <div className="w-80 text-center space-y-2">
                 {patient.signature && (
                 <img
-                    src={patient.signature.startsWith('http') ? patient.signature : `/storage/${patient.signature}`}
-                    alt="Signature"
-                    className="h-20 mx-auto object-contain w-full"
+                  src={
+                    patient.signature.startsWith('http')
+                      ? patient.signature
+                      : `/storage/${patient.signature}`
+                  }
+                  alt="Signature"
+                  className="h-20 mx-auto object-contain w-full"
+                  onLoad={() => setSignatureLoaded(true)}
+                  onError={() => setSignatureError(true)}
                 />
-                )}
+              )}
 
                 <input
                 className={lineInput + ' text-center uppercase'}
@@ -427,14 +443,14 @@ const isFormComplete = () => {
               <Button
                 variant="outline"
                 onClick={previewPdf}
-                disabled={loadingPreview || !isFormComplete()}
+                disabled={loadingPreview || !isFormComplete() || !signatureLoaded}
               >
                 {loadingPreview ? 'Previewing PDF…' : 'Preview PDF'}
               </Button>
 
               <Button
                 type="submit"
-                disabled={submitting || savingPrev || !isFormComplete()}
+                disabled={submitting || savingPrev || !isFormComplete() || !signatureLoaded}
               >
                 {submitting ? 'Submitting…' : 'Submit'}
               </Button>

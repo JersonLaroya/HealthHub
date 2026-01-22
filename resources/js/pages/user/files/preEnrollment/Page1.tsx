@@ -24,6 +24,16 @@ export default function PreenrollmentPage1({ patient }: Props) {
   const fullName = `${patient.last_name}, ${patient.first_name} ${middleInitial}`.trim();
   const printedName = `${patient.first_name} ${middleInitial} ${patient.last_name}`.replace(/\s+/g, ' ').trim();
 
+  const [signatureLoaded, setSignatureLoaded] = useState(false);
+  const [signatureError, setSignatureError] = useState(false);
+
+  useEffect(() => {
+    if (patient.signature) {
+      setSignatureLoaded(false);
+      setSignatureError(false);
+    }
+  }, [patient.signature]);
+
   const formatBirthdate = () => {
     if (!patient.birthdate) return '';
     const d = new Date(patient.birthdate);
@@ -64,6 +74,11 @@ export default function PreenrollmentPage1({ patient }: Props) {
 
   const submitPage = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!signatureLoaded) {
+      setShowError(true);
+      return;
+    }
 
     if (!consentComplete) {
       setShowError(true);
@@ -172,9 +187,15 @@ export default function PreenrollmentPage1({ patient }: Props) {
 
               {patient.signature && (
                 <img
-                  src={patient.signature.startsWith('http') ? patient.signature : `/storage/${patient.signature}`}
+                  src={
+                    patient.signature.startsWith('http')
+                      ? patient.signature
+                      : `/storage/${patient.signature}`
+                  }
                   alt="Signature"
                   className="h-20 mx-auto object-contain w-full"
+                  onLoad={() => setSignatureLoaded(true)}
+                  onError={() => setSignatureError(true)}
                 />
               )}
 
@@ -198,7 +219,7 @@ export default function PreenrollmentPage1({ patient }: Props) {
 
           {/* NEXT */}
           <div className="flex justify-end">
-            <Button type="submit" disabled={saving || !consentComplete}>
+            <Button type="submit" disabled={saving || !consentComplete || !signatureLoaded}>
               {saving ? 'Continuing...' : 'Next'}
             </Button>
           </div>

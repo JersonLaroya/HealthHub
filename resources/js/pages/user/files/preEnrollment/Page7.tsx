@@ -32,6 +32,16 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
   }, [alreadySubmitted]);
   console.log('alreadySubmitted', alreadySubmitted);
 
+  const [signatureLoaded, setSignatureLoaded] = useState(false);
+ const [signatureError, setSignatureError] = useState(false);
+  
+ useEffect(() => {
+    if (patient.signature) {
+      setSignatureLoaded(false);
+      setSignatureError(false);
+    }
+  }, [patient.signature]);
+
   const { toast: flashToast } = usePage().props as any;
 
     useEffect(() => {
@@ -107,6 +117,11 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
   const submitPage = (e: React.FormEvent) => {
       e.preventDefault();
       setSubmitting(true);
+
+      if (!signatureLoaded) {
+        toast.error('Please wait for the signature to fully load.');
+        return;
+      }
 
       console.log('responses before post', form.data.responses);
 
@@ -195,6 +210,8 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
                 }
                 alt="Signature"
                 className="h-20 mx-auto object-contain w-full"
+                onLoad={() => setSignatureLoaded(true)}
+                onError={() => setSignatureError(true)}
               />
             )}
 
@@ -227,7 +244,7 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
           </Button>
 
           <div className="flex gap-3 items-center">
-            <Button variant="outline" onClick={previewPdf} disabled={loading}>
+            <Button variant="outline" onClick={previewPdf} disabled={loading || !signatureLoaded}>
               {loading ? 'Previewing PDF…' : 'Preview PDF'}
             </Button>
 
@@ -236,7 +253,7 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
                 setSubmitting(true);
                 submitPage(e);
               }}
-              disabled={submitting || savingPrev}
+              disabled={submitting || savingPrev || !signatureLoaded}
             >
               {submitting ? 'Submitting…' : 'Submit'}
             </Button>

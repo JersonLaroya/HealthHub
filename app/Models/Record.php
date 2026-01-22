@@ -9,12 +9,18 @@ class Record extends Model
 {
     use HasFactory;
 
+    const STATUS_MISSING = 'missing';
+    const STATUS_PENDING = 'pending';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_REJECTED = 'rejected';
+
     protected $fillable = [
         'user_id',
         'consultation_id',
         'service_id',
         'lab_result_id',
         'response_data',
+        'status',
     ];
 
     protected $casts = [
