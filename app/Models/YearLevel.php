@@ -9,7 +9,7 @@ class YearLevel extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'code'];
+    protected $fillable = ['name', 'level'];
 
     // Users belonging to this year level
     public function users()

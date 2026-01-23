@@ -37,7 +37,7 @@ class PatientController extends Controller
 
         $patients = User::with(['course', 'yearLevel', 'office', 'userRole'])
             ->whereDoesntHave('userRole', function ($q) {
-                $q->whereIn('name', ['Admin', 'Nurse', 'Super Admin']);
+                $q->whereIn('name', ['Admin', 'Nurse']);
             })
 
             // text search

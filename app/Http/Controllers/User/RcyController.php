@@ -78,7 +78,7 @@ class RcyController extends Controller
 
         // Get all admins and Nurses
         $staff = User::whereHas('userRole', function ($q) {
-            $q->whereIn('name', ['Admin', 'Super Admin', 'Nurse']);
+            $q->whereIn('name', ['Admin', 'Nurse']);
         })->get();
 
         foreach ($staff as $user) {

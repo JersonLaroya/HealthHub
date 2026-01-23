@@ -19,6 +19,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\SuperAdmin\SuperAdminUserController;
 use App\Http\Controllers\User\FileController;
 use App\Http\Controllers\User\LaboratoryResultController;
 use App\Http\Controllers\User\MedicalFormController;
@@ -359,6 +360,46 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::post('/forms/{record}/reject', [PatientController::class, 'rejectFormRecord']);
     });
 });
+Route::get('/test-csv', function () {
+    return response()->file(public_path('samples/bulk-users-sample.csv'));
+});
+// =========================
+// Routes for Super Admin
+// =========================
+Route::middleware(['auth', 'role:Super Admin'])
+    ->prefix('superadmin')
+    ->name('superadmin.')
+    ->group(function () {
+
+        Route::get('/dashboard', function () {
+            return Inertia::render('superAdmin/dashboard');
+        })->name('dashboard');
+
+        // USERS
+        Route::get('/users', [SuperAdminUserController::class, 'index'])
+            ->name('users.index');
+
+        Route::get('/settings', fn () => Inertia::render('superadmin/settings'))
+            ->name('settings');
+
+        Route::put('/users/{user}', [SuperAdminUserController::class, 'update'])
+            ->name('users.update');
+
+        Route::delete('/users/{user}', [SuperAdminUserController::class, 'destroy'])
+            ->name('users.destroy');
+
+        Route::get('/users/create', [SuperAdminUserController::class, 'create'])
+            ->name('users.create');
+
+        Route::post('/users', [SuperAdminUserController::class, 'store'])
+            ->name('users.store');
+
+        Route::get('/users/bulk', [SuperAdminUserController::class, 'bulk'])
+            ->name('users.bulk');
+
+        Route::post('/users/bulk', [SuperAdminUserController::class, 'bulkStore'])
+            ->name('users.bulk.store');
+    });
 
 //
 Route::get('/test-chat/{a}/{b}', function ($a, $b) {

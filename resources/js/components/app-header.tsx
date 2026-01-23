@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Menu, ClipboardCheck, User, Users, FileChartColumnIcon, CalendarDays, MessageCircle, Bell } from 'lucide-react';
+import { LayoutGrid, Building2, GraduationCap, Settings, Menu, ClipboardCheck, User, Users, FileChartColumnIcon, CalendarDays, MessageCircle, Bell, Shield } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 import { useEffect, useState } from "react";
@@ -214,19 +214,25 @@ const isRcyMember = auth.is_rcy_member;
 
 const mainNavItems: NavItem[] =
   isSuperAdmin
-    ? [
-        { title: "Dashboard", href: "/superadmin/dashboard", icon: LayoutGrid },
-        {
-          title: "System",
-          icon: Users,
-          children: [
-            { title: "Users", href: "/superadmin/users" },
-            { title: "Roles", href: "/superadmin/roles" },
-            { title: "Offices", href: "/superadmin/offices" },
-            { title: "Courses", href: "/superadmin/courses" },
-          ],
-        },
-      ]
+  ? [
+      { title: "Dashboard", href: "/superadmin/dashboard", icon: LayoutGrid },
+
+      {
+        title: "Management",
+        icon: Shield, // system control / authority
+        children: [
+          { title: "Users", href: "/superadmin/users", icon: Users },
+          { title: "Offices", href: "/superadmin/offices", icon: Building2 },
+          { title: "Courses", href: "/superadmin/courses", icon: GraduationCap },
+        ],
+      },
+
+      {
+        title: "Settings",
+        href: "/superadmin/settings",
+        icon: Settings,
+      },
+    ]
     : isAdmin
     ? [
         ...clinicNav("admin"),
