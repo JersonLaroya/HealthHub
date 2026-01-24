@@ -8,26 +8,58 @@ class ChatService
 {
     public static function canMessage(User $sender, User $receiver): bool
     {
-        $senderCategory   = $sender->userRole->category ?? null;
-        $receiverCategory = $receiver->userRole->category ?? null;
+        $senderRole       = strtolower($sender->userRole->name ?? '');
+        $receiverRole     = strtolower($receiver->userRole->name ?? '');
 
-        if (!$senderCategory || !$receiverCategory) {
+        $senderCategory   = strtolower($sender->userRole->category ?? '');
+        $receiverCategory = strtolower($receiver->userRole->category ?? '');
+
+        if (!$senderRole || !$senderCategory || !$receiverRole || !$receiverCategory) {
             return false;
         }
 
-        return (
-            // user or rcy  -> staff or system
-            (in_array($senderCategory, ['user', 'rcy']) && in_array($receiverCategory, ['staff', 'system']))
+        $isSuperAdmin = fn($r) => $r === 'super admin';
+        $isAdmin      = fn($r) => $r === 'admin';
+        $isNurse      = fn($r) => $r === 'nurse';
 
-            ||
+        /*
+        |-------------------------
+        | Super Admin
+        |-------------------------
+        */
+        if ($isSuperAdmin($senderRole)) {
+            return $isAdmin($receiverRole) || $isNurse($receiverRole);
+        }
 
-            // staff or system -> user or rcy
-            (in_array($senderCategory, ['staff', 'system']) && in_array($receiverCategory, ['user', 'rcy']))
+        /*
+        |-------------------------
+        | Admin
+        |-------------------------
+        */
+        if ($isAdmin($senderRole)) {
+            return $isSuperAdmin($receiverRole)
+                || in_array($receiverCategory, ['user', 'rcy']);
+        }
 
-            ||
+        /*
+        |-------------------------
+        | Nurse
+        |-------------------------
+        */
+        if ($isNurse($senderRole)) {
+            return $isSuperAdmin($receiverRole)
+                || in_array($receiverCategory, ['user', 'rcy']);
+        }
 
-            // staff/system -> system (Nurse/Admin -> Super Admin, Admin <-> Nurse, etc.)
-            (in_array($senderCategory, ['staff', 'system']) && $receiverCategory === 'system')
-        );
+        /*
+        |-------------------------
+        | user / rcy
+        |-------------------------
+        */
+        if (in_array($senderCategory, ['user', 'rcy'])) {
+            return $isAdmin($receiverRole) || $isNurse($receiverRole);
+        }
+
+        return false;
     }
 }

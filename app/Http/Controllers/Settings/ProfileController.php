@@ -25,6 +25,13 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user()->load(['userRole', 'office']);
+
+        $canHaveSignature = $user->userRole?->name !== 'Super Admin';
+
+        if ($canHaveSignature && $user->signature) {
+            $user->signature = asset('storage/' . $user->signature);
+        }
+
         $offices = Office::all(['id', 'name']);
         $courses = Course::all();
         $allRoles = UserRole::where('category', 'user')->get(); // Only 'user' category roles (Student, Staff, Faculty)
@@ -37,6 +44,7 @@ class ProfileController extends Controller
         $isRcy = $user->userRole?->category === 'rcy';
 
         $component = match($user->userRole?->name) {
+            'Super Admin' => 'superadmin/profile',
             'Admin'   => 'admin/profile',
             'Student' => 'user/profile',
             'Staff'   => 'user/profile',
@@ -73,8 +81,10 @@ class ProfileController extends Controller
         }
 
         // Handle signature (base64 → file path)
+        $canHaveSignature = $user->userRole?->name !== 'Super Admin';
+
         $signaturePath = $user->signature; // default to existing
-        if ($request->filled('signature') && str_starts_with($request->signature, 'data:image')) {
+        if ($canHaveSignature && $request->filled('signature') && str_starts_with($request->signature, 'data:image')) {
 
             // Delete old signature if exists
             if ($user->signature && Storage::disk('public')->exists($user->signature)) {
@@ -99,7 +109,9 @@ class ProfileController extends Controller
         $user->fill($request->safe()->only($fillable));
 
         // Assign signature path separately
-        $user->signature = $signaturePath;
+        if ($canHaveSignature) {
+            $user->signature = $signaturePath;
+        }
 
         // Only nullify course/year if the user is not a Student or RCY
         if (!in_array($user->userRole?->category, ['user', 'rcy'])) {
@@ -119,6 +131,7 @@ class ProfileController extends Controller
         $userRoleName = $user->userRole->name;
 
         return match($userRoleName) {
+            'Super Admin' => to_route('superadmin.profile')->with('status', 'Profile updated successfully!'),
             'Admin'   => to_route('admin.profile')->with('status', 'Profile updated successfully!'),
             'Nurse'   => to_route('nurse.profile')->with('status', 'Profile updated successfully!'),
             default   => to_route('user.profile')->with('status', 'Profile updated successfully!'),

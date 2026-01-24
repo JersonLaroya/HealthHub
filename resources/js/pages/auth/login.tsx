@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import { LoaderCircle, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
@@ -19,9 +19,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const [showPassword, setShowPassword] = useState(false);
     const togglePassword = () => setShowPassword(p => !p);
+    const { system } = usePage().props as any; 
 
     return (
-        <AuthLayout title="Log in" description="Sign in to your HealthHub account">
+        <AuthLayout
+            title="Log in"
+            description={`Sign in to your ${system?.app_name || "HealthHub"} account`}
+        >
             <Head title="Log in" />
 
             {/* ✔ FIX: Removed invalid controller import */}

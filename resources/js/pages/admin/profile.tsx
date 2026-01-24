@@ -69,7 +69,8 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
     const [activeTab, setActiveTab] = useState("draw");
     const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
-
+    const [isSignatureLoading, setIsSignatureLoading] = useState(false);
+    const [signatureError, setSignatureError] = useState(false);
 
     useEffect(() => {
         if (status) {
@@ -100,6 +101,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
     useEffect(() => {
     if (data.signature) {
+        setIsSignatureLoading(true);
         setSignaturePreview(data.signature);
     }
     }, []);
@@ -201,10 +203,30 @@ const { data, setData, put, processing, errors } = useForm({
 
                                 {signaturePreview && (
                                     <div className="border rounded p-3 flex flex-col items-center gap-2">
-                                    <img
+                                        
+                                        {/* Loading state */}
+                                        {isSignatureLoading && (
+                                        <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                                            Loading signature…
+                                        </div>
+                                        )}
+
+                                        {/* Error state */}
+                                        {signatureError && (
+                                        <div className="h-24 flex items-center justify-center text-sm text-red-500">
+                                            Failed to load signature
+                                        </div>
+                                        )}
+
+                                        <img
                                         src={signaturePreview}
                                         alt="Signature"
-                                        className="max-h-32 object-contain"
+                                        className={`max-h-32 object-contain ${isSignatureLoading ? 'hidden' : ''}`}
+                                        onLoad={() => setIsSignatureLoading(false)}
+                                        onError={() => {
+                                            setIsSignatureLoading(false);
+                                            setSignatureError(true);
+                                        }}
                                     />
                                     <Button
                                         type="button"

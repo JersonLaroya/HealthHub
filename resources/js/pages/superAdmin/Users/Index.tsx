@@ -176,13 +176,13 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
     <AppLayout>
       <Head title="User Management" />
 
-      <div className="p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+      <div className="p-4 sm:p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 User Management
             </h1>
 
-            <div className="w-full flex justify-end gap-2 sm:w-auto">
+            <div className="flex gap-2 justify-end">
                 <Button onClick={() => router.get("/superadmin/users/create")}>
                 Add User
                 </Button>
@@ -191,7 +191,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 Bulk Add
                 </Button>
             </div>
-            </div>
+        </div>
 
         {/* Search + Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 w-full">
@@ -287,6 +287,8 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 disabled={resetting}
                 className={`w-full sm:w-auto h-9 ${resetting ? "opacity-60 cursor-not-allowed" : ""}`}
                 onClick={() => {
+                    setResetting(true);
+
                     setSearch("");
                     setRole("all");
                     setYearLevel("all");
@@ -307,7 +309,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
         {/* Table */}
         <Card className="p-4 shadow-md bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse min-w-[700px]">
+            <table className="w-full text-sm border-collapse min-w-[520px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
                     <th className="p-2 border-b">Name</th>
@@ -351,14 +353,15 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                         {new Date(u.created_at).toLocaleDateString()}
                     </td>
 
-                    <td className="p-2 border-b space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(u)}>
+                    <td className="p-2 border-b flex flex-col sm:flex-row gap-2">
+                    <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => openEdit(u)}>
                         Edit
                     </Button>
 
                     <Button
                         size="sm"
                         variant="destructive"
+                        className="w-full sm:w-auto"
                         onClick={() => openDelete(u)}
                     >
                         Delete
@@ -385,6 +388,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
             <Button
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               disabled={!users.prev_page_url}
               onClick={() => goToPage(users.prev_page_url)}
             >
@@ -398,6 +402,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
             <Button
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               disabled={!users.next_page_url}
               onClick={() => goToPage(users.next_page_url)}
             >

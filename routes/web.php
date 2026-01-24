@@ -19,7 +19,11 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\SuperAdmin\CourseController;
+use App\Http\Controllers\SuperAdmin\OfficeController;
+use App\Http\Controllers\SuperAdmin\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\SuperAdminUserController;
+use App\Http\Controllers\SuperAdmin\SystemSettingController;
 use App\Http\Controllers\User\FileController;
 use App\Http\Controllers\User\LaboratoryResultController;
 use App\Http\Controllers\User\MedicalFormController;
@@ -176,6 +180,11 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
 
     Route::get('/profile', [ProfileController::class, 'edit'])
         ->name('profile');
+
+    // Message
+    Route::get('/messages', function () {
+        return Inertia::render('messages/Chat');
+    })->name('user.messages');
 });
 
 // Routes for Admin
@@ -341,6 +350,11 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::post('/lab-results/{record}/reject', [PatientController::class, 'rejectLabResult']);
         Route::post('/forms/{record}/approve', [PatientController::class, 'approveFormRecord']);
         Route::post('/forms/{record}/reject', [PatientController::class, 'rejectFormRecord']);
+
+        // Message
+        Route::get('/messages', function () {
+            return Inertia::render('messages/Chat');
+        })->name('admin.messages');
     });
 
     // Nurse
@@ -358,11 +372,14 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::post('/lab-results/{record}/reject', [PatientController::class, 'rejectLabResult']);
         Route::post('/forms/{record}/approve', [PatientController::class, 'approveFormRecord']);
         Route::post('/forms/{record}/reject', [PatientController::class, 'rejectFormRecord']);
+
+        // Message
+        Route::get('/messages', function () {
+            return Inertia::render('messages/Chat');
+        })->name('nurse.messages');
     });
 });
-Route::get('/test-csv', function () {
-    return response()->file(public_path('samples/bulk-users-sample.csv'));
-});
+
 // =========================
 // Routes for Super Admin
 // =========================
@@ -371,9 +388,8 @@ Route::middleware(['auth', 'role:Super Admin'])
     ->name('superadmin.')
     ->group(function () {
 
-        Route::get('/dashboard', function () {
-            return Inertia::render('superAdmin/dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])
+            ->name('dashboard');
 
         // USERS
         Route::get('/users', [SuperAdminUserController::class, 'index'])
@@ -399,6 +415,39 @@ Route::middleware(['auth', 'role:Super Admin'])
 
         Route::post('/users/bulk', [SuperAdminUserController::class, 'bulkStore'])
             ->name('users.bulk.store');
+        
+        Route::post('/users/bulk-delete', [SuperAdminUserController::class, 'bulkDelete'])
+            ->name('users.bulk.delete');
+
+        // OFFICES
+        Route::get('/offices', [OfficeController::class, 'index'])
+            ->name('offices.index');
+
+        Route::post('/offices', [OfficeController::class, 'store'])
+            ->name('offices.store');
+
+        Route::put('/offices/{office}', [OfficeController::class, 'update'])
+            ->name('offices.update');
+
+        Route::delete('/offices/{office}', [OfficeController::class, 'destroy'])
+            ->name('offices.destroy');
+
+        // COURSES
+        Route::get('/courses', [CourseController::class, 'index'])->name('superadmin.courses.index');
+        Route::post('/courses', [CourseController::class, 'store']);
+        Route::put('/courses/{course}', [CourseController::class, 'update']);
+        Route::delete('/courses/{course}', [CourseController::class, 'destroy']);
+
+        // Settings
+        Route::get('/settings', [SystemSettingController::class, 'index']);
+        Route::post('/settings', [SystemSettingController::class, 'update']);
+
+        // Message
+        Route::get('/messages', function () {
+            return Inertia::render('messages/Chat');
+        })->name('superadmin.messages');
+
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
     });
 
 //
@@ -424,9 +473,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount']);
 
     // Messages page (UI)
-    Route::get('/messages-page', function () {
-        return Inertia::render('messages/Chat');
-    })->name('messages.page');
+    // Route::get('/messages-page', function () {
+    //     return Inertia::render('messages/Chat');
+    // })->name('messages.page');
 
 });
 

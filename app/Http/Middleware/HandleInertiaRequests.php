@@ -6,6 +6,7 @@ use App\Models\RcyMember;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use App\Models\Setting;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -41,15 +42,26 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user() ? $request->user()->load('userRole') : null;
         $isRcyMember = $user && $user->userRole && $user->userRole->category === 'rcy';
+        
+        $settings = Setting::first(); 
 
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
+            //'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+
+            'system' => [
+                'app_name'    => $settings?->app_name ?? config('app.name'),
+                'app_logo'    => $settings?->app_logo,
+                'clinic_logo' => $settings?->clinic_logo,
+                'school_year' => $settings?->school_year,
+            ],
+
             'auth' => [
                 'user' => $user,
                 'is_rcy_member' => $isRcyMember,
             ],
+            
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

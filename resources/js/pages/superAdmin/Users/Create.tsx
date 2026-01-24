@@ -48,7 +48,7 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
     <AppLayout>
       <Head title="Add User" />
 
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Add User</h1>
 
@@ -75,59 +75,45 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
             className="space-y-4"
           >
             {/* Name */}
-            <div className="space-y-3">
-            <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
                 <Label>First name</Label>
                 <Input
-                value={data.first_name}
-                onChange={(e) => setData("first_name", e.target.value)}
+                  className="w-full"
+                  value={data.first_name}
+                  onChange={(e) => setData("first_name", e.target.value)}
                 />
-            </div>
+              </div>
 
-            <div>
+              <div>
                 <Label>Middle name</Label>
                 <Input
-                value={data.middle_name}
-                onChange={(e) => setData("middle_name", e.target.value)}
+                  className="w-full"
+                  value={data.middle_name}
+                  onChange={(e) => setData("middle_name", e.target.value)}
                 />
-            </div>
+              </div>
 
-            <div>
+              <div>
                 <Label>Last name</Label>
                 <Input
-                value={data.last_name}
-                onChange={(e) => setData("last_name", e.target.value)}
+                  className="w-full"
+                  value={data.last_name}
+                  onChange={(e) => setData("last_name", e.target.value)}
                 />
-            </div>
+              </div>
             </div>
 
             {/* Email */}
             <div>
               <Label>Email</Label>
-              <Input type="email" value={data.email} onChange={e => setData("email", e.target.value)} />
+              <Input
+                className="w-full"
+                type="email"
+                value={data.email}
+                onChange={(e) => setData("email", e.target.value)}
+              />
             </div>
-
-            {/* Password */}
-            {/* <div>
-                <Label>Password</Label>
-
-                <div className="relative">
-                    <Input
-                    type={showPassword ? "text" : "password"}
-                    value={data.password}
-                    onChange={e => setData("password", e.target.value)}
-                    className="pr-10"
-                    />
-
-                    <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => !prev)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                </div>
-            </div> */}
 
             {/* Role */}
             <div>
@@ -141,12 +127,14 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
                   setData("office_id", "");
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -154,11 +142,14 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
 
             {/* STUDENT */}
             {data.role === "Student" && (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Course</Label>
-                  <Select value={data.course_id} onValueChange={(v) => setData("course_id", v)}>
-                    <SelectTrigger>
+                  <Select
+                    value={data.course_id}
+                    onValueChange={(v) => setData("course_id", v)}
+                  >
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
                     <SelectContent>
@@ -173,8 +164,11 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
 
                 <div>
                   <Label>Year level</Label>
-                  <Select value={data.year_level_id} onValueChange={(v) => setData("year_level_id", v)}>
-                    <SelectTrigger>
+                  <Select
+                    value={data.year_level_id}
+                    onValueChange={(v) => setData("year_level_id", v)}
+                  >
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select year level" />
                     </SelectTrigger>
                     <SelectContent>
@@ -193,8 +187,11 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
             {data.role && data.role !== "Student" && (
               <div>
                 <Label>Office</Label>
-                <Select value={data.office_id} onValueChange={(v) => setData("office_id", v)}>
-                  <SelectTrigger>
+                <Select
+                  value={data.office_id}
+                  onValueChange={(v) => setData("office_id", v)}
+                >
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select office" />
                   </SelectTrigger>
                   <SelectContent>

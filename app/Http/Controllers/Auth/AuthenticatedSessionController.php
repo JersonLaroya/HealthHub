@@ -67,6 +67,7 @@ class AuthenticatedSessionController extends Controller
         $userRoleName = $user->userRole->name;
 
         return match ($userRoleName) {
+            'Super Admin' => route('superadmin.dashboard'),
             'Admin' => route('admin.dashboard'),
             'Student', 'Faculty', 'Staff' => route('user.dashboard'),
             'Nurse' => route('nurse.dashboard'),

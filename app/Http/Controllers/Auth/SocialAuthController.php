@@ -59,6 +59,7 @@ class SocialAuthController extends Controller
         // Map role name to route
         $userRoleName = $user->userRole->name;
         $routeName = match ($userRoleName) {
+            'Super Admin' => 'superadmin.dashboard',
             'Admin' => 'admin.dashboard',
             //'Student', 'Faculty', 'Staff' => 'user.dashboard',
             'Nurse' => 'nurse.dashboard',

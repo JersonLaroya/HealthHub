@@ -330,4 +330,47 @@ class SuperAdminUserController extends Controller
 
        return back()->with('success', "$created users imported successfully.");
     }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt',
+            'role' => 'required|exists:user_roles,name',
+        ]);
+
+        $role = UserRole::where('name', $request->role)->firstOrFail();
+
+        $file = fopen($request->file('file')->getRealPath(), 'r');
+
+        $header = fgetcsv($file);
+        $emailIndex = collect($header)->search(fn ($h) => strtolower(trim($h)) === 'email');
+
+        if ($emailIndex === false) {
+            return back()->with('error', 'CSV must contain an "email" column.');
+        }
+
+        $deleted = 0;
+
+        while (($row = fgetcsv($file)) !== false) {
+            $email = $row[$emailIndex] ?? null;
+            if (!$email) continue;
+
+            $user = User::where('email', trim($email))
+                ->where('user_role_id', $role->id)
+                ->first();
+
+            if ($user && $user->userRole?->name !== 'Super Admin') {
+                $user->delete();
+                $deleted++;
+            }
+        }
+
+        fclose($file);
+
+        if ($deleted === 0) {
+            return back()->with('error', 'No users were deleted. Check role or emails.');
+        }
+
+        return back()->with('success', "$deleted users deleted successfully.");
+    }
 }

@@ -23,6 +23,10 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from 'sonner';
 
+import SignaturePad from "signature_pad";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+
 import { useForm } from "@inertiajs/react";
 
 function PasswordField({ id, name, placeholder }: { id: string; name: string; placeholder: string }) {
@@ -60,46 +64,73 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
 
+    const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const signaturePadRef = useRef<SignaturePad | null>(null);
+
+    const [activeTab, setActiveTab] = useState("draw");
+    const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+    const [isSignatureLoading, setIsSignatureLoading] = useState(false);
+    const [signatureError, setSignatureError] = useState(false);
+
     useEffect(() => {
         if (status) {
             toast.success(status);
         }
     }, [status]);
 
-    const { auth } = usePage<{ 
-            auth: { 
-                    user: { 
-                    id: number; 
-                    name: string; 
-                    email: string; 
-                    email_verified_at: string | null; 
-                    user_role: { id: number; name: string }; 
-                    // student fields if applicable
-                    first_name?: string;
-                    middle_name?: string;
-                    last_name?: string;
-                    office?: string;
-                    course?: string;
-                    year?: string;
+    useEffect(() => {
+    if (activeTab !== "draw") return;
 
-                    user_info?: {
-                        first_name?: string;
-                        middle_name?: string;
-                        last_name?: string;
-                    };
-                } 
-            } 
-    }>().props;
+        const canvas = signatureCanvasRef.current;
+        if (!canvas) return;
 
-    const user = auth.user;
+        // wait for tab to render
+        requestAnimationFrame(() => {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
 
-    const { data, setData, put, processing, errors } = useForm({
-        user_info: {
-            first_name: user.user_info?.first_name || "",
-            middle_name: user.user_info?.middle_name || "",
-            last_name: user.user_info?.last_name || "",
-        },
-    });
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+
+            const ctx = canvas.getContext("2d");
+            if (ctx) ctx.scale(ratio, ratio);
+
+            signaturePadRef.current?.off();
+            signaturePadRef.current = new SignaturePad(canvas);
+        });
+    }, [activeTab, signaturePreview]);
+
+    useEffect(() => {
+    if (data.signature) {
+        setIsSignatureLoading(true);
+        setSignaturePreview(data.signature);
+    }
+    }, []);
+
+
+    const { auth } = usePage<{ auth: { user: { 
+        id: number;
+        first_name: string;
+        middle_name?: string;
+        last_name: string;
+        email: string;
+        email_verified_at: string | null;
+        user_role: { id: number; name: string };
+        signature?: string | null;
+        // office?: string;
+        // course?: string;
+        // year?: string;
+    } } }>().props;
+
+const user = auth.user;
+
+const { data, setData, put, processing, errors } = useForm({
+    first_name: user.first_name || "",
+    middle_name: user.middle_name || "",
+    last_name: user.last_name || "",
+    email: user.email || "",
+    signature: user.signature || "",
+});
+
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -124,33 +155,33 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Label htmlFor="first_name">First Name</Label>
                                     <Input
                                         id="first_name"
-                                        name="user_info[first_name]"
-                                        defaultValue={data.user_info.first_name || ""}
+                                        name="first_name"
+                                        defaultValue={data.first_name}
                                         placeholder="First Name"
                                     />
-                                    <InputError message={errors['user_info.first_name']} />
+                                    <InputError message={errors.first_name} />
                                     </div>
 
                                     <div className="grid gap-2">
                                     <Label htmlFor="middle_name">Middle Name</Label>
                                     <Input
                                         id="middle_name"
-                                        name="user_info[middle_name]"
-                                        defaultValue={data.user_info.middle_name || ""}
+                                        name="middle_name"
+                                        defaultValue={data.middle_name}
                                         placeholder="Middle Name"
                                     />
-                                    <InputError message={errors['user_info.middle_name']} />
+                                    <InputError message={errors.middle_name} />
                                     </div>
 
                                     <div className="grid gap-2">
                                     <Label htmlFor="last_name">Last Name</Label>
                                     <Input
                                         id="last_name"
-                                        name="user_info[last_name]"
-                                        defaultValue={data.user_info.last_name || ""}
+                                        name="last_name"
+                                        defaultValue={data.last_name}
                                         placeholder="Last Name"
                                     />
-                                    <InputError message={errors['user_info.last_name']} />
+                                    <InputError message={errors.last_name} />
                                     </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Email address</Label>
@@ -158,16 +189,118 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="email"
                                         type="email"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.email}
+                                        defaultValue={data.email}
                                         name="email"
                                         required
-                                        autoComplete="username"
                                         placeholder="Email address"
                                     />
-
-                                    <InputError className="mt-2" message={errors.email} />
+                                    <InputError message={errors.email} />
                                 </div>
+
+                                {/* Signature */}
+                                <div className="grid gap-2">
+                                <Label>Signature</Label>
+
+                                {signaturePreview && (
+                                    <div className="border rounded p-3 flex flex-col items-center gap-2">
+                                        
+                                        {/* Loading state */}
+                                        {isSignatureLoading && (
+                                        <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                                            Loading signature…
+                                        </div>
+                                        )}
+
+                                        {/* Error state */}
+                                        {signatureError && (
+                                        <div className="h-24 flex items-center justify-center text-sm text-red-500">
+                                            Failed to load signature
+                                        </div>
+                                        )}
+
+                                        <img
+                                        src={signaturePreview}
+                                        alt="Signature"
+                                        className={`max-h-32 object-contain ${isSignatureLoading ? 'hidden' : ''}`}
+                                        onLoad={() => setIsSignatureLoading(false)}
+                                        onError={() => {
+                                            setIsSignatureLoading(false);
+                                            setSignatureError(true);
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setSignaturePreview(null)}
+                                    >
+                                        Change signature
+                                    </Button>
+                                    </div>
+                                )}
+
+                                {!signaturePreview && (
+                                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                                    <TabsList className="w-full">
+                                        <TabsTrigger value="draw" className="w-1/2">Draw</TabsTrigger>
+                                        <TabsTrigger value="upload" className="w-1/2">Upload</TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="draw">
+                                        <div className="border rounded bg-white">
+                                        <canvas
+                                            ref={signatureCanvasRef}
+                                            className="w-full h-32"
+                                            style={{ touchAction: "none" }}
+                                        />
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 mt-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => signaturePadRef.current?.clear()}
+                                        >
+                                            Clear
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                            if (!signaturePadRef.current?.isEmpty()) {
+                                                const sig = signaturePadRef.current.toDataURL();
+                                                setSignaturePreview(sig);
+                                                setData("signature", sig);
+                                            }
+                                            }}
+                                        >
+                                            Select
+                                        </Button>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="upload">
+                                        <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            const reader = new FileReader();
+                                            reader.onload = () => {
+                                            const base64 = reader.result as string;
+                                            setSignaturePreview(base64);
+                                            setData("signature", base64);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }}
+                                        />
+                                    </TabsContent>
+                                    </Tabs>
+                                )}
+                                </div>
+
+                                <input type="hidden" name="signature" value={data.signature} />
 
                                 {mustVerifyEmail && auth.user.email_verified_at === null && (
                                     <div>

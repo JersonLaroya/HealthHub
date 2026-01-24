@@ -292,6 +292,15 @@ const mainNavItems: NavItem[] =
 
 
 const rightNavItems: NavItem[] = mainNavItems;
+
+const messagesHref =
+    roleName === "Super Admin"
+        ? "/superadmin/messages"
+        : roleName === "Admin"
+        ? "/admin/messages"
+        : roleName === "Nurse"
+        ? "/nurse/messages"
+        : "/user/messages";
     
 
     return (
@@ -458,7 +467,7 @@ const rightNavItems: NavItem[] = mainNavItems;
 
                         <div className="relative flex items-center space-x-1">
                             {/* Messages */}
-                            <Link href="/messages-page">
+                            <Link href={messagesHref}>
                                 <Button variant="ghost" size="icon" className="relative h-9 w-9">
                                     <MessageCircle className="h-5 w-5" />
 

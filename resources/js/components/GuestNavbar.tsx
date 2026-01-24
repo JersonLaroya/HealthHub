@@ -4,11 +4,11 @@ import { home, login, register } from "@/routes";
 export default function GuestNavbar() {
     const page = usePage();
     const currentUrl = page.url;
-    const { name: appName } = usePage().props as any;
+    const { system } = usePage().props as any; 
 
     const navItems = [
         { title: "Login", href: login().url },
-        { title: "Register", href: register().url },
+        //{ title: "Register", href: register().url },
     ];
 
     return (
@@ -16,7 +16,7 @@ export default function GuestNavbar() {
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                 {/* Logo / Brand */}
                 <Link href={home()} className="text-lg font-bold">
-                    { appName }
+                    {system?.app_name || "HealthHub"}
                 </Link>
 
                 {/* Links */}
