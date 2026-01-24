@@ -1,9 +1,8 @@
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import { send } from '@/routes/verification';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Transition } from '@headlessui/react';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { type BreadcrumbItem } from '@/types';
 
 // import DeleteUser from '@/components/delete-user';
 // import HeadingSmall from '@/components/heading-small';
@@ -16,14 +15,12 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
 import { toast } from 'sonner';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import Heading from '@/components/heading';
 import { Separator } from '@/components/ui/separator';
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-
-import { useForm } from "@inertiajs/react";
 
 
 function PasswordField({ id, name, placeholder }: { id: string; name: string; placeholder: string }) {
@@ -68,55 +65,21 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
     //     }
     // }, [status]);
 
-    const { auth, offices, courses, years, roles } = usePage<{
-        auth: {
-            user: {
-                id: number;
-                first_name?: string;
-                middle_name?: string;
-                last_name?: string;
-                email: string;
-                email_verified_at: string | null;
-                // office?: string;
-                office_id?: number; 
-                course_id?: number;
-                year?: string;
-                user_role?: { id: number; name: string };
-                user_role_id?: number;
-                year_level_id?: number;
-            };
+    const { auth } = usePage<{
+    auth: {
+        user: {
+        id: number;
+        first_name?: string;
+        middle_name?: string;
+        last_name?: string;
+        email: string;
+        email_verified_at: string | null;
         };
-        offices: { id: number; name: string }[];
-        courses: { id: number; name: string; office_id: number }[];
-        years: { id: number; name: string }[];
-        roles: { id: number; name: string }[];
+    };
     }>().props;
 
+
     const user = auth.user;
-    const { isRcy } = usePage<{ isRcy: boolean }>().props;
-    console.log("roles: ",roles);
-
-    const { data, setData, put, processing, errors } = useForm({
-        first_name: user.first_name || "",
-        middle_name: user.middle_name || "",
-        last_name: user.last_name || "",
-
-        email: user.email ?? '',
-        office_id: user.office_id ?? null,
-        course_id: user.course_id ?? null,
-        year_level_id: user.year_level_id ?? null,
-        user_role_id: user.user_role_id ?? null,
-    });
-
-    console.log(data);
-
-
-    const [roleId, setRoleId] = useState(user.user_role_id ?? "");
-    const [officeId, setOfficeId] = useState(user.office_id ?? "");
-    const [courseId, setCourseId] = useState(user.course_id ?? "");
-    const [yearId, setYearId] = useState(user.year_level_id ?? "");
-
-    const roleName = roles.find((r) => r.id === Number(roleId))?.name;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -144,7 +107,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="first_name"
                                         name="first_name"
-                                        defaultValue={data.first_name || ""}
+                                        defaultValue={user.first_name || ""}
                                         placeholder="First Name"
                                     />
                                     <InputError message={errors.first_name} />
@@ -155,7 +118,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="middle_name"
                                         name="middle_name"
-                                        defaultValue={data.middle_name || ""}
+                                        defaultValue={user.middle_name || ""}
                                         placeholder="Middle Name"
                                     />
                                     <InputError message={errors.middle_name} />
@@ -166,7 +129,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <Input
                                         id="last_name"
                                         name="last_name"
-                                        defaultValue={data.last_name || ""}
+                                        defaultValue={user.last_name || ""}
                                         placeholder="Last Name"
                                     />
                                     <InputError message={errors.last_name} />
@@ -210,158 +173,12 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     </div>
                                 )}
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="user_role_id">Role</Label>
-
-                                    {!isRcy ? (
-                                        roles && roles.length > 0 ? (
-                                        <select
-                                            defaultValue={roleId}
-                                            onChange={(e) => {
-                                            const newRoleId = Number(e.target.value);
-                                            setRoleId(newRoleId);
-                                            }}
-                                            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                            id="user_role_id"
-                                            name="user_role_id"
-                                        >
-                                            <option value="">-- Select Role --</option>
-                                            {roles.map((role) => (
-                                            <option key={role.id} value={role.id}>
-                                                {role.name}
-                                            </option>
-                                            ))}
-                                        </select>
-                                        ) : (
-                                        <p className="text-sm text-gray-500">No Role available</p>
-                                        )
-                                    ) : (
-                                        <>
-                                            {/* RCY dropdown (hardcoded "Student") */}
-                                            <select
-                                                value="1"
-                                                disabled
-                                                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm cursor-not-allowed focus:outline-none"
-                                            >
-                                                <option value="1">Student</option>
-                                            </select>
-                                            <p className="mt-1 text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded border border-yellow-300">
-                                                Your role cannot be changed because you are an RCY member.
-                                            </p>
-                                        </>
-                                    )}
-
-                                    <InputError className="mt-2" message={errors.role_id} />
-                                    </div>
-
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="office_id">Office</Label>
-                                   {offices && offices.length > 0 ? (
-                                    <select
-                                        defaultValue={data.office_id !== null ? String(data.office_id) : ""}
-                                        onChange={(e) => {
-                                            const newOffice = e.target.value;
-                                            setOfficeId(newOffice);
-
-                                            // reset child fields
-                                            // setCourseId("");
-                                            // setYearId("");
-                                        }}
-                                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                        id='office_id'
-                                        name='office_id'
-                                        required
-                                    >
-                                        <option value="">-- Select Office --</option>
-                                        {offices
-                                            .filter((office) => {
-                                                // const roleName = roles.find((r) => r.id === Number(data.user_role_id))?.name;
-                                                return roleName === "Student"
-                                                ? courses.some((course) => course.office_id === office.id)
-                                                : true;
-                                            })
-                                            .map((office) => (
-                                        <option key={office.id} value={office.id}>
-                                            {office.name}
-                                        </option>
-                                        ))}
-                                    </select>
-                                    ) : (
-                                    <p className="text-sm text-gray-500">No Office available</p>
-                                    )}
-                                    {/* <input type="hidden" name="office_id" value={data.office_id ?? ""} /> */}
-                                    <InputError className="mt-2" message={errors.office_id} />
-                                </div>
-
-                                {(roleName === "Student" || isRcy) && (
-                                    <>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="course_id">Course</Label>
-                                            {courses && courses.length > 0 ? (
-                                            <select
-                                                defaultValue={data.course_id ?? ""}
-                                                onChange={(e) => {
-                                                const newCourse = e.target.value;
-                                                    setCourseId(newCourse);
-
-                                                    // reset year
-                                                    // setYearId("");
-                                                }}
-                                                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                                id="course_id"
-                                                name='course_id'
-                                                required
-                                            >
-                                                <option value="">-- Select Course --</option>
-                                                {courses
-                                                .filter((course) => course.office_id === Number(officeId))
-                                                .map((course) => (
-                                                    <option key={course.id} value={course.id}>
-                                                    {course.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            ) : (
-                                            <p className="text-sm text-gray-500">No courses available</p>
-                                            )}
-                                            {/* <input type="hidden" name="course_id" value={data.course_id ?? ""} /> */}
-                                            <InputError className="mt-2" message={errors.course_id} />
-                                        </div>
-
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="year_level_id">Year Level</Label>
-                                            {years && years.length > 0 ? (
-                                                <select
-                                                defaultValue={data.year_level_id ?? ""}
-                                                onChange={(e) => setYearId(e.target.value)}
-                                                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                                id="year_level_id"
-                                                name='year_level_id'
-                                                required
-                                                >
-                                                <option value="">-- Select Year Level --</option>
-                                                {years.map((year) => (
-                                                    <option key={year.id} value={year.id}>
-                                                    {year.name}
-                                                    </option>
-                                                ))}
-                                                </select>
-                                            ) : (
-                                                <p className="text-sm text-gray-500">No year levels available</p>
-                                            )}
-                                            {/* <input type="hidden" name="year_level_id" value={data.year_level_id ?? ""} /> */}
-                                            <InputError className="mt-2" message={errors.year_level_id} />
-                                        </div>
-                                    </>
-                                )}
-
                                 {/* <input type="hidden" name="office_id" value={data.office_id ?? ""} /> */}
                                 {/* <input type="hidden" name="course_id" value={data.course_id ?? ""} />
                                 <input type="hidden" name="year_level_id" value={data.year_level_id ?? ""} />
                                 <input type="hidden" name="user_role_id" value={data.user_role_id ?? ""} /> */}
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center justify-end gap-4">
                                     <Button disabled={processing}>Save</Button>
 
                                     {/* <Transition
@@ -452,7 +269,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <InputError message={errors.password_confirmation} />
                                 </div>
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center justify-end gap-4">
                                     <Button disabled={processing}>Save password</Button>
 
                                     {/* <Transition

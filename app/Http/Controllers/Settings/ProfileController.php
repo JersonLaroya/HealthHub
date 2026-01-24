@@ -4,11 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
-use App\Models\Course;
-use App\Models\Office;
 use Illuminate\Support\Facades\Storage;
-use App\Models\UserRole;
-use App\Models\YearLevel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,43 +20,22 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        $user = $request->user()->load(['userRole', 'office']);
+        $user = $request->user();
 
-        $canHaveSignature = $user->userRole?->name !== 'Super Admin';
-
-        if ($canHaveSignature && $user->signature) {
+        if ($user->signature) {
             $user->signature = asset('storage/' . $user->signature);
         }
-
-        $offices = Office::all(['id', 'name']);
-        $courses = Course::all();
-        $allRoles = UserRole::where('category', 'user')->get(); // Only 'user' category roles (Student, Staff, Faculty)
-        $currentRole = $user->userRole;
-        $years = YearLevel::all(['id', 'name']);
-
-        
-        $roles = $allRoles;
-
-        $isRcy = $user->userRole?->category === 'rcy';
 
         $component = match($user->userRole?->name) {
             'Super Admin' => 'superadmin/profile',
             'Admin'   => 'admin/profile',
-            'Student' => 'user/profile',
-            'Staff'   => 'user/profile',
-            'Faculty' => 'user/profile',
+            'Student', 'Staff', 'Faculty' => 'user/profile',
             'Nurse'   => 'nurse/profile',
-            default   => 'user/profile', 
+            default   => 'user/profile',
         };
 
         return Inertia::render($component, [
-            'user' => $user,
-            'offices' => $offices,
-            'courses' => $courses,
-            'years' => $years,
-            'roles' => $roles,
-            'currentRole' => $currentRole,
-            'isRcy' => $isRcy,
+            'auth' => ['user' => $user],
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
         ]);
@@ -70,15 +45,7 @@ class ProfileController extends Controller
     {
         $user = auth()->user();
 
-        $fillable = [
-            'first_name', 'middle_name', 'last_name', 'email', 'office_id', 'course_id', 'year_level_id',
-            // note: we will handle signature separately
-        ];
-
-        // Only allow role update if user is not RCY
-        if ($request->has('user_role_id') && $this->userCanChangeRole()) {
-            $fillable[] = 'user_role_id';
-        }
+        $fillable = ['first_name', 'middle_name', 'last_name', 'email'];
 
         // Handle signature (base64 → file path)
         $canHaveSignature = $user->userRole?->name !== 'Super Admin';
@@ -113,12 +80,6 @@ class ProfileController extends Controller
             $user->signature = $signaturePath;
         }
 
-        // Only nullify course/year if the user is not a Student or RCY
-        if (!in_array($user->userRole?->category, ['user', 'rcy'])) {
-            $user->course_id = null;
-            $user->year_level_id = null;
-        }
-
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
         }
@@ -136,12 +97,6 @@ class ProfileController extends Controller
             'Nurse'   => to_route('nurse.profile')->with('status', 'Profile updated successfully!'),
             default   => to_route('user.profile')->with('status', 'Profile updated successfully!'),
         };
-    }
-
-    private function userCanChangeRole(): bool
-    {
-        $user = auth()->user();
-        return !in_array($user->userRole?->category, ['rcy']); // RCY cannot change role
     }
 
 

@@ -28,16 +28,12 @@ class ProfileUpdateRequest extends FormRequest
             'max:255',
             Rule::unique(User::class)->ignore($this->user()->id),
         ],
-        'office_id'      => ['nullable', 'integer', 'exists:offices,id'],
-        'user_role_id'   => ['nullable', 'integer', 'exists:user_roles,id'],
-        'course_id'      => ['nullable', 'integer', 'exists:courses,id'],
-        'year_level_id'  => ['nullable', 'integer', 'exists:year_levels,id'],
         'signature' => ['nullable', 'string'],
     ];
 
-    if (in_array($this->user()->userRole?->name, ['Student', 'Staff', 'Faculty'])) {
-        $rules['user_role_id'] = ['required', 'exists:user_roles,id'];
-    }
+    // if (in_array($this->user()->userRole?->name, ['Student', 'Staff', 'Faculty'])) {
+    //     $rules['user_role_id'] = ['required', 'exists:user_roles,id'];
+    // }
 
     return $rules;
 }
