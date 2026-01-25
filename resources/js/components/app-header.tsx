@@ -12,7 +12,32 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Building2, GraduationCap, Settings, Menu, ClipboardCheck, User, Users, FileChartColumnIcon, CalendarDays, MessageCircle, Bell, Shield } from 'lucide-react';
+import {
+  LayoutGrid,
+  Building2,
+  GraduationCap,
+  Settings,
+  Menu,
+  ClipboardCheck,
+  Cross,
+  Users,
+  FileText,
+  CalendarDays,
+  MessageCircle,
+  Bell,
+  Shield,
+  HeartHandshake,
+  Stethoscope,
+  FileBarChart2,
+  UserCog,
+  BookOpen,
+  FlaskConical,
+  ScrollText,
+  UserCircle,
+  Folder,
+  Archive,
+  Activity
+} from "lucide-react";
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 import { useEffect, useState } from "react";
@@ -203,10 +228,8 @@ type NavItem = {
 function clinicNav(role: string): NavItem[] {
   return [
     { title: "Dashboard", href: `/${role}/dashboard`, icon: LayoutGrid },
-    //{ title: "Files", href: `/${role}/files`, icon: LayoutGrid },
-    { title: "Patients", href: `/${role}/patients`, icon: LayoutGrid },
-    //{ title: "DTR", href: `/${role}/dtr`, icon: LayoutGrid },
-    { title: "Events", href: `/${role}/events`, icon: LayoutGrid },
+    { title: "Patients", href: `/${role}/patients`, icon: Users },
+    { title: "Events", href: `/${role}/events`, icon: CalendarDays },
   ];
 }
 
@@ -219,12 +242,18 @@ const mainNavItems: NavItem[] =
 
       {
         title: "Management",
-        icon: Shield, // system control / authority
+        icon: Shield,
         children: [
-          { title: "Users", href: "/superadmin/users", icon: Users },
-          { title: "Offices", href: "/superadmin/offices", icon: Building2 },
-          { title: "Courses", href: "/superadmin/courses", icon: GraduationCap },
+            { title: "Users", href: "/superadmin/users", icon: Users },
+            { title: "Offices", href: "/superadmin/offices", icon: Building2 },
+            { title: "Courses", href: "/superadmin/courses", icon: GraduationCap },
         ],
+        },
+
+        {
+        title: "Settings",
+        href: "/superadmin/settings",
+        icon: Settings,
       },
 
       {
@@ -236,58 +265,65 @@ const mainNavItems: NavItem[] =
     : isAdmin
     ? [
         ...clinicNav("admin"),
+
         {
-            title: "Forms",
-            icon: ClipboardCheck,
-            children: [
-                { title: "Form Management", href: "/admin/forms" },
-                { title: "Laboratory Requests", href: "/admin/lab-requests" },
-            ],
+        title: "Forms",
+        icon: ScrollText,
+        children: [
+            { title: "Form Management", href: "/admin/forms", icon: FileText },
+            { title: "Laboratory Requests", href: "/admin/lab-requests", icon: FlaskConical },
+        ],
         },
+
         {
-            title: "Diseases",
-            icon: FileChartColumnIcon,
-            children: [
-            { title: "Disease Categories", href: "/admin/disease-categories" },
-            { title: "List of Diseases", href: "/admin/list-of-diseases" },
-            ],
+        title: "Diseases",
+        icon: Activity,
+        children: [
+            { title: "Disease Categories", href: "/admin/disease-categories", icon: BookOpen },
+            { title: "List of Diseases", href: "/admin/list-of-diseases", icon: FileBarChart2 },
+        ],
         },
+
         {
-            title: "Reports",
-            href: "/admin/reports",
-            icon: LayoutGrid,
+        title: "Reports",
+        href: "/admin/reports",
+        icon: FileBarChart2,
+        },
+
+        {
+        title: "RCY",
+        icon: Cross,
+        children: [
+            {
+            title: "Positions",
+            href: "/admin/rcy/positions",
+            icon: UserCog,
             },
             {
-            title: "RCY",
-            children: [
-                {
-                title: "Positions",
-                href: "/admin/rcy/positions",
-                },
-                {
-                title: "Members",
-                href: "/admin/rcy/members",
-                },
-            ],
-        }
-      ]
+            title: "Members",
+            href: "/admin/rcy/members",
+            icon: Users,
+            },
+        ],
+        },
+    ]
     : isHeadNurse
     ? [
         ...clinicNav("headnurse"),
         { title: "Reports", href: "/headnurse/reports", icon: LayoutGrid },
       ]
     : isNurse
-    ? clinicNav("nurse")
-    : [
-        // Default user menu
+        ? clinicNav("nurse")
+        : [
         { title: "Dashboard", href: "/user/dashboard", icon: LayoutGrid },
-        { title: "Personal Information", href: "/user/personal-info", icon: ClipboardCheck },
-        { title: "Files", href: "/user/files", icon: ClipboardCheck },
-        { title: "Records", href: "/user/records", icon: ClipboardCheck },
+        { title: "Personal Information", href: "/user/personal-info", icon: UserCircle },
+        { title: "Files", href: "/user/files", icon: Folder },
+        { title: "Records", href: "/user/records", icon: Archive },
+
         ...(isRcyMember
-        ? [{ title: "RCY", href: `/user/rcy` }] 
+        ? [{ title: "RCY", href: `/user/rcy`, icon: Cross }]
         : []),
-      ];
+    ];
 
 
 

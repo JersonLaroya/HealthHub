@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminDtrReportController;
+use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\DiseaseCategoryController;
 use App\Http\Controllers\Admin\LaboratoryRequestController;
 use App\Http\Controllers\Admin\LabRequestPageController;
@@ -29,6 +31,8 @@ use App\Http\Controllers\User\LaboratoryResultController;
 use App\Http\Controllers\User\MedicalFormController;
 use App\Http\Controllers\User\PersonalInfoController;
 use App\Http\Controllers\User\RcyController;
+use App\Http\Controllers\User\UserDashboardController;
+use App\Http\Controllers\User\UserRecordController;
 use App\Http\Middleware\ExcludeRolesMiddleware;
 use App\Http\Middleware\RcyRoleMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -60,9 +64,12 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
     ->name('user.')
     ->group(function () {
 
-    Route::get('/dashboard', function () {
-        return Inertia::render('user/dashboard');
-    })->name('dashboard');
+    // Route::get('/dashboard', function () {
+    //     return Inertia::render('user/dashboard');
+    // })->name('dashboard');
+
+    Route::get('/dashboard', [UserDashboardController::class, 'index'])
+    ->name('dashboard');
 
     // Personal Information page (view & update)
     Route::get('/personal-info', [PersonalInfoController::class, 'edit'])
@@ -174,9 +181,8 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
         [FileController::class, 'downloadByRecord']
     )->name('user.files.records.download');
 
-    Route::get('/records', function () {
-        return Inertia::render('user/records');
-    })->name('records');
+    Route::get('/records', [UserRecordController::class, 'index'])
+    ->name('records');
 
     Route::get('/profile', [ProfileController::class, 'edit'])
         ->name('profile');
@@ -198,7 +204,16 @@ Route::middleware(['role:Admin'])
 
         Route::get('/events', fn() => Inertia::render('admin/events'))->name('events');
         Route::get('/files', fn() => Inertia::render('admin/files'))->name('files');
-        Route::get('/reports', fn() => Inertia::render('admin/reports'))->name('reports');
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/', [AdminReportController::class, 'index'])
+                ->name('index');
+            Route::get('/dtr', [AdminDtrReportController::class, 'index'])
+                ->name('dtr.index');
+            Route::get('/dtr/export', [AdminDtrReportController::class, 'export'])
+                ->name('dtr.export');
+            Route::get('/census', fn () => Inertia::render('admin/reports/census'))
+                ->name('census.index');
+        });
 
         Route::resource('personnels', PersonnelController::class);
         Route::post('/personnels', [PersonnelController::class, 'store'])->name('admin.personnels.store');

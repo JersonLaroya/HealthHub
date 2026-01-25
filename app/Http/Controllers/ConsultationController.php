@@ -23,10 +23,6 @@ class ConsultationController extends Controller
         $authUser = $request->user();
 
         $status = 'approved';
-        if ($authUser->userRole->name === 'Student'
-            && RcyMember::where('user_id', $authUser->id)->exists()) {
-            $status = 'pending';
-        }
 
         // Create vital signs snapshot
         $vitalSigns = VitalSign::create([
@@ -66,6 +62,7 @@ class ConsultationController extends Controller
                 'consultation_id' => $consultation->id,
                 'service_id' => $service->id,
                 'response_data' => json_encode([]), // empty response initially
+                'status' => Record::STATUS_APPROVED,
             ]);
         }
 
@@ -157,6 +154,19 @@ class ConsultationController extends Controller
             'status' => 'approved',
             'updated_by' => auth()->id(),
         ]);
+
+        // CREATE RECORD WHEN APPROVED
+        $service = Service::where('slug', 'clinic-consultation-record-form')->first();
+
+        if ($service && !Record::where('consultation_id', $consultation->id)->exists()) {
+            Record::create([
+                'user_id' => $consultation->user_id,
+                'consultation_id' => $consultation->id,
+                'service_id' => $service->id,
+                'response_data' => json_encode([]),
+                'status' => Record::STATUS_APPROVED,
+            ]);
+        }
 
         event(new ConsultationApproved($consultation->user_id, $consultation->id));
         

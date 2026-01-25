@@ -12,10 +12,23 @@ import { Textarea } from "@/components/ui/textarea";
 
 export default function Show({ patient, consultations, breadcrumbs = [], schoolYear }) {
   
+  const [downloading, setDownloading] = useState(false);
+
   async function handleOpenPdf(patient, consultations) {
-    const pdfBlob = await fillClinicConsultationRecordForm(patient, consultations, schoolYearState)
-    const url = URL.createObjectURL(pdfBlob)
-    window.open(url, '_blank')
+    try {
+      setDownloading(true);
+
+      const pdfBlob = await fillClinicConsultationRecordForm(
+        patient,
+        consultations,
+        schoolYearState
+      );
+
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, "_blank");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   console.log("initial vital sign: ", patient.vital_sign);
@@ -254,6 +267,28 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     };
   }, [patient.id]);
 
+  const formatPHNumber = (num?: string) => {
+    if (!num) return "-";
+    let n = num.trim();
+
+    if (n.startsWith("+63")) n = "0" + n.slice(3);
+    else if (n.startsWith("63")) n = "0" + n.slice(2);
+
+    return n;
+  };
+
+  const formatDateLong = (date?: string) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "-";
+
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -262,8 +297,13 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <h1 className="text-xl font-bold">Clinic Consultation Record</h1>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button className="w-full sm:w-auto" variant="outline" onClick={() => handleOpenPdf(patient, consultations)}>
-              Download PDF
+            <Button
+              className="w-full sm:w-auto"
+              variant="outline"
+              disabled={downloading}
+              onClick={() => handleOpenPdf(patient, consultations)}
+            >
+              {downloading ? "Downloading..." : "Download PDF"}
             </Button>
             <Button
               variant="outline"
@@ -345,10 +385,10 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
             <div className="w-full lg:w-1/2 flex flex-col lg:items-end space-y-1 pr-0 lg:pr-4 py-2 lg:py-0">
               <div className="text-left space-y-1">
-                <p><strong>Birth Date:</strong> {patient?.birthdate || "-"}</p>
+                <p><strong>Birth Date:</strong> {formatDateLong(patient?.birthdate)}</p>
                 <p><strong>Sex:</strong> {patient?.sex || "-"}</p>
-                <p><strong>Contact No.:</strong> {patient?.contact_no || "-"}</p>
-                <p><strong>Guardian Contact:</strong> {patient?.guardian_contact_no || "-"}</p>
+                <p><strong>Contact No.:</strong> {formatPHNumber(patient?.contact_no)}</p>
+                <p><strong>Guardian Contact:</strong> {formatPHNumber(patient?.guardian_contact_no)}</p>
                 <p><strong>Course/Office:</strong> 
                   {patient?.course
                     ? `${patient.course.name} ${patient.year_level?.name || ""}`

@@ -8,6 +8,23 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
   const templatePdf = await PDFDocument.load(formBytes);
   const form = templatePdf.getForm();
 
+  const formatPHNumber = (num?: string) => {
+  if (!num) return "";
+  let n = num.trim();
+
+  // +639xxxxxxxxx → 09xxxxxxxxx
+  if (n.startsWith("+63")) {
+    n = "0" + n.slice(3);
+  }
+
+  // 639xxxxxxxxx → 09xxxxxxxxx (optional safety)
+  if (n.startsWith("63")) {
+    n = "0" + n.slice(2);
+  }
+
+  return n;
+};
+
   const roleName = patient.user_role?.name ?? "";
 
   // ----------------------
@@ -28,7 +45,7 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
   form.getTextField("blood_type").setText(patient.vital_sign?.blood_type ?? "");
   form.getTextField("course_office").setText(patient.course?.code ?? "");
   form.getTextField("school_year").setText(schoolYear ?? "");
-  form.getTextField("contact_number1").setText(patient.contact_no ?? "");
+  form.getTextField("contact_number1").setText(formatPHNumber(patient.contact_no));
   form.getTextField("bp").setText(patient.vital_sign?.bp ?? "");
   form.getTextField("rr").setText(patient.vital_sign?.rr ?? "");
   form.getTextField("pr").setText(patient.vital_sign?.pr ?? "");
@@ -36,7 +53,7 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
   form.getTextField("o2_sat").setText(patient.vital_sign?.o2_sat ?? "");
 
   form.getTextField("name2").setText(patient.guardian_name ?? "");
-  form.getTextField("contact_number2").setText(patient.guardian_contact_no ?? "");
+  form.getTextField("contact_number2").setText(formatPHNumber(patient.guardian_contact_no));
 
   const homeAddress = patient.home_address
     ? `${patient.home_address.purok || ""}, ${patient.home_address.barangay?.name || ""}, ${patient.home_address.barangay?.municipality?.name || ""}, ${patient.home_address.barangay?.municipality?.province?.name || ""}`
@@ -125,7 +142,7 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
     const minutes = String(dateObj.getMinutes()).padStart(2, "0");
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
-    return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+    return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
   };
 
   const records = (consultations?.data || []).filter(c => c.status === 'approved');
