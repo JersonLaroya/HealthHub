@@ -255,12 +255,6 @@ const mainNavItems: NavItem[] =
         href: "/superadmin/settings",
         icon: Settings,
       },
-
-      {
-        title: "Settings",
-        href: "/superadmin/settings",
-        icon: Settings,
-      },
     ]
     : isAdmin
     ? [

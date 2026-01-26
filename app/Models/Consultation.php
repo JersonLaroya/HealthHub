@@ -66,4 +66,10 @@ class Consultation extends Model
             }
         });
     }
+
+    public function cluster()
+    {
+        return $this->hasOne(\App\Models\ConsultationCluster::class);
+    }
+
 }

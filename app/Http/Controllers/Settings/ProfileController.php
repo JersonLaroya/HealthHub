@@ -27,9 +27,9 @@ class ProfileController extends Controller
         }
 
         $component = match($user->userRole?->name) {
-            'Super Admin' => 'superadmin/profile',
+            'Super Admin' => 'superAdmin/profile',
             'Admin'   => 'admin/profile',
-            'Student', 'Staff', 'Faculty' => 'user/profile',
+            //'Student', 'Staff', 'Faculty' => 'user/profile',
             'Nurse'   => 'nurse/profile',
             default   => 'user/profile',
         };

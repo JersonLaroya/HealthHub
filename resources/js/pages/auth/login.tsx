@@ -72,13 +72,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 </div>
                             </div>
 
-                            <div className="flex items-center">
+                            {/* <div className="flex items-center">
                                 {canResetPassword && (
                                     <TextLink href={request()} className="ml-auto text-sm" tabIndex={5}>
                                         Forgot password?
                                     </TextLink>
                                 )}
-                            </div>
+                            </div> */}
 
                             <Button type="submit" className="mt-4 w-full" disabled={processing}>
                                 {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
@@ -86,7 +86,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </Button>
                         </div>
 
-                        <div className="w-full max-w-sm mx-auto mt-0">
+                        {/* <div className="w-full max-w-sm mx-auto mt-0">
                             <div className="flex items-center my-2">
                                 <div className="flex-grow border-t border-gray-300"></div>
                                 <span className="mx-4 text-gray-400 text-sm">or</span>
@@ -107,7 +107,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     Sign in with Google
                                 </a>
                             </div>
-                        </div>
+                        </div> */}
                     </>
                 )}
             </Form>
@@ -118,12 +118,12 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 </div>
             )}
 
-            <div className="mt-6 text-center text-sm text-gray-500">
+            {/* <div className="mt-6 text-center text-sm text-gray-500">
                 Don’t have an account?{' '}
                 <TextLink href={register()} tabIndex={6}>
                     Sign up
                 </TextLink>
-            </div>
+            </div> */}
         </AuthLayout>
     );
 }

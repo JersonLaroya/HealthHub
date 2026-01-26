@@ -20,8 +20,11 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
     };
 
     const roleName = (user as { user_role?: { name: string } })?.user_role?.name ?? '';
+
     const settingsHref =
-        roleName === 'Admin'
+        roleName === 'Super Admin'
+            ? '/superadmin/profile'
+            : roleName === 'Admin'
             ? '/admin/profile'
             : roleName === 'Nurse'
             ? '/nurse/profile'

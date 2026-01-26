@@ -20,6 +20,8 @@ export default function SuperAdminProfile({ mustVerifyEmail, status }) {
   const { auth } = usePage().props as any;
   const user = auth.user;
 
+  console.log("user role: ", user.user_role);
+
   useEffect(() => {
     if (status) toast.success(status);
   }, [status]);
@@ -71,7 +73,14 @@ export default function SuperAdminProfile({ mustVerifyEmail, status }) {
         <div className="space-y-6">
           <Heading title="Update password" />
 
-          <Form {...PasswordController.update.form()} className="space-y-6">
+          <Form {...PasswordController.update.form()}
+            options={{
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Profile updated successfully");
+                },
+            }}
+          className="space-y-6">
             {({ errors, processing }) => (
               <>
                 <div className="grid gap-2">

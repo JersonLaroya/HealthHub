@@ -206,6 +206,9 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                         {...PasswordController.update.form()}
                         options={{
                             preserveScroll: true,
+                            onSuccess: () => {
+                                toast.success("Profile updated successfully");
+                            },
                         }}
                         resetOnError={['password', 'password_confirmation', 'current_password']}
                         resetOnSuccess

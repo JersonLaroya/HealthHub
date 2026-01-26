@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\AdminDtrReportController;
 use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\DiseaseCategoryController;
+use App\Http\Controllers\Admin\DiseaseClusterAnalyticsController;
+use App\Http\Controllers\Admin\DiseaseClusteringController;
 use App\Http\Controllers\Admin\LaboratoryRequestController;
 use App\Http\Controllers\Admin\LabRequestPageController;
 use App\Http\Controllers\Admin\ListOfDiseaseController;
@@ -266,6 +268,15 @@ Route::middleware(['role:Admin'])
         // Settings
         Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+        // Clustering
+        Route::post('/disease-clusters/generate', 
+            [DiseaseClusteringController::class, 'generate']
+        )->name('disease-clusters.generate');
+
+        Route::get('/analytics/disease-clusters', 
+            [DiseaseClusterAnalyticsController::class, 'index']
+        )->name('analytics.disease-clusters');
 });
 
 Route::middleware(['role:Nurse'])->prefix('nurse')->name('nurse.')->group(function () {

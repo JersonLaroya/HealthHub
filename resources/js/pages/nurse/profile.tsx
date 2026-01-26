@@ -341,6 +341,9 @@ const { data, setData, put, processing, errors } = useForm({
                         {...PasswordController.update.form()}
                         options={{
                             preserveScroll: true,
+                            onSuccess: () => {
+                                toast.success("Profile updated successfully");
+                            },
                         }}
                         resetOnError={['password', 'password_confirmation', 'current_password']}
                         resetOnSuccess
