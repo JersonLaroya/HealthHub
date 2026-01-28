@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DiseaseCategoryController;
 use App\Http\Controllers\Admin\DiseaseClusterAnalyticsController;
 use App\Http\Controllers\Admin\DiseaseClusteringController;
 use App\Http\Controllers\Admin\LaboratoryRequestController;
+use App\Http\Controllers\Admin\LaboratoryTypeController;
 use App\Http\Controllers\Admin\LabRequestPageController;
 use App\Http\Controllers\Admin\ListOfDiseaseController;
 use App\Http\Controllers\Admin\SettingController;
@@ -93,6 +94,8 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
 
     Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate'])
         ->name('files.template');
+
+    Route::get('/files/laboratory-request/{record}', [FileController::class, 'downloadLabRequest'])->name('user.laboratory-request.download');
 
     // =========================
     // Laboratory Results
@@ -244,6 +247,13 @@ Route::middleware(['role:Admin'])
         Route::put('/forms/{form}', [ServiceController::class, 'update'])->name('forms.update');
         Route::delete('/forms/{form}', [ServiceController::class, 'destroy'])->name('forms.destroy');
 
+        // Laboratory Type
+        Route::get('/laboratory-types', [LaboratoryTypeController::class, 'index']);
+        Route::post('/laboratory-types', [LaboratoryTypeController::class, 'store']);
+        Route::put('/laboratory-types/{laboratoryType}', [LaboratoryTypeController::class, 'update']);
+        Route::delete('/laboratory-types/{laboratoryType}', [LaboratoryTypeController::class, 'destroy']);
+
+        // Laboratory Request
         Route::prefix('lab-requests')->group(function () {
 
             Route::get('/', [LabRequestPageController::class, 'index']);

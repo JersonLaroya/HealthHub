@@ -29,6 +29,7 @@ export default function ShowForm({ service, patient }: Props) {
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [isLabRedirecting, setIsLabRedirecting] = useState<number | null>(null);
 
   const isPreEnrollment = service.slug === "pre-enrollment-health-form";
   const isPreEmployment = service.slug === "pre-employment-health-form";
@@ -138,6 +139,43 @@ export default function ShowForm({ service, patient }: Props) {
     } finally {
       setDownloadingId(null);
     }
+  };
+
+  const handleOpenLabRequestPdf = async (recordId: number) => {
+    try {
+      setDownloadingId(recordId);
+
+      const res = await fetch(`/user/files/laboratory-request/${recordId}`);
+      if (!res.ok) return alert("Failed to load laboratory request");
+
+      console.log("lab request items: ", res);
+
+      const data = await res.json();
+
+      const pdfBytes = await fillLaboratoryRequests(
+        data,
+        service.slug,
+        patient
+      );
+
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to generate laboratory request PDF");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleGoToLabResults = (recordId: number) => {
+    setIsLabRedirecting(recordId);
+
+    // slight delay so UI updates before navigation
+    setTimeout(() => {
+      window.location.href = "/user/laboratory-results";
+    }, 100);
   };
 
   // Check if user already submitted this form
@@ -300,18 +338,21 @@ export default function ShowForm({ service, patient }: Props) {
                             size="sm"
                             variant="outline"
                             className="w-full sm:w-auto"
-                            onClick={() => handleOpenPdfByRecord(record.id)}
+                            onClick={() => handleOpenLabRequestPdf(record.id)}
                             disabled={downloadingId === record.id}
                           >
                             {downloadingId === record.id ? "Downloading…" : "Download PDF"}
                           </Button>
 
                           {record.status !== "approved" && (
-                            <Link href="/user/laboratory-results" className="w-full sm:w-auto">
-                              <Button size="sm" className="w-full sm:w-auto">
-                                Submit Result
-                              </Button>
-                            </Link>
+                            <Button
+                              size="sm"
+                              className="w-full sm:w-auto"
+                              disabled={isLabRedirecting === record.id}
+                              onClick={() => handleGoToLabResults(record.id)}
+                            >
+                              {isLabRedirecting === record.id ? "Redirecting…" : "Submit Result"}
+                            </Button>
                           )}
                         </td>
                       </tr>

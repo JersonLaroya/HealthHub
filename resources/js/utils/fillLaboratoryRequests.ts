@@ -40,52 +40,78 @@ export async function fillLaboratoryRequests(allPagesData: any, slug: string, pa
     // =========================
   // CHECKBOXES
   // =========================
-  const reasons = allPagesData?.reasons || {};
+// =========================
+// CHECKBOXES (from DB lab_types)
+// =========================
 
-  if (reasons.chest_xray) {
-    form.getCheckBox('check_box_x_ray')?.check();
+const labTypes: string[] = allPagesData.lab_types || [];
+
+const normalized = labTypes.map(t => t.toLowerCase());
+
+// helpers
+const has = (keyword: string) =>
+  normalized.some(t => t.includes(keyword));
+
+// known checkboxes
+if (has('x-ray')) {
+  form.getCheckBox('check_box_x_ray')?.check();
+}
+
+if (has('stool')) {
+  form.getCheckBox('check_box_stool_exam')?.check();
+}
+
+if (has('urinalysis')) {
+  form.getCheckBox('check_box_urinalysis')?.check();
+}
+
+if (has('complete blood') || has('cbc')) {
+  form.getCheckBox('check_box_cbc')?.check();
+}
+
+if (has('drug')) {
+  form.getCheckBox('check_box_drug_test')?.check();
+}
+
+if (has('hbsag')) {
+  form.getCheckBox('check_box_hbsag')?.check();
+}
+
+if (has('ishihara')) {
+  form.getCheckBox('check_box_ishihara_test')?.check();
+}
+
+if (has('neuro')) {
+  form.getCheckBox('check_box_neuro_psychiatric')?.check();
+}
+
+
+const knownKeywords = [
+  'x-ray',
+  'stool',
+  'urinalysis',
+  'complete blood',
+  'cbc',
+  'drug',
+  'hbsag',
+  'ishihara',
+  'neuro',
+];
+
+const others = labTypes.filter(t =>
+  !knownKeywords.some(k => t.toLowerCase().includes(k))
+);
+
+if (others.length > 0) {
+  form.getCheckBox('check_box_others')?.check();
+
+  try {
+    form.getTextField('others')?.setText(others.join(', '));
+  } catch {
+    console.warn('Others text field not found in PDF');
   }
+}
 
-  if (reasons.stool_exam) {
-    form.getCheckBox('check_box_stool_exam')?.check();
-  }
-
-  if (reasons.urinalysis) {
-    form.getCheckBox('check_box_urinalysis')?.check();
-  }
-
-  if (reasons.cbc) {
-    form.getCheckBox('check_box_cbc')?.check();
-  }
-
-  if (reasons.drug_test) {
-    form.getCheckBox('check_box_drug_test')?.check();
-  }
-
-  if (reasons.hbsag) {
-    form.getCheckBox('check_box_hbsag')?.check();
-  }
-
-  if (reasons.ishihara) {
-    form.getCheckBox('check_box_ishihara_test')?.check();
-  }
-
-  if (reasons.neuro_psych) {
-    form.getCheckBox('check_box_neuro_psychiatric')?.check();
-  }
-
-  if (reasons.others) {
-    form.getCheckBox('check_box_others')?.check();
-
-    // fill "others" text field if it exists
-    if (reasons.others_text) {
-      try {
-        form.getTextField('others')?.setText(reasons.others_text);
-      } catch (e) {
-        console.warn('Others text field not found in PDF');
-      }
-    }
-  }
 
 
 

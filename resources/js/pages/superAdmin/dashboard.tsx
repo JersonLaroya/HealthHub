@@ -9,6 +9,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 
 export default function Dashboard({ schoolYear, stats }: any) {
@@ -29,10 +30,19 @@ export default function Dashboard({ schoolYear, stats }: any) {
     { name: "Nurse", value: stats.nurse },
   ];
 
+  // 🌸 soft / pastel colors
+  const COLORS = [
+    "#93c5fd", // soft blue
+    "#86efac", // soft green
+    "#fde68a", // soft yellow
+    "#fca5a5", // soft red
+    "#ddd6fe", // soft violet
+  ];
+
   return (
     <AppLayout>
       <Head title="Super Admin Dashboard" />
-        
+
       <div className="w-full p-4 sm:p-6 space-y-8">
 
         {/* HEADER */}
@@ -97,7 +107,14 @@ export default function Dashboard({ schoolYear, stats }: any) {
                 <XAxis dataKey="name" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {chartData.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

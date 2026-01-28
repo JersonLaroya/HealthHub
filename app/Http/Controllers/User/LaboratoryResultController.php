@@ -10,6 +10,7 @@ use App\Models\LabResult;
 use Illuminate\Http\Request;
 use App\Notifications\LabResultSubmitted;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 
 class LaboratoryResultController extends Controller
 {
@@ -21,7 +22,10 @@ class LaboratoryResultController extends Controller
 
         $records = Record::where('user_id', $user->id)
             ->where('service_id', $labService->id)
-            ->with('labResult:id,results')
+            ->with([
+                'laboratoryRequestItems.laboratoryType',
+                'laboratoryRequestItems.result'
+            ])
             ->orderByRaw("
                 CASE status
                     WHEN ? THEN 0
@@ -37,8 +41,7 @@ class LaboratoryResultController extends Controller
                 Record::STATUS_REJECTED,
             ])
             ->orderBy('created_at', 'desc')
-            ->get(['id', 'created_at', 'lab_result_id', 'status']);
-
+            ->get(['id', 'created_at', 'status']);
 
         return Inertia::render('user/files/labResults/Index', [
             'records' => $records,
@@ -49,16 +52,30 @@ class LaboratoryResultController extends Controller
     {
         abort_if($record->user_id !== auth()->id(), 403);
 
-        $reasons = $record->response_data['reasons'] ?? [];
+        $record->load('laboratoryRequestItems.laboratoryType', 'laboratoryRequestItems.result');
 
-        $labResult = $record->lab_result_id
-            ? LabResult::find($record->lab_result_id)
-            : null;
+        $labTests = $record->laboratoryRequestItems->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'key' => str($item->laboratoryType->name)
+                    ->lower()
+                    ->replace(['-', '/'], ' ')
+                    ->replaceMatches('/[^a-z0-9\s]/', '')
+                    ->squish()
+                    ->replace(' ', '_')
+                    ->toString(),
+
+                'name' => $item->laboratoryType->name,
+
+                'result' => $item->result ? [
+                    'images' => $item->result->images ?? [],
+                ] : null,
+            ];
+        })->values();
 
         return Inertia::render('user/files/labResults/Show', [
-            'record' => $record,
-            'reasons' => $reasons,
-            'labResult' => $labResult,
+            'record'   => $record,
+            'labTests' => $labTests,
         ]);
     }
 
@@ -66,78 +83,73 @@ class LaboratoryResultController extends Controller
     {
         abort_if($record->user_id !== auth()->id(), 403);
 
-        // Block only if already approved
         if ($record->status === Record::STATUS_APPROVED) {
             return back()->withErrors([
-                'results' => 'This laboratory request is already approved and can no longer be modified.'
+                'results' => 'This laboratory request is already approved.'
             ]);
         }
+
+        $record->load('laboratoryRequestItems.laboratoryType', 'laboratoryRequestItems.result');
 
         $request->validate([
-            'results' => 'required|array',
-            'results.*' => 'required|array|max:10',
-            'results.*.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'results' => 'nullable|array',
+            'results.*' => 'nullable|array|max:10',
+            'results.*.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        // get only real required lab tests
-        $requiredReasons = collect($record->response_data['reasons'] ?? [])
-            ->filter(fn ($v, $k) => $v === true && !str_ends_with($k, '_text'))
-            ->keys()
-            ->values()
-            ->toArray();
-
         $submitted = $request->file('results', []);
-        $existing  = $record->labResult?->results ?? [];
 
-        // check required reasons after merge (new + old)
-        $finalReasons = collect($requiredReasons)->filter(function ($reason) use ($submitted, $existing) {
-            return !empty($submitted[$reason]) || !empty($existing[$reason]);
+                $missing = $record->laboratoryRequestItems->filter(function ($item) use ($submitted) {
+            $hasNew = isset($submitted[$item->id]);
+            $hasOld = $item->result && count($item->result->images ?? []);
+
+            return !$hasNew && !$hasOld;
         });
 
-        $missing = array_diff($requiredReasons, $finalReasons->values()->toArray());
-
-        if (!empty($missing)) {
+        if ($missing->isNotEmpty()) {
             return back()->withErrors([
-                'results' => 'All required laboratory tests must have at least one image.'
+                'results' => 'All laboratory tests must have at least one image.'
             ]);
         }
 
-        // get or create lab result
-        $labResult = $record->lab_result_id
-            ? LabResult::find($record->lab_result_id)
-            : new LabResult();
+        /* ============================
+        Save per request item (ID-based)
+        ============================ */
 
-        // start from existing results
-        $data = $labResult->results ?? [];
+        foreach ($record->laboratoryRequestItems as $item) {
 
-        // overwrite only re-uploaded reasons
-        foreach ($submitted as $reason => $files) {
+            $itemId = (string) $item->id;
 
-            // delete only old images of this reason
-            if (!empty($data[$reason])) {
-                foreach ($data[$reason] as $oldPath) {
-                    \Storage::disk('public')->delete($oldPath);
-                }
+            if (!isset($submitted[$itemId])) {
+                // nothing uploaded for this test → keep old images
+                continue;
             }
 
-            // save new images
-            $data[$reason] = [];
-            foreach ($files as $file) {
-                $path = $file->store('lab-results', 'public');
-                $data[$reason][] = $path;
+            $labResult = $item->result ?? new LabResult([
+                'laboratory_request_item_id' => $item->id
+            ]);
+
+            // only delete if user uploaded new ones
+            foreach (($labResult->images ?? []) as $old) {
+                Storage::disk('public')->delete($old);
             }
+
+            $paths = [];
+
+            foreach ($submitted[$itemId] as $file) {
+                $paths[] = $file->store('lab-results', 'public');
+            }
+
+            $labResult->images = $paths;
+            $labResult->save();
         }
 
-        $labResult->results = $data;
-        $labResult->save();
-
-        // set back to pending (important after reject)
+        // set record to pending after submit
         $record->update([
-            'lab_result_id' => $labResult->id,
-            'status'        => Record::STATUS_PENDING,
+            'status' => Record::STATUS_PENDING,
         ]);
 
-        // notify Admins & Nurses again
+        // notify clinic staff
         $staff = User::whereHas('userRole', fn ($q) =>
             $q->whereIn('name', ['Admin', 'Nurse'])
         )->get();

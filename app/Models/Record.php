@@ -43,6 +43,11 @@ class Record extends Model
         return $this->belongsTo(Service::class);
     }
 
+    public function laboratoryRequestItems()
+    {
+        return $this->hasMany(LaboratoryRequestItem::class);
+    }
+
     public function labResult()
     {
         return $this->belongsTo(LabResult::class);

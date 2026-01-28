@@ -14,16 +14,30 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { createPortal } from "react-dom";
+
+/* ================= TYPES ================= */
+
+interface LabResult {
+  images: string[];
+}
+
+interface LaboratoryRequestItem {
+  id: number;
+  laboratory_type: {
+    name: string;
+  };
+  result?: LabResult | null;
+}
 
 interface RecordItem {
   id: number;
   created_at: string;
   status: "missing" | "pending" | "approved" | "rejected";
-  lab_result_id?: number | null;
-  lab_result?: {
-    results: Record<string, string[]>;
-  };
+  laboratory_request_items: LaboratoryRequestItem[];
 }
+
+/* ================= COMPONENT ================= */
 
 export default function Index({ records }: { records: RecordItem[] }) {
   const { auth } = usePage().props as any;
@@ -42,6 +56,7 @@ export default function Index({ records }: { records: RecordItem[] }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<RecordItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const echo = (window as any).Echo;
@@ -69,7 +84,26 @@ export default function Index({ records }: { records: RecordItem[] }) {
       echo.leave("private-lab-results");
     };
   }, []);
-  
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && fullImage) {
+        setFullImage(null);
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullImage]);
+
+  useEffect(() => {
+    if (!fullImage) return;
+
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [fullImage]);
 
   return (
     <AppLayout>
@@ -93,6 +127,10 @@ export default function Index({ records }: { records: RecordItem[] }) {
                 <tbody>
                   {liveRecords.map((record) => {
                     const status = record.status;
+
+                    const alreadySubmitted = record.laboratory_request_items.some(
+                      item => item.result && item.result.images?.length
+                    );
 
                     return (
                       <tr
@@ -171,6 +209,7 @@ export default function Index({ records }: { records: RecordItem[] }) {
                                   : "Approve"}
                               </Button>
                             )}
+
                             {(isAdmin || isNurse) && record.status === "pending" && (
                               <Button
                                 size="sm"
@@ -198,7 +237,8 @@ export default function Index({ records }: { records: RecordItem[] }) {
                                 {rejectingId === record.id ? "Rejecting..." : "Reject"}
                               </Button>
                             )}
-                            {(status === "pending" || status === "approved" || status === "rejected") && (
+
+                            {(status === "pending" || status === "approved" || status === "rejected") && alreadySubmitted && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -246,70 +286,97 @@ export default function Index({ records }: { records: RecordItem[] }) {
       </div>
 
       {/* ================= MODAL PREVIEW ================= */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-hidden p-4 sm:p-6">
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (fullImage) return;
+          setOpen(v);
+        }}
+      >
+        <DialogContent
+          className={`w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-hidden p-4 sm:p-6 ${
+            fullImage ? "pointer-events-none" : ""
+          }`}
+        >
+
           <DialogHeader>
             <DialogTitle>Laboratory Results Preview</DialogTitle>
           </DialogHeader>
 
+          {/* ===== SCROLLABLE PREVIEW (never unmounts) ===== */}
           <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
-            {previewRecord?.lab_result?.results ? (
-              Object.entries(previewRecord.lab_result.results).map(
-                ([reason, images]) => (
-                  <div key={reason}>
-                    <h3 className="font-semibold mb-3 capitalize text-sm sm:text-base">
-                      {reason.replace(/_/g, " ")}
-                    </h3>
+            {previewRecord?.laboratory_request_items.map((item) =>
+              item.result?.images?.length ? (
+                <div key={item.id}>
+                  <h3 className="font-semibold mb-3 text-sm sm:text-base">
+                    {item.laboratory_type.name}
+                  </h3>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {images.map((img, i) => (
-                        <img
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {item.result.images.map((img, i) => {
+                      const src = `/storage/${img}`;
+                      const isLoaded = loadedImages[src];
+
+                      return (
+                        <div
                           key={i}
-                          src={`/storage/${img}`}
-                          onClick={() => {
-                            setOpen(false);
-                            setFullImage(`/storage/${img}`);
-                          }}
-                          className="w-full aspect-square object-cover rounded-lg border cursor-pointer hover:opacity-80 transition"
-                        />
-                      ))}
-                    </div>
+                          className="relative w-full aspect-square rounded-lg border overflow-hidden bg-gray-100 dark:bg-neutral-800"
+                        >
+                          {!isLoaded && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                            </div>
+                          )}
+
+                          <img
+                            src={src}
+                            onLoad={() =>
+                              setLoadedImages(prev => ({ ...prev, [src]: true }))
+                            }
+                            onClick={() => setFullImage(src)}
+                            className={`w-full h-full object-cover cursor-pointer transition
+                              ${isLoaded ? "opacity-100" : "opacity-0"}`}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                )
-              )
-            ) : (
-              <p className="text-gray-500">No images found.</p>
+                </div>
+              ) : null
             )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ================= FULLSCREEN IMAGE ================= */}
-      {fullImage && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
-          onClick={() => {
-            setFullImage(null);
-            setOpen(true);
-          }}
-        >
-          <button
-            onClick={() => {
-              setFullImage(null);
-              setOpen(true);
-            }}
-            className="absolute top-4 right-4 text-white text-3xl font-bold hover:opacity-70"
-          >
-            ×
-          </button>
+      {fullImage &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] pointer-events-auto">
+            {/* backdrop */}
+            <div
+              className="absolute inset-0 bg-black/95"
+              onClick={() => setFullImage(null)}
+            />
 
-          <img
-            src={fullImage}
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-[98vw] max-h-[98vh] object-contain"
-          />
-        </div>
-      )}
+            {/* content */}
+            <div className="relative z-10 w-full h-full flex items-center justify-center">
+              <button
+                onClick={() => setFullImage(null)}
+                className="absolute top-4 right-6 z-20 text-white text-4xl font-bold hover:opacity-70"
+              >
+                ×
+              </button>
+
+              <img
+                src={fullImage}
+                draggable={false}
+                className="max-w-[95vw] max-h-[95vh] object-contain select-none"
+              />
+            </div>
+          </div>,
+          document.body
+        )
+      }
+
 
       {/* Delete Modal */}
       <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>

@@ -10,16 +10,26 @@ class LabResult extends Model
     use HasFactory;
 
     protected $fillable = [
-        'results',
+        'laboratory_request_item_id',
+        'images',
     ];
 
     protected $casts = [
-        'results' => 'array',
+        'images' => 'array',
     ];
 
-    // Optional: if you want to know which record this lab result belongs to
-    public function record()
+    public function requestItem()
     {
-        return $this->hasOne(Record::class, 'lab_result_id');
+        return $this->belongsTo(LaboratoryRequestItem::class, 'laboratory_request_item_id');
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($labResult) {
+            foreach ($labResult->images ?? [] as $path) {
+                \Storage::disk('public')->delete($path);
+            }
+        });
+    }
+
 }

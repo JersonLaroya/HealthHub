@@ -1,8 +1,15 @@
-import { Head, useForm, usePage } from "@inertiajs/react";
+import { Head, router, useForm, usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from "@/components/ui/dialog";
 
 interface User {
   id: number;
@@ -21,10 +28,11 @@ interface Props {
   };
   courses: { id: number; code: string }[];
   yearLevels: { id: number; level: string }[];
+  labTypes: { id: number; name: string }[];
 }
 
 export default function Index() {
-  const { service, courses, yearLevels } = usePage<Props>().props;
+  const { service, courses, yearLevels, labTypes } = usePage<Props>().props;
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -32,7 +40,7 @@ export default function Index() {
   const isFetchingRef = useRef(false);
 
   const [assignType, setAssignType] = useState<
-    "single" | "student_course" | "faculty_staff"
+    "single" | "student_course" | "faculty" | "staff"
   >("single");
 
   function formatToMMDDYYYY(date: Date) {
@@ -124,30 +132,23 @@ export default function Index() {
 const form = useForm({
   service_id: service.id,
 
-  user_id: null as number | null,
-  course_id: null as string | null,
-  year_level_id: null as string | null,
-  assign_faculty_staff: false,
+  user_id: null,
+  course_id: null,
+  year_level_id: null,
+
+  assign_faculty: false,
+  assign_staff: false,
+
+  selected_lab_types: [] as number[],
 
   response_data: {
     patient_name: "",
     date: formatToMMDDYYYY(new Date()),
     year_course_or_office: "",
-    reasons: {
-      chest_xray: false,
-      stool_exam: false,
-      urinalysis: false,
-      cbc: false,
-      drug_test: false,
-      hbsag: false,
-      ishihara: false,
-      neuro_psych: false,
-      others: false,
-      others_text: "",
-    },
     remarks: "",
   },
 });
+
 
   useEffect(() => {
   // Clear specific person data
@@ -156,10 +157,12 @@ const form = useForm({
     setResults([]);
 
     // Clear filters
-  form.setData("user_id", null);
-  form.setData("course_id", null);
-  form.setData("year_level_id", null);
-  form.setData("assign_faculty_staff", false);
+    form.setData("user_id", null);
+    form.setData("course_id", null);
+    form.setData("year_level_id", null);
+
+    form.setData("assign_faculty", false);
+    form.setData("assign_staff", false);
 
     // Clear form fields that came from a person
     form.setData("response_data.patient_name", "");
@@ -188,10 +191,14 @@ const form = useForm({
       form.setData("response_data.patient_name", "Multiple students");
     }
 
-    // Faculty / Staff
-    if (assignType === "faculty_staff") {
-      form.setData("response_data.patient_name", "Multiple faculty / staff");
-      form.setData("response_data.year_course_or_office", "Faculty / Staff");
+    if (assignType === "faculty") {
+      form.setData("response_data.patient_name", "Multiple faculty");
+      form.setData("response_data.year_course_or_office", "Faculty");
+    }
+
+    if (assignType === "staff") {
+      form.setData("response_data.patient_name", "Multiple staff");
+      form.setData("response_data.year_course_or_office", "Staff");
     }
   }, [
     assignType,
@@ -204,15 +211,19 @@ const form = useForm({
 
   const submit = () => {
 
-    const isFaculty = assignType === "faculty_staff";
-
     form.transform(data => ({
       ...data,
-      assign_faculty_staff: isFaculty,
+      assign_faculty: assignType === "faculty",
+      assign_staff: assignType === "staff",
     }));
 
     if (assignType === "single" && !selectedUser) {
       toast.error("Please select a user");
+      return;
+    }
+
+    if (form.data.selected_lab_types.length === 0) {
+      toast.error("Please select at least one laboratory test");
       return;
     }
 
@@ -243,7 +254,16 @@ const form = useForm({
       <Head title="Laboratory Requests" />
 
       <div className="max-w-5xl mx-auto p-6 space-y-6">
-        <h1 className="text-2xl font-semibold">Laboratory Request</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Laboratory Request</h1>
+
+          <Button
+            onClick={() => router.visit("/admin/laboratory-types")}
+          >
+            Manage Laboratory Types
+          </Button>
+        </div>
+
 
         {/* ================= Assign type ================= */}
         <div className="flex gap-6 text-sm font-medium">
@@ -268,10 +288,19 @@ const form = useForm({
           <label className="flex items-center gap-2">
             <input
               type="radio"
-              checked={assignType === "faculty_staff"}
-              onChange={() => setAssignType("faculty_staff")}
+              checked={assignType === "faculty"}
+              onChange={() => setAssignType("faculty")}
             />
-            Faculty / Staff (all)
+            Faculty (all)
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              checked={assignType === "staff"}
+              onChange={() => setAssignType("staff")}
+            />
+            Staff (all)
           </label>
         </div>
 
@@ -506,51 +535,30 @@ const form = useForm({
 
           {/* Reasons */}
           <div className="space-y-2 text-sm">
-            <p className="font-medium">Reason</p>
+            <p className="font-medium">Laboratory Tests</p>
 
-            {[
-              ["chest_xray", "Chest X-Ray"],
-              ["stool_exam", "Stool Exam"],
-              ["urinalysis", "Urinalysis"],
-              ["cbc", "Complete Blood Count"],
-              ["drug_test", "Drug Test"],
-              ["hbsag", "HbSAg – Hepatitis B"],
-              ["ishihara", "Ishihara Test"],
-              ["neuro_psych", "Neuro-Psychiatric Test"],
-            ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2">
+            {labTypes.map((lab) => (
+              <label key={lab.id} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={(form.data.response_data.reasons as any)[key]}
-                    onChange={(e) =>
-                    form.setData(`response_data.reasons.${key}` as any, e.target.checked)
+                  checked={form.data.selected_lab_types.includes(lab.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      form.setData("selected_lab_types", [
+                        ...form.data.selected_lab_types,
+                        lab.id,
+                      ]);
+                    } else {
+                      form.setData(
+                        "selected_lab_types",
+                        form.data.selected_lab_types.filter(id => id !== lab.id)
+                      );
                     }
+                  }}
                 />
-                {label}
+                {lab.name}
               </label>
             ))}
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={form.data.response_data.reasons.others}
-                onChange={(e) =>
-                form.setData("response_data.reasons.others", e.target.checked)
-                }
-              />
-              Others
-            </label>
-
-            {form.data.response_data.reasons.others && (
-              <input
-                className="border-b w-full"
-                placeholder="Specify others..."
-                value={form.data.response_data.reasons.others_text}
-                onChange={(e) =>
-                form.setData("response_data.reasons.others_text", e.target.value)
-                }
-              />
-            )}
           </div>
 
           <div>
@@ -566,7 +574,10 @@ const form = useForm({
           </div>
         </div>
 
-        <Button onClick={submit} disabled={form.processing}>
+        <Button
+          onClick={submit}
+          disabled={form.processing || form.data.selected_lab_types.length === 0}
+        >
           {form.processing ? "Saving..." : "Create Laboratory Request"}
         </Button>
       </div>

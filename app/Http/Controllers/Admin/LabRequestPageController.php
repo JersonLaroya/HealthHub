@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LaboratoryRequestItem;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\Record;
@@ -11,9 +12,12 @@ use App\Models\YearLevel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Notifications\LabRequestCreated;
+use App\Models\LaboratoryType;
+use Illuminate\Support\Facades\DB;
 
 class LabRequestPageController extends Controller
 {
+    
     public function index()
     {
         $service = Service::where('slug', 'laboratory-request-form')->firstOrFail();
@@ -22,6 +26,7 @@ class LabRequestPageController extends Controller
             'service' => $service,
             'courses' => Course::select('id','code')->get(),
             'yearLevels' => YearLevel::select('id','level')->get(),
+            'labTypes' => LaboratoryType::select('id','name')->get(),
         ]);
     }
 
@@ -32,13 +37,18 @@ class LabRequestPageController extends Controller
             'user_id'    => 'nullable|exists:users,id',
             'course_id'  => 'nullable|exists:courses,id',
             'year_level_id' => 'nullable|exists:year_levels,id',
-            'assign_faculty_staff' => 'nullable|boolean',
-            'response_data' => 'required|array',
+            'assign_faculty' => 'nullable|boolean',
+            'assign_staff' => 'nullable|boolean',
+
+            // NEW CORE FIELDS
+            'selected_lab_types' => 'required|array|min:1',
+            'selected_lab_types.*' => 'exists:laboratory_types,id',
         ]);
 
         if (
             !$request->user_id &&
-            !$request->assign_faculty_staff &&
+            !$request->assign_faculty &&
+            !$request->assign_staff &&
             !$request->hasAny(['course_id', 'year_level_id'])
         ) {
             abort(422, 'No target selected');
@@ -56,7 +66,11 @@ class LabRequestPageController extends Controller
             // ======================
             // Students (Student OR RCY)
             // ======================
-            ->when(!$request->user_id && !$request->assign_faculty_staff, function ($q) use ($request) {
+            ->when(
+                !$request->user_id &&
+                !$request->assign_faculty &&
+                !$request->assign_staff,
+                function ($q) use ($request) {
                 $q->whereHas('userRole', function ($r) {
                     $r->where('name', 'Student')
                     ->orWhere('category', 'rcy');
@@ -72,14 +86,20 @@ class LabRequestPageController extends Controller
             // ======================
             // Faculty / Staff
             // ======================
-            ->when($request->assign_faculty_staff, function ($q) {
+            ->when($request->assign_faculty, function ($q) {
                 $q->whereHas('userRole', function ($r) {
-                    $r->whereIn('name', ['Faculty', 'Staff']);
+                    $r->where('name', 'Faculty');
+                });
+            })
+
+            ->when($request->assign_staff, function ($q) {
+                $q->whereHas('userRole', function ($r) {
+                    $r->where('name', 'Staff');
                 });
             })
 
             ->get();
-        
+
         if ($users->isEmpty()) {
             return back()->withErrors([
                 'users' => 'No users matched the selected criteria.'
@@ -88,16 +108,30 @@ class LabRequestPageController extends Controller
 
         $service = Service::findOrFail($request->service_id);
 
-        foreach ($users as $user) {
-            Record::create([
-                'user_id'       => $user->id,
-                'service_id'    => $service->id,
-                'response_data' => $request->response_data,
-                'status' => Record::STATUS_MISSING,
-            ]);
+        DB::transaction(function () use ($users, $request, $service) {
 
-            $user->notify(new LabRequestCreated($service->name));
-        }
+            foreach ($users as $user) {
+
+                // create record (lab request container)
+                $record = Record::create([
+                    'user_id'    => $user->id,
+                    'service_id' => $service->id,
+                    'status'     => Record::STATUS_MISSING, // waiting for lab results
+                ]);
+
+                // create lab request items
+                foreach ($request->selected_lab_types as $labTypeId) {
+                    LaboratoryRequestItem::create([
+                        'record_id' => $record->id,
+                        'laboratory_type_id' => $labTypeId,
+                    ]);
+                }
+
+                // notify user
+                $user->notify(new LabRequestCreated($service->name));
+            }
+
+        });
 
         return back()->with('success', 'Laboratory request created.');
     }

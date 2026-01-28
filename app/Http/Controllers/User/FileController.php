@@ -592,39 +592,62 @@ private function mapPage4DiseaseToDbName(string $name): ?string
     public function download($slug)
     {
         $user = auth()->user();
-
         $service = Service::where('slug', $slug)->firstOrFail();
 
-        // Get the user's saved record for this service
         $record = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
-            ->latest() // in case multiple submissions
+            ->latest()
             ->first();
 
         if (!$record) {
-            \Log::warning("Download failed: no saved form found", [
-                'user_id' => $user->id,
-                'service_slug' => $slug,
-            ]);
             abort(404, 'No saved form found.');
         }
 
         $responses = $record->response_data;
 
-         // Log the responses for debugging
-        \Log::info("Download JSON data", [
-            'user_id' => $user->id,
-            'service_slug' => $slug,
-            'responses' => $responses,
-        ]);
+        // Inject lab types from new tables
+        if ($slug === 'laboratory-request-form') {
+            $record->load('laboratoryRequestItems.laboratoryType');
 
-        // Return JSON for frontend PDF-lib (if you want to generate client-side)
+            $responses['lab_types'] = $record->laboratoryRequestItems
+                ->pluck('laboratoryType.name')
+                ->values();
+        }
+
         return response()->json([
             'responses' => $responses,
             'service' => [
                 'title' => $service->title,
                 'slug' => $service->slug,
             ],
+        ]);
+    }
+
+    public function downloadLabRequest($recordId)
+    {
+        $user = auth()->user();
+
+        $record = Record::with('laboratoryRequestItems.laboratoryType')
+            ->where('id', $recordId)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $labTypes = $record->laboratoryRequestItems
+            ->pluck('laboratoryType.name')
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'record_id' => $record->id,
+            'patient_name' => $user->name,
+            'date' => optional($record->created_at)->setTimezone('Asia/Manila')->format('m/d/Y'),
+            'year_course_or_office' =>
+                $user->course
+                    ? ($user->course->code . ' ' . optional($user->yearLevel)->level)
+                    : optional($user->office)->name,
+
+            'remarks' => $record->remarks ?? null, // if you have
+            'lab_types' => $labTypes, // from DB tables
         ]);
     }
 

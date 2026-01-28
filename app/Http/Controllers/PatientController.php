@@ -221,10 +221,13 @@ class PatientController extends Controller
             $labService = Service::where('slug', 'laboratory-request-form')->firstOrFail();
 
             $records = Record::where('user_id', $patient->id)
-                ->where('service_id', $labService->id)   // only lab requests
-                ->with('labResult:id,results')            // preload images
+                ->where('service_id', $labService->id)
+                ->with([
+                    'laboratoryRequestItems.laboratoryType',
+                    'laboratoryRequestItems.result'
+                ])
                 ->orderByDesc('created_at')
-                ->get(['id', 'created_at', 'lab_result_id', 'response_data', 'status']);
+                ->get(['id', 'created_at', 'status']);
 
             return Inertia::render('patients/labResults/Index', [
                 'patient' => [
@@ -341,7 +344,7 @@ class PatientController extends Controller
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
-        if (!$record->lab_result_id) {
+        if (!$record->laboratoryRequestItems()->whereHas('result')->exists()) {
             return back()->withErrors(['lab' => 'No laboratory result found.']);
         }
 
@@ -381,7 +384,7 @@ class PatientController extends Controller
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
-        if (!$record->lab_result_id) {
+        if (!$record->laboratoryRequestItems()->whereHas('result')->exists()) {
             return back()->withErrors(['lab' => 'No laboratory result found.']);
         }
 
@@ -471,32 +474,34 @@ class PatientController extends Controller
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
-        if (!$record->lab_result_id) {
+        $record->load('laboratoryRequestItems.result');
+
+        $hasAny = false;
+
+        foreach ($record->laboratoryRequestItems as $item) {
+
+            if (!$item->result) continue;
+
+            $hasAny = true;
+
+            foreach ($item->result->images ?? [] as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            $item->result->delete();
+        }
+
+        if (!$hasAny) {
             return back()->withErrors(['lab' => 'No laboratory result found.']);
         }
 
-        $labResult = $record->labResult;
-        abort_if(!$labResult, 404);
-
-        // delete stored images
-        foreach ($labResult->results ?? [] as $images) {
-            foreach ($images as $path) {
-                Storage::disk('public')->delete($path);
-            }
-        }
-
-        // delete lab_results row
-        $labResult->delete();
-
-        // unlink from record
         $record->update([
-            'lab_result_id' => null,
+            'status' => Record::STATUS_MISSING,
         ]);
 
-        // Re-check medical requirements and fire notifications again
         MedicalNotificationService::check($record->user);
 
-        return back()->with('success', 'Laboratory result deleted successfully.');
+        return back()->with('success', 'Laboratory results deleted successfully.');
     }
 
 }

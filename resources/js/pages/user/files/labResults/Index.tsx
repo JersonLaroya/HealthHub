@@ -8,73 +8,88 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePage } from "@inertiajs/react";
-import { useEffect } from "react";
 import { toast } from "sonner";
-
+import { createPortal } from "react-dom";
 
 type RecordStatus = "missing" | "pending" | "approved" | "rejected";
+
+interface LabResult {
+  images: string[];
+}
+
+interface LaboratoryRequestItem {
+  id: number;
+  laboratory_type: { name: string };
+  result?: LabResult | null;
+}
 
 interface RecordItem {
   id: number;
   created_at: string;
   status: RecordStatus;
-  lab_result_id?: number | null;
-  lab_result?: {
-    results: Record<string, string[]>;
-  };
+  laboratory_request_items: LaboratoryRequestItem[];
 }
 
 export default function Index({ records }: { records: RecordItem[] }) {
   const [open, setOpen] = useState(false);
   const [previewRecord, setPreviewRecord] = useState<RecordItem | null>(null);
-
   const [fullImage, setFullImage] = useState<string | null>(null);
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   const { flash } = usePage().props as any;
+
+  const previewScrollRef = useRef<HTMLDivElement | null>(null);
+  const [previewScrollTop, setPreviewScrollTop] = useState(0);
 
   function getStatusBadge(status: RecordItem["status"]) {
     switch (status) {
       case "missing":
-        return {
-          label: "Missing",
-          className:
-            "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
-        };
+        return { label: "Missing", className: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300" };
       case "pending":
-        return {
-          label: "Pending Review",
-          className:
-            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-        };
+        return { label: "Pending Review", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" };
       case "approved":
-        return {
-          label: "Approved",
-          className:
-            "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-        };
+        return { label: "Approved", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" };
       case "rejected":
-        return {
-          label: "Rejected",
-          className:
-            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-        };
+        return { label: "Rejected", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
       default:
-        return {
-          label: "Unknown",
-          className: "bg-gray-200 text-gray-600",
-        };
+        return { label: "Unknown", className: "bg-gray-200 text-gray-600" };
     }
   }
 
   useEffect(() => {
     if (flash?.success) {
-      toast.success("Success", {
-        description: flash.success,
-      });
+      toast.success("Success", { description: flash.success });
     }
   }, [flash]);
+
+  useEffect(() => {
+    if (open && previewScrollRef.current) {
+      requestAnimationFrame(() => {
+        previewScrollRef.current!.scrollTop = previewScrollTop;
+      });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (fullImage) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [fullImage]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && fullImage) {
+        setFullImage(null);
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullImage]);
 
   return (
     <AppLayout>
@@ -86,28 +101,20 @@ export default function Index({ records }: { records: RecordItem[] }) {
         {records.length ? (
           <div className="grid grid-cols-1 gap-4">
             {records.map((record) => {
-              const alreadySubmitted = !!record.lab_result_id;
-              const canUpload =
-                record.status === "missing" || record.status === "rejected";
+              const alreadySubmitted = record.laboratory_request_items.some(i => i.result);
+              const canUpload = record.status === "missing" || record.status === "rejected";
 
               return (
-                <Card
-                  key={record.id}
-                  className="p-4 flex flex-col justify-between shadow-sm bg-white dark:bg-neutral-800"
-                >
+                <Card key={record.id} className="p-4 flex flex-col justify-between shadow-sm bg-white dark:bg-neutral-800">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Date Requested
                       </p>
-
                       {(() => {
                         const badge = getStatusBadge(record.status);
-
                         return (
-                          <span
-                            className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.className}`}
-                          >
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.className}`}>
                             {badge.label}
                           </span>
                         );
@@ -121,18 +128,17 @@ export default function Index({ records }: { records: RecordItem[] }) {
                         year: "numeric",
                       })}
                     </p>
+
                     {record.status === "rejected" && (
                       <p className="text-sm text-red-600 dark:text-red-400">
-                        Your submission was rejected. Please upload a corrected result. You may also message the clinic nurses for more information.
+                        Your submission was rejected. Please upload a corrected result. You can message clinic nurses for more info.
                       </p>
                     )}
                   </div>
 
                   <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
-                    {/* Preview always if there is a submission */}
                     {alreadySubmitted && (
                       <Button
-                        className="w-full sm:w-auto"
                         variant="outline"
                         onClick={() => {
                           setPreviewRecord(record);
@@ -143,23 +149,20 @@ export default function Index({ records }: { records: RecordItem[] }) {
                       </Button>
                     )}
 
-                    {/* Upload / Re-upload only if missing or rejected */}
                     {canUpload && (
                       <Link href={`/user/laboratory-results/${record.id}`}>
-                        <Button className="w-full sm:w-auto">
+                        <Button>
                           {record.status === "rejected" ? "Re-upload Results" : "Upload Results"}
                         </Button>
                       </Link>
                     )}
 
-                    {/* Pending state */}
                     {record.status === "pending" && (
                       <span className="text-sm text-gray-500 dark:text-gray-400 self-center">
                         Waiting for clinic review
                       </span>
                     )}
 
-                    {/* Approved state */}
                     {record.status === "approved" && (
                       <span className="text-sm text-green-600 dark:text-green-400 self-center font-medium">
                         Approved by clinic
@@ -175,80 +178,107 @@ export default function Index({ records }: { records: RecordItem[] }) {
             <p className="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300">
               No laboratory requests found
             </p>
-            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 max-w-md">
-              You currently don’t have any laboratory requests. Once a request is created,
-              it will appear here.
-            </p>
           </Card>
         )}
       </div>
 
       {/* ================= MODAL PREVIEW ================= */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-hidden p-4 sm:p-6">
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (fullImage) return;
+          setOpen(v);
+        }}
+      >
+        <DialogContent
+          className={`w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-hidden p-4 sm:p-6 ${
+            fullImage ? "pointer-events-none" : ""
+          }`}
+        >
           <DialogHeader>
             <DialogTitle>Laboratory Results Preview</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
-            {previewRecord?.lab_result?.results ? (
-              Object.entries(previewRecord.lab_result.results).map(
-                ([reason, images]) => (
-                  <div key={reason}>
-                    <h3 className="font-semibold mb-3 capitalize text-sm sm:text-base">
-                      {reason.replace(/_/g, " ")}
-                    </h3>
+          <div
+            ref={previewScrollRef}
+            className="space-y-5 max-h-[75vh] overflow-y-auto pr-1"
+          >
+            {previewRecord?.laboratory_request_items.map((item) => (
+              item.result?.images?.length ? (
+                <div key={item.id}>
+                  <h3 className="font-semibold mb-3">{item.laboratory_type.name}</h3>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {images.map((img, i) => (
-                        <img
-                            key={i}
-                            src={`/storage/${img}`}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {item.result.images.map((img, i) => {
+                      const src = `/storage/${img}`;
+                      const isLoaded = loadedImages[src];
+
+                      return (
+                        <div
+                          key={i}
+                          className="relative w-full aspect-square rounded-lg border overflow-hidden bg-gray-100 dark:bg-neutral-800"
+                        >
+                          {/* Loader */}
+                          {!isLoaded && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-transparent dark:border-neutral-600 dark:border-t-transparent" />
+                            </div>
+                          )}
+
+                          {/* Image */}
+                          <img
+                            src={src}
+                            onLoad={() =>
+                              setLoadedImages(prev => ({ ...prev, [src]: true }))
+                            }
+                            onError={() =>
+                              setLoadedImages(prev => ({ ...prev, [src]: true }))
+                            }
                             onClick={() => {
-                            setOpen(false); // close Laboratory Results Preview
-                            setFullImage(`/storage/${img}`); // open fullscreen image
+                              setFullImage(src);
                             }}
-                            className="w-full aspect-square object-cover rounded-lg border cursor-pointer hover:opacity-80 transition"
-                        />
-                      ))}
-                    </div>
+                            className={`w-full h-full object-cover cursor-pointer transition
+                              ${isLoaded ? "opacity-100" : "opacity-0"}`}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                )
-              )
-            ) : (
-              <p className="text-gray-500">No images found.</p>
-            )}
+                </div>
+              ) : null
+            ))}
           </div>
         </DialogContent>
       </Dialog>
 
-        {fullImage && (
-        <div
-            className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
-            onClick={() => {
-            setFullImage(null);
-            setOpen(true);
-            }}
-        >
-            {/* Close button */}
-            <button
-            onClick={() => {
-                setFullImage(null);
-                setOpen(true);
-                }}
-            className="absolute top-4 right-4 text-white text-3xl font-bold hover:opacity-70"
-            >
-            ×
-            </button>
-
-            <img
-            src={fullImage}
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-[98vw] max-h-[98vh] object-contain"
+      {fullImage &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] pointer-events-auto">
+            {/* backdrop */}
+            <div
+              className="absolute inset-0 bg-black/95"
+              onClick={() => setFullImage(null)}
             />
-        </div>
-        )}
 
+            {/* content */}
+            <div className="relative z-10 w-full h-full flex items-center justify-center">
+              <button
+                onClick={() => setFullImage(null)}
+                className="absolute top-4 right-6 z-20 text-white text-4xl font-bold hover:opacity-70"
+              >
+                ×
+              </button>
+
+              <img
+                src={fullImage}
+                draggable={false}
+                className="max-w-[95vw] max-h-[95vh] object-contain select-none"
+              />
+            </div>
+          </div>,
+          document.body
+        )
+      }
     </AppLayout>
   );
 }
