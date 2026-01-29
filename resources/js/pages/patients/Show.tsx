@@ -11,7 +11,9 @@ import { fillClinicConsultationRecordForm } from '@/utils/fillClinicConsultation
 import { Textarea } from "@/components/ui/textarea";
 
 export default function Show({ patient, consultations, breadcrumbs = [], schoolYear }) {
-  
+  console.log("FIRST CONSULTATION:", consultations?.data?.[0]);
+  console.log("UPDATER:", consultations?.data?.[0]?.updater);
+  console.log("CREATOR:", consultations?.data?.[0]?.creator);
   const [downloading, setDownloading] = useState(false);
 
   async function handleOpenPdf(patient, consultations) {
@@ -74,6 +76,17 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     return `${hours}:${minutes}`;
   };
 
+  const cleanVitalValue = (value: string) => {
+    if (!value) return "";
+    // allow only numbers, dot, and slash (for BP like 120/80)
+    return value.replace(/[^0-9./]/g, "");
+  };
+
+  const attachUnit = (value: string, unit: string) => {
+    const clean = cleanVitalValue(value);
+    return clean ? `${clean} ${unit}` : "";
+  };
+
   const [addingConsultation, setAddingConsultation] = useState(false);
 
   const { data: consultationData, setData: setConsultationData, post: postConsultation, processing: addingProcessing, errors: consultationErrors } = useForm({
@@ -97,13 +110,23 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   });
 
   useEffect(() => {
-    const h = parseFloat(consultationData.height);
-    const w = parseFloat(consultationData.weight);
+    const h = parseFloat(cleanVitalValue(consultationData.height));
+    const w = parseFloat(cleanVitalValue(consultationData.weight));
 
     if (h > 0 && w > 0) {
       const heightInMeters = h / 100;
       const bmi = w / (heightInMeters * heightInMeters);
-      setConsultationData("bmi", bmi.toFixed(2));
+      const bmiValue = bmi.toFixed(2);
+
+      let category = "";
+      const num = parseFloat(bmiValue);
+
+      if (num < 18.5) category = "Underweight";
+      else if (num <= 24.9) category = "Healthy";
+      else if (num <= 29.9) category = "Overweight";
+      else category = "Obesity";
+
+      setConsultationData("bmi", `${bmiValue} – ${category}`);
     } else {
       setConsultationData("bmi", "");
     }
@@ -192,13 +215,23 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   };
 
   useEffect(() => {
-    const h = parseFloat(editConsultData.height);
-    const w = parseFloat(editConsultData.weight);
+    const h = parseFloat(cleanVitalValue(editConsultData.height));
+    const w = parseFloat(cleanVitalValue(editConsultData.weight));
 
     if (h > 0 && w > 0) {
       const heightInMeters = h / 100;
       const bmi = w / (heightInMeters * heightInMeters);
-      setEditConsultData("bmi", bmi.toFixed(2));
+      const bmiValue = bmi.toFixed(2);
+
+      let category = "";
+      const num = parseFloat(bmiValue);
+
+      if (num < 18.5) category = "Underweight";
+      else if (num <= 24.9) category = "Healthy";
+      else if (num <= 29.9) category = "Overweight";
+      else category = "Obesity";
+
+      setEditConsultData("bmi", `${bmiValue} – ${category}`);
     } else {
       setEditConsultData("bmi", "");
     }
@@ -408,7 +441,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
             <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">PR</label><p>{patient.vital_sign?.pr || "-"}</p></div>
             <div className="flex-1 py-2 lg:py-0">
               <label className="font-semibold block mb-0.5">Temp</label>
-              <p>{patient.vital_sign?.temp ? `${patient.vital_sign?.temp}°C` : "-"}</p>
+              <p>{patient.vital_sign?.temp || "-"}</p>
             </div>
             <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">O2 Sat</label><p>{patient.vital_sign?.o2_sat || "-"}</p></div>
           </div>
@@ -416,19 +449,19 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
         {/* Consultation Table */}
         <Card className="p-4 bg-white dark:bg-neutral-800 shadow">
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto rounded-lg overflow-hidden border border-gray-300 dark:border-neutral-600">
             <table className="min-w-[900px] w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700">
-                  <th className="p-2 text-left border-b">Date & Time</th>
-                  <th className="p-2 text-left border-b">Vital Signs</th>
-                  <th className="p-2 text-left border-b">Chief Complaint</th>
-                  <th className="p-2 text-left border-b">Disease</th>
-                  <th className="p-2 text-left border-b">Management & Treatment</th>
-                  <th className="p-2 text-left border-b">Updated By</th>
-                  <th className="p-2 text-left border-b">Status</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Date & Time</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Vital Signs</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Chief Complaint</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Disease</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Management & Treatment</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Updated By</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Status</th>
                   {canApprove && (
-                    <th className="p-2 text-left border-b">Actions</th>
+                    <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Actions</th>
                   )}
                 </tr>
               </thead>
@@ -447,15 +480,15 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
                     return (
                       <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
-                        <td className="p-2 border-b">{formattedDateTime}</td>
-                        <td className="p-2 border-b align-top">
+                        <td className="p-2 border-l border-r border-b border-gray-300 dark:border-neutral-600">{formattedDateTime}</td>
+                        <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md text-sm space-y-1">
                             {c.vital_signs ? (
                               <>
                                 {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
                                 {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
                                 {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
-                                {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}°C</div>}
+                                {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}</div>}
                                 {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
                                 {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
                                 {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
@@ -479,7 +512,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                           </div>
                         </td>
 
-                        <td className="p-2 border-b align-top">
+                        <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
                             {c.medical_complaint ? (
                               <>
@@ -505,7 +538,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                           </div>
                         </td>
 
-                        <td className="p-2 border-b align-top">
+                        <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
                             {c.diseases?.length
                               ? c.diseases.map(d => d.name).join(", ")
@@ -513,7 +546,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                           </div>
                         </td>
 
-                        <td className="p-2 border-b align-top">
+                        <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
                             {c.management_and_treatment ? (
                               <>
@@ -540,7 +573,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                           </div>
                         </td>
 
-                        <td className="p-2 border-b text-sm">
+                        <td className="p-2 text-sm border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           {c.updater
                             ? `${c.updater.first_name} ${c.updater.last_name}`
                             : c.creator
@@ -548,7 +581,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                             : "—"}
                         </td>
 
-                        <td className="p-2 border-b">
+                        <td className="p-2 border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           {c.status === 'pending' ? (
                             <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
                               Pending
@@ -561,8 +594,8 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                         </td>
 
                         {canApprove && (
-                          <td className="p-2 border-b align-bottom">
-                            <div className="flex flex-col sm:flex-row gap-2 justify-start items-stretch sm:items-end">
+                          <td className="p-2 align-bottom border-l border-r border-b border-gray-300 dark:border-neutral-600">
+                            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
 
                               {/* Approve: Admin + Nurse */}
                               <Button
@@ -668,8 +701,25 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Blood Type</label>
-                <Input value={data.blood_type} onChange={(e) => setData("blood_type", e.target.value)} />
-                {errors.blood_type && <p className="text-red-600 text-sm mt-1">{errors.blood_type}</p>}
+                <select
+                  value={data.blood_type || "N/A"}
+                  onChange={(e) => setData("blood_type", e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                >
+                  <option value="N/A">N/A</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+
+                {errors.blood_type && (
+                  <p className="text-red-600 text-sm mt-1">{errors.blood_type}</p>
+                )}
               </div>
 
               <div>
@@ -719,7 +769,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
       {/* Add Consultation Modal */}
       <Dialog open={addingConsultation} onOpenChange={setAddingConsultation}>
-        <DialogContent className="sm:max-w-lg bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+        <DialogContent className="w-[95%] sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Add Consultation</DialogTitle>
           </DialogHeader>
@@ -752,49 +802,90 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
               <div className="space-y-2">
                 <h3 className="font-semibold text-sm">Vital Signs</h3>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    placeholder="BP (e.g. 120/80)"
-                    value={consultationData.bp}
-                    onChange={(e) => setConsultationData("bp", e.target.value)}
-                  />
-                  <Input
-                    placeholder="RR"
-                    value={consultationData.rr}
-                    onChange={(e) => setConsultationData("rr", e.target.value)}
-                  />
-                  <Input
-                    placeholder="PR"
-                    value={consultationData.pr}
-                    onChange={(e) => setConsultationData("pr", e.target.value)}
-                  />
-                  <Input
-                    placeholder="Temp (°C)"
-                    value={consultationData.temp}
-                    onChange={(e) => setConsultationData("temp", e.target.value)}
-                  />
-                  <Input
-                    placeholder="O₂ Sat (%)"
-                    value={consultationData.o2_sat}
-                    onChange={(e) => setConsultationData("o2_sat", e.target.value)}
-                  />
-                  <Input
-                    placeholder="Height (cm)"
-                    value={consultationData.height}
-                    onChange={(e) => setConsultationData("height", e.target.value)}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-                  <Input
-                    placeholder="Weight (kg)"
-                    value={consultationData.weight}
-                    onChange={(e) => setConsultationData("weight", e.target.value)}
-                  />
+                  <div>
+                    <label className="text-xs font-medium">Blood Pressure</label>
+                    <Input
+                      placeholder="120/80"
+                      value={cleanVitalValue(consultationData.bp)}
+                      onChange={(e) =>
+                        setConsultationData("bp", attachUnit(e.target.value, "mmHg"))
+                      }
+                    />
+                  </div>
 
-                  <Input
-                    placeholder="BMI"
-                    value={consultationData.bmi}
-                    onChange={(e) => setConsultationData("bmi", e.target.value)}
-                  />
+                  <div>
+                    <label className="text-xs font-medium">Respiratory Rate</label>
+                    <Input
+                      placeholder="16"
+                      value={cleanVitalValue(consultationData.rr)}
+                      onChange={(e) =>
+                        setConsultationData("rr", attachUnit(e.target.value, "cpm"))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium">Pulse Rate</label>
+                    <Input
+                      placeholder="72"
+                      value={cleanVitalValue(consultationData.pr)}
+                      onChange={(e) =>
+                        setConsultationData("pr", attachUnit(e.target.value, "bpm"))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium">Temperature</label>
+                    <Input
+                      placeholder="36.5"
+                      value={cleanVitalValue(consultationData.temp)}
+                      onChange={(e) =>
+                        setConsultationData("temp", attachUnit(e.target.value, "°C"))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium">Oxygen Saturation</label>
+                    <Input
+                      placeholder="98"
+                      value={cleanVitalValue(consultationData.o2_sat)}
+                      onChange={(e) =>
+                        setConsultationData("o2_sat", attachUnit(e.target.value, "%"))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium">Height</label>
+                    <Input
+                      placeholder="170"
+                      value={cleanVitalValue(consultationData.height)}
+                      onChange={(e) =>
+                        setConsultationData("height", attachUnit(e.target.value, "cm"))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium">Weight</label>
+                    <Input
+                      placeholder="65"
+                      value={cleanVitalValue(consultationData.weight)}
+                      onChange={(e) =>
+                        setConsultationData("weight", attachUnit(e.target.value, "kg"))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium">BMI (auto)</label>
+                    <Input disabled value={consultationData.bmi} />
+                  </div>
+
                 </div>
               </div>
 

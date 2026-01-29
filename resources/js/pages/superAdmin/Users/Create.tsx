@@ -19,7 +19,7 @@ interface Props {
   roles: string[];
   yearLevels: { id: number; name: string }[];
   courses: { id: number; code: string }[];
-  offices: { id: number; name: string }[];
+  offices: { id: number; name: string; code?: string | null }[];
 }
 
 export default function Create({ roles, yearLevels, courses, offices }: Props) {
@@ -37,6 +37,7 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
     middle_name: "",
     last_name: "",
     email: "",
+    ismis_id: "",
     //password: "",
     role: "",
     course_id: "",
@@ -44,11 +45,21 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
     office_id: "",
   });
 
+  const isStudent = data.role === "Student";
+
+  const isFormInvalid =
+    !data.first_name ||
+    !data.last_name ||
+    !data.email ||
+    !data.role ||
+    (isStudent && (!data.course_id || !data.year_level_id)) ||
+    (!isStudent && data.role && !data.office_id);
+
   return (
     <AppLayout>
       <Head title="Add User" />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Add User</h1>
 
@@ -57,7 +68,7 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
           </Button>
         </div>
 
-        <Card className="p-6 space-y-4">
+        <Card className="p-6 space-y-4 w-full max-w-3xl mx-auto">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -74,34 +85,44 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
             }}
             className="space-y-4"
           >
-            {/* Name */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>First name</Label>
-                <Input
-                  className="w-full"
-                  value={data.first_name}
-                  onChange={(e) => setData("first_name", e.target.value)}
-                />
-              </div>
+            {/* ISMIS ID */}
+            <div>
+              <Label>ISMIS ID</Label>
+              <Input
+                className="w-full sm:w-64"
+                value={data.ismis_id}
+                onChange={(e) => setData("ismis_id", e.target.value)}
+              />
+            </div>
 
-              <div>
-                <Label>Middle name</Label>
-                <Input
-                  className="w-full"
-                  value={data.middle_name}
-                  onChange={(e) => setData("middle_name", e.target.value)}
-                />
-              </div>
+            {/* First name */}
+            <div>
+              <Label>First name</Label>
+              <Input
+                className="w-full"
+                value={data.first_name}
+                onChange={(e) => setData("first_name", e.target.value)}
+              />
+            </div>
 
-              <div>
-                <Label>Last name</Label>
-                <Input
-                  className="w-full"
-                  value={data.last_name}
-                  onChange={(e) => setData("last_name", e.target.value)}
-                />
-              </div>
+            {/* Middle name */}
+            <div>
+              <Label>Middle name</Label>
+              <Input
+                className="w-full"
+                value={data.middle_name}
+                onChange={(e) => setData("middle_name", e.target.value)}
+              />
+            </div>
+
+            {/* Last name */}
+            <div>
+              <Label>Last name</Label>
+              <Input
+                className="w-full"
+                value={data.last_name}
+                onChange={(e) => setData("last_name", e.target.value)}
+              />
             </div>
 
             {/* Email */}
@@ -197,7 +218,7 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
                   <SelectContent>
                     {offices.map((o) => (
                       <SelectItem key={o.id} value={String(o.id)}>
-                        {o.name}
+                        {o.code ?? o.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -210,9 +231,9 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
                 Cancel
               </Button>
 
-              <Button type="submit" disabled={processing}>
-                {processing ? "Creating..." : "Create User"}
-              </Button>
+              <Button type="submit" disabled={processing || isFormInvalid}>
+              {processing ? "Creating..." : "Create User"}
+            </Button>
             </div>
           </form>
         </Card>

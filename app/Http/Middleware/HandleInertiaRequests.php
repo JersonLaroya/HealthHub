@@ -48,6 +48,13 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             //'name' => config('app.name'),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+                'bulkResult' => fn () => $request->session()->get('bulkResult'),
+                'bulkDeleteResult' => fn () => $request->session()->get('bulkDeleteResult'),
+            ],
+            
             'quote' => ['message' => trim($message), 'author' => trim($author)],
 
             'system' => [

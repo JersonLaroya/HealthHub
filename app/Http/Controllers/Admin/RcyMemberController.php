@@ -23,14 +23,29 @@ class RcyMemberController extends Controller
 
         // Search
         if ($search = $request->input('search')) {
+
             $search = trim(strtolower($search));
-            $query->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('LOWER(email) LIKE ?', ["%{$search}%"])
-                  ->orWhereHas('userRole', fn($q2) =>
-                      $q2->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
-                  );
+            $isNumeric = ctype_digit(str_replace('-', '', $search));
+
+            $query->where(function ($q) use ($search, $isNumeric) {
+
+                if ($isNumeric) {
+                    // numeric-like → ISMIS + fallback fields
+                    $q->where('ismis_id', 'LIKE', "%{$search}%")
+                    ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ["%{$search}%"]);
+                } else {
+                    // text-like → normal fields only
+                    $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ["%{$search}%"]);
+                }
+
+                // role search always allowed
+                $q->orWhereHas('userRole', fn($q2) =>
+                    $q2->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                );
             });
         }
 
@@ -109,14 +124,26 @@ class RcyMemberController extends Controller
             ]);
         }
 
+        $isNumeric = ctype_digit(str_replace('-', '', $search));
+
         $baseQuery = User::with(['course', 'yearLevel'])
             ->whereHas('userRole', fn($q) => $q->where('name', 'Student'))
-            ->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
-                ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+            ->where(function ($q) use ($search, $isNumeric) {
+
+                if ($isNumeric) {
+                    $q->where('ismis_id', 'LIKE', "%{$search}%")
+                    ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+                } else {
+                    $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+                }
             });
 
             $studentsQuery = $baseQuery

@@ -28,7 +28,7 @@ class SuperAdminUserController extends Controller
                 'userRole',
                 'course:id,code',
                 'yearLevel:id,name',
-                'office:id,name',
+                'office:id,name,code',
             ])
 
             // Exclude Super Admin
@@ -40,9 +40,10 @@ class SuperAdminUserController extends Controller
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
-                      ->orWhere('middle_name', 'like', "%{$search}%")
-                      ->orWhere('last_name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('middle_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('ismis_id', 'like', "%{$search}%");
                 });
             })
 
@@ -88,7 +89,7 @@ class SuperAdminUserController extends Controller
         $yearLevels = YearLevel::orderBy('name')->get(['id', 'name']);
 
         $courses = Course::orderBy('code')->get(['id', 'code']);
-        $offices = Office::orderBy('name')->get(['id', 'name']);
+        $offices = Office::orderBy('name')->get(['id', 'name', 'code']);
 
         return Inertia::render('superAdmin/Users/Index', [
             'users' => $users,
@@ -115,6 +116,7 @@ class SuperAdminUserController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'ismis_id' => 'nullable|string|max:255|unique:users,ismis_id,' . $user->id,
             'password' => 'nullable|min:6',
 
             'course_id' => 'nullable|exists:courses,id',
@@ -127,6 +129,7 @@ class SuperAdminUserController extends Controller
             'middle_name',
             'last_name',
             'email',
+            'ismis_id',
             'course_id',
             'year_level_id',
             'office_id',
@@ -173,7 +176,7 @@ class SuperAdminUserController extends Controller
             'roles' => ['Student', 'Staff', 'Faculty', 'Admin', 'Nurse'],
             'yearLevels' => YearLevel::orderBy('name')->get(['id', 'name']),
             'courses' => Course::orderBy('code')->get(['id', 'code']),
-            'offices' => Office::orderBy('name')->get(['id', 'name']),
+            'offices' => Office::orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 
@@ -184,11 +187,15 @@ class SuperAdminUserController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-
+            'ismis_id' => 'nullable|string|max:255|unique:users,ismis_id',
             'role' => 'required|exists:user_roles,name',
-            'course_id' => 'nullable|exists:courses,id',
-            'year_level_id' => 'nullable|exists:year_levels,id',
-            'office_id' => 'nullable|exists:offices,id',
+
+            // STUDENT REQUIREMENTS
+            'course_id' => 'required_if:role,Student|nullable|exists:courses,id',
+            'year_level_id' => 'required_if:role,Student|nullable|exists:year_levels,id',
+
+            // NON-STUDENT REQUIREMENT
+            'office_id' => 'required_unless:role,Student|nullable|exists:offices,id',
         ]);
 
         $role = UserRole::where('name', $request->role)->firstOrFail();
@@ -200,6 +207,7 @@ class SuperAdminUserController extends Controller
             'middle_name' => $request->middle_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
+            'ismis_id' => $request->ismis_id,
             'password' => Hash::make($plainPassword),
             'user_role_id' => $role->id,
             'course_id' => $request->course_id,
@@ -229,6 +237,11 @@ class SuperAdminUserController extends Controller
 
     public function bulkStore(Request $request)
     {
+        $createdUsers = [];
+        $updatedUsers = [];
+        $skippedUsers = [];
+        $unchangedUsers = [];
+
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
             'role' => 'required|exists:user_roles,name',
@@ -243,6 +256,7 @@ class SuperAdminUserController extends Controller
 
         while (($row = fgetcsv($file)) !== false) {
     [
+        $ismis_id,
         $first_name,
         $middle_name,
         $last_name,
@@ -250,13 +264,32 @@ class SuperAdminUserController extends Controller
         $office_name,
         $course_code,
         $year_name,
-            ] = array_pad($row, 7, null);
+    ] = array_pad($row, 8, null);
+        
+            /* CLEAN CSV VALUES */
+            $ismis_id   = trim($ismis_id ?? '');
+            $email      = trim($email ?? '');
+            $first_name = trim($first_name ?? '');
+            $middle_name= trim($middle_name ?? '');
+            $last_name  = trim($last_name ?? '');
+            
+            $fullName = trim("{$first_name} {$middle_name} {$last_name}");
 
-            if (!$email) continue;
+            if (!$email) {
+                $skippedUsers[] = [
+                    'name'  => $fullName ?: 'Unknown name',
+                    'email' => null,
+                    'type'  => 'missing_email',
+                    'reason'=> 'Missing email address',
+                ];
+                continue;
+            }
 
             $office = $office_name
-                ? Office::where('name', $office_name)->first()
-                : null;
+            ? Office::where('name', $office_name)
+                ->orWhere('code', $office_name)
+                ->first()
+            : null;
 
             $course = $course_code
                 ? Course::where('code', $course_code)->first()
@@ -265,8 +298,49 @@ class SuperAdminUserController extends Controller
             $year = is_numeric($year_name)
                 ? YearLevel::where('level', $year_name)->first()
                 : null;
-
+            
             $user = User::where('email', $email)->first();
+
+            // ENFORCE RULES HERE (after fetching)
+            if ($role->name === 'Student' && (!$course || !$year)) {
+                $skippedUsers[] = [
+                    'name'  => $fullName,
+                    'email' => $email,
+                    'type'  => 'student_requirement',
+                    'reason'=> 'Missing or invalid course/year',
+                ];
+                continue;
+            }
+
+            if ($role->name !== 'Student' && !$office && !$course) {
+                $skippedUsers[] = [
+                    'name'  => $fullName,
+                    'email' => $email,
+                    'type'  => 'office_requirement',
+                    'reason'=> 'Missing or invalid office',
+                ];
+                continue;
+            }
+
+            // ISMIS ID already used by another user
+            if ($ismis_id && User::where('ismis_id', $ismis_id)->exists() && (!$user || $user->ismis_id !== $ismis_id)) {
+                $skippedUsers[] = [
+                    'name'   => $fullName,
+                    'email'  => $email,
+                    'reason' => 'ISMIS ID already exists',
+                ];
+                continue;
+            }
+
+            if ($user && $user->user_role_id !== $role->id) {
+                $skippedUsers[] = [
+                    'name'  => $fullName,
+                    'email' => $email,
+                    'type'  => 'role_mismatch',
+                    'reason'=> 'Existing user with different role',
+                ];
+                continue;
+            }
 
             /* =========================
             IF USER EXISTS → UPDATE
@@ -274,24 +348,62 @@ class SuperAdminUserController extends Controller
             ========================= */
             if ($user) {
 
-                // SAFETY: only update users with the selected role
-                if ($user->user_role_id !== $role->id) {
-                    continue;
-                }
-
+                $changes = [];
                 $updateData = [];
 
-                if ($office) $updateData['office_id'] = $office->id;
-                if ($course) $updateData['course_id'] = $course->id;
-                if ($year)   $updateData['year_level_id'] = $year->id;
-
-                // auto office from course
-                if ($course?->office_id) {
-                    $updateData['office_id'] = $course->office_id;
+                // ismis id
+                if ($ismis_id && $user->ismis_id !== $ismis_id) {
+                    // prevent duplicate ISMIS ID
+                    if (!User::where('ismis_id', $ismis_id)->where('id', '!=', $user->id)->exists()) {
+                        $updateData['ismis_id'] = $ismis_id;
+                        $changes[] = 'ismis id';
+                    }
                 }
 
+                // office
+                if ($office && $user->office_id !== $office->id) {
+                    $updateData['office_id'] = $office->id;
+                    $changes[] = 'office';
+                }
+
+                // course
+                if ($course && $user->course_id !== $course->id) {
+                    $updateData['course_id'] = $course->id;
+                    $changes[] = 'course';
+                }
+
+                // year level
+                if ($year && $user->year_level_id !== $year->id) {
+                    $updateData['year_level_id'] = $year->id;
+                    $changes[] = 'year level';
+                }
+
+                // auto office from course
+                if ($course?->office_id && $user->office_id !== $course->office_id) {
+                    $updateData['office_id'] = $course->office_id;
+                    if (!in_array('office', $changes)) {
+                        $changes[] = 'office';
+                    }
+                }
+
+                // HAS REAL CHANGES
                 if (!empty($updateData)) {
                     $user->update($updateData);
+
+                    $updatedUsers[] = [
+                        'id'      => $user->id,
+                        'name'    => $user->first_name . ' ' . $user->last_name,
+                        'email'   => $user->email,
+                        'changes' => $changes,
+                    ];
+                } 
+                // NO CHANGES
+                else {
+                    $unchangedUsers[] = [
+                        'id'    => $user->id,
+                        'name'  => $user->first_name . ' ' . $user->last_name,
+                        'email' => $user->email,
+                    ];
                 }
 
                 continue;
@@ -304,6 +416,7 @@ class SuperAdminUserController extends Controller
             $plainPassword = Str::random(10);
 
             $data = [
+                'ismis_id'     => $ismis_id,
                 'first_name' => $first_name,
                 'middle_name' => $middle_name,
                 'last_name' => $last_name,
@@ -321,6 +434,12 @@ class SuperAdminUserController extends Controller
 
             $newUser = User::create($data);
 
+            $createdUsers[] = [
+                'id' => $newUser->id,
+                'name' => $newUser->first_name . ' ' . $newUser->last_name,
+                'email' => $newUser->email,
+            ];
+
             $newUser->notify(new NewUserCreated($plainPassword));
 
             $created++;
@@ -328,7 +447,12 @@ class SuperAdminUserController extends Controller
 
         fclose($file);
 
-       return back()->with('success', "$created users imported successfully.");
+       return back()->with('bulkResult', [
+            'created' => $createdUsers,
+            'updated' => $updatedUsers,
+            'unchanged' => $unchangedUsers,
+            'skipped' => $skippedUsers,
+        ]);
     }
 
     public function bulkDelete(Request $request)
@@ -340,37 +464,82 @@ class SuperAdminUserController extends Controller
 
         $role = UserRole::where('name', $request->role)->firstOrFail();
 
+        $deletedUsers = [];
+        $skippedUsers = [];
+        $notFoundUsers = [];
+
         $file = fopen($request->file('file')->getRealPath(), 'r');
 
         $header = fgetcsv($file);
+
+        if (!$header) {
+            return back()->with('error', 'Empty or invalid CSV file.');
+        }
+
         $emailIndex = collect($header)->search(fn ($h) => strtolower(trim($h)) === 'email');
 
         if ($emailIndex === false) {
             return back()->with('error', 'CSV must contain an "email" column.');
         }
 
-        $deleted = 0;
-
         while (($row = fgetcsv($file)) !== false) {
-            $email = $row[$emailIndex] ?? null;
-            if (!$email) continue;
 
-            $user = User::where('email', trim($email))
-                ->where('user_role_id', $role->id)
-                ->first();
-
-            if ($user && $user->userRole?->name !== 'Super Admin') {
-                $user->delete();
-                $deleted++;
+            // skip completely empty rows
+            if (!array_filter($row)) {
+                continue;
             }
+
+            $email = trim($row[$emailIndex] ?? '');
+
+            if (!$email) {
+                $skippedUsers[] = [
+                    'email' => null,
+                    'reason' => 'Missing email',
+                ];
+                continue;
+            }
+
+            $user = User::where('email', $email)->first();
+            
+            if (!$user) {
+                $notFoundUsers[] = [
+                    'email' => $email,
+                    'reason' => 'User not found',
+                ];
+                continue;
+            }
+
+            if ($user->userRole?->name === 'Super Admin') {
+                $skippedUsers[] = [
+                    'email' => $email,
+                    'reason' => 'Super Admin cannot be deleted',
+                ];
+                continue;
+            }
+
+            if ($user->user_role_id !== $role->id) {
+                $skippedUsers[] = [
+                    'email' => $email,
+                    'reason' => 'Role mismatch',
+                ];
+                continue;
+            }
+
+            $deletedUsers[] = [
+                'id' => $user->id,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'email' => $user->email,
+            ];
+
+            $user->delete();
         }
 
         fclose($file);
 
-        if ($deleted === 0) {
-            return back()->with('error', 'No users were deleted. Check role or emails.');
-        }
-
-        return back()->with('success', "$deleted users deleted successfully.");
+        return back()->with('bulkDeleteResult', [
+            'deleted' => $deletedUsers,
+            'not_found' => $notFoundUsers,
+            'skipped' => $skippedUsers,
+        ]);
     }
 }

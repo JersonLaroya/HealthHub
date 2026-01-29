@@ -27,6 +27,7 @@ class User extends Authenticatable
         'guardian_name',
         'guardian_contact_no',
         'signature',
+        'ismis_id',
 
         // address FKs
         'home_address_id',

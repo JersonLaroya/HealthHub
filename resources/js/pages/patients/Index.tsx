@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Head, router } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,13 @@ import { Card } from "@/components/ui/card";
 import SortableHeader from "@/components/custom/sort-table-header";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { usePage } from "@inertiajs/react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Index({ patients = { data: [] }, filters = {}, courses = [], years = [], offices = [], breadcrumbs = [] }) {
   const { auth } = usePage().props as any;
@@ -28,32 +35,24 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
 
   // hard-cast values (prevents React internal crash)
   const [search, setSearch] = useState(String(safeFilters.q ?? ""));
-  const [course, setCourse] = useState(String(safeFilters.course ?? ""));
-  const [year, setYear] = useState(String(safeFilters.year ?? ""));
-  const [office, setOffice] = useState(String(safeFilters.office ?? ""));
-  const [sort, setSort] = useState(
-    typeof safeFilters.sort === "string" ? safeFilters.sort : "created_at"
-  );
-  const [direction, setDirection] = useState(
-    safeFilters.direction === "asc" || safeFilters.direction === "desc"
-      ? safeFilters.direction
-      : "desc"
-  );
+  const [course, setCourse] = useState(String(safeFilters.course ?? "all"));
+  const [year, setYear] = useState(String(safeFilters.year ?? "all"));
+  const [office, setOffice] = useState(String(safeFilters.office ?? "all"));
   const [isSearching, setIsSearching] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  const handleSort = (column) => {
-    const newDirection = sort === column && direction === "asc" ? "desc" : "asc";
-    setSort(column);
-    setDirection(newDirection);
-    router.get(`/${prefix}/patients`, {
-      q: search,
-      course,
-      year,
-      office,
-      sort: column,
-      direction: newDirection,
-    }, { preserveState: true });
-  };
+  const filteredCourses =
+    office === "all"
+      ? courses
+      : courses.filter(c => String(c.office_id) === office);
+
+  const hasCoursesForOffice = filteredCourses.length > 0;
+
+  useEffect(() => {
+    // reset course and year when office changes
+    setCourse("all");
+    setYear("all");
+  }, [office]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -62,17 +61,31 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
 
     router.get(`/${prefix}/patients`, {
       q: search,
-      course,
-      year,
-      office,
-      sort,
-      direction,
+      course: course === "all" ? "" : course,
+      year: year === "all" ? "" : year,
+      office: office === "all" ? "" : office,
       page: 1,
     }, {
       preserveState: true,
       onFinish: () => setIsSearching(false),
     });
   };
+
+  const handleReset = () => {
+    setIsResetting(true);
+
+    setSearch("");
+    setOffice("all");
+    setCourse("all");
+    setYear("all");
+
+    router.get(`/${prefix}/patients`, {}, {
+      preserveState: false,
+      replace: true,
+      onFinish: () => setIsResetting(false),
+    });
+  };
+
 
   const handleViewConsultation = (patient) => {
     router.get(`/${prefix}/patients/${patient.id}`);
@@ -93,49 +106,84 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
 
         {/* Search Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-2 w-full">
+          <form
+            onSubmit={handleSearch}
+            className="
+              grid grid-cols-1
+              sm:grid-cols-2
+              lg:grid-cols-4
+              xl:grid-cols-[1fr_auto_auto_auto_auto]
+              gap-2 w-full
+            "
+          >
             <Input
-              placeholder="Search by name, course, year, or office..."
+              placeholder="Search by name, ISMIS ID, course, year, or office..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full lg:w-64 dark:bg-neutral-700 dark:text-gray-100"
+              className="w-full min-w-[220px] md:col-span-4 xl:col-span-1"
             />
 
+            {/* OFFICE */}
+            <Select value={office} onValueChange={setOffice}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Offices" />
+              </SelectTrigger>
+
+              <SelectContent className="max-h-60 overflow-y-auto">
+                <SelectItem value="all">All Offices</SelectItem>
+                {offices.map((o) => (
+                  <SelectItem key={o.id} value={String(o.id)}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* COURSE */}
-            <select
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
-            >
-              <option value="">All Courses</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            {(office === "all" || hasCoursesForOffice) && (
+              <Select value={course} onValueChange={setCourse}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Courses" />
+                </SelectTrigger>
+
+                <SelectContent
+                  position="popper"
+                  sideOffset={4}
+                  className="max-h-[60vh] max-w-[95vw] overflow-y-auto"
+                >
+                  <SelectItem value="all">All Courses</SelectItem>
+
+                  {filteredCourses.map((c) => (
+                    <SelectItem
+                      key={c.id}
+                      value={String(c.id)}
+                      className="truncate"
+                      title={c.name}
+                    >
+                      {c.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {/* YEAR */}
-            <select
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
-            >
-              <option value="">All Years</option>
-              {years.map((y) => (
-                <option key={y.id} value={y.id}>{y.name}</option>
-              ))}
-            </select>
+            {hasCoursesForOffice && (
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
 
-            {/* OFFICE */}
-            <select
-              value={office}
-              onChange={(e) => setOffice(e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
-            >
-              <option value="">All Offices</option>
-              {offices.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectItem value="all">All Years</SelectItem>
+                  {years.map((y) => (
+                    <SelectItem key={y.id} value={String(y.id)}>
+                      {y.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             <Button
               type="submit"
@@ -143,6 +191,16 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
               className={isSearching ? "opacity-50 cursor-not-allowed" : ""}
             >
               {isSearching ? "Filtering..." : "Filter"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isResetting || isSearching}
+              className={isResetting ? "opacity-50 cursor-not-allowed" : ""}
+              onClick={handleReset}
+            >
+              {isResetting ? "Resetting..." : "Reset"}
             </Button>
           </form>
         </div>
@@ -153,11 +211,12 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
             <table className="w-full text-sm border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                  <SortableHeader column="name" label="Name" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                  <SortableHeader column="sex" label="Sex" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                  <SortableHeader column="birthdate" label="Birthdate" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                  <SortableHeader column="course_year_or_office" label="Course & Year / Office" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                  <th className="p-2 border-b text-sm">Actions</th>
+                  <th className="p-2 border-b text-sm font-semibold">ISMIS ID</th>
+                  <th className="p-2 border-b text-sm font-semibold">Name</th>
+                  <th className="p-2 border-b text-sm font-semibold">Sex</th>
+                  <th className="p-2 border-b text-sm font-semibold">Birthdate</th>
+                  <th className="p-2 border-b text-sm font-semibold">Course & Year / Office</th>
+                  <th className="p-2 border-b text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,6 +226,9 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
                       key={patient.id}
                       className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
                     >
+                      <td className="p-2 border-b">
+                        {patient.ismis_id || "-"}
+                      </td>
                       <td className="p-2 border-b">
                         {patient.first_name} {patient.last_name}
                       </td>

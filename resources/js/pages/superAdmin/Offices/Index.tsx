@@ -18,6 +18,7 @@ export default function Index({ offices, filters }: any) {
 
   const { data, setData, post, put, reset, processing } = useForm({
     name: "",
+    code: "",
   });
 
   const [search, setSearch] = useState(filters?.search || "");
@@ -47,13 +48,19 @@ export default function Index({ offices, filters }: any) {
   function openCreate() {
     reset();
     setEditingOffice(null);
-    setData("name", "");
+    setData({
+      name: "",
+      code: "",
+    });
     setOpen(true);
   }
 
   function openEdit(office: any) {
     setEditingOffice(office);
-    setData("name", office.name);
+    setData({
+      name: office.name,
+      code: office.code || "",
+    });
     setOpen(true);
   }
 
@@ -101,6 +108,7 @@ export default function Index({ offices, filters }: any) {
             <table className="w-full text-sm border-collapse min-w-[360px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
+                  <th className="p-2 border-b">Office Code</th>
                   <th className="p-2 border-b">Office Name</th>
                   <th className="p-2 border-b w-40">Actions</th>
                 </tr>
@@ -110,6 +118,13 @@ export default function Index({ offices, filters }: any) {
                 {offices.data.length ? (
                   offices.data.map((o: any) => (
                     <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
+                      <td className="p-2 border-b">
+                        {o.code ? (
+                          <span className="font-medium">{o.code}</span>
+                        ) : (
+                          <span className="text-gray-400 italic">—</span>
+                        )}
+                      </td>
                       <td className="p-2 border-b font-medium">{o.name}</td>
                       <td className="p-2 border-b flex flex-col sm:flex-row gap-2">
                         <Button size="sm" variant="outline" onClick={() => openEdit(o)}>
@@ -124,7 +139,7 @@ export default function Index({ offices, filters }: any) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={2} className="p-4 text-center text-gray-500">
+                    <td colSpan={3} className="p-4 text-center text-gray-500">
                       No offices found.
                     </td>
                   </tr>
@@ -206,6 +221,15 @@ export default function Index({ offices, filters }: any) {
               className="space-y-4"
             >
               <div>
+                <div>
+                  <Label>Office code (optional)</Label>
+                  <Input
+                    value={data.code}
+                    onChange={(e) => setData("code", e.target.value)}
+                    placeholder="e.g. IT, HR, RCY"
+                  />
+                </div>
+
                 <Label>Office name</Label>
                 <Input
                   value={data.name}

@@ -23,7 +23,7 @@ interface Props {
   roles: string[];
   yearLevels: { id: number; name: string }[];
   courses: { id: number; code: string }[];
-  offices: { id: number; name: string }[];
+  offices: { id: number; name: string; code?: string | null }[];
   filters: {
     role?: string;
     search?: string;
@@ -64,6 +64,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
     middle_name: "",
     last_name: "",
     email: "",
+    ismis_id: "",
     password: "",
     course_id: "",
     year_level_id: "",
@@ -138,6 +139,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
         middle_name: user.middle_name || "",
         last_name: user.last_name || "",
         email: user.email || "",
+        ismis_id: user.ismis_id || "",
         password: "",
         course_id: user.course?.id || "",
         year_level_id: user.year_level?.id || "",
@@ -266,7 +268,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 <SelectItem value="all">All offices</SelectItem>
                 {offices.map((o) => (
                     <SelectItem key={o.id} value={String(o.id)}>
-                    {o.name}
+                        {o.code ?? o.name}
                     </SelectItem>
                 ))}
                 </SelectContent>
@@ -312,6 +314,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
             <table className="w-full text-sm border-collapse min-w-[520px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
+                    <th className="p-2 border-b">ISMIS ID</th>
                     <th className="p-2 border-b">Name</th>
                     <th className="p-2 border-b">Email</th>
                     <th className="p-2 border-b">Role</th>
@@ -329,6 +332,9 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     key={u.id}
                     className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
                     >
+                    <td className="p-2 border-b">
+                        {u.ismis_id ?? "—"}
+                    </td>
                     <td className="p-2 border-b font-medium">{u.name}</td>
                     <td className="p-2 border-b">{u.email}</td>
                     <td className="p-2 border-b">
@@ -338,10 +344,10 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     {/* Course or Office */}
                     <td className="p-2 border-b">
                         {u.course
-                        ? `${u.course.code}`
-                        : u.office
-                        ? u.office.name
-                        : "—"}
+                            ? u.course.code
+                            : u.office
+                            ? (u.office.code ?? u.office.name)
+                            : "—"}
                     </td>
 
                     {/* Year level (students only usually) */}
@@ -418,12 +424,12 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 </DialogHeader>
 
                 <form
+                autoComplete="off"
                 onSubmit={(e) => {
                     e.preventDefault();
 
                     put(`/superadmin/users/${editingUser.id}`, {
                     onSuccess: () => {
-                        toast.success("User updated successfully");
                         reset();
                         setOpen(false);
                     },
@@ -435,6 +441,15 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 className="space-y-4"
                 >
                 <div className="space-y-3">
+                    <div>
+                        <Label>ISMIS ID</Label>
+                        <Input
+                            value={data.ismis_id}
+                            onChange={(e) => setData("ismis_id", e.target.value)}
+                            autoComplete="off"
+                        />
+                    </div>
+
                     <div>
                         <Label>First name</Label>
                         <Input
@@ -467,7 +482,12 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
 
                 <div>
                     <Label>New password (optional)</Label>
-                    <Input type="password" value={data.password} onChange={e => setData("password", e.target.value)} />
+                    <Input
+                        type="password"
+                        value={data.password}
+                        onChange={e => setData("password", e.target.value)}
+                        autoComplete="new-password"
+                    />
                 </div>
 
                 {/* STUDENT / RCY */}
@@ -524,7 +544,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                             <SelectContent>
                             {offices.map((o) => (
                                 <SelectItem key={o.id} value={String(o.id)}>
-                                {o.name}
+                                    {o.code ?? o.name}
                                 </SelectItem>
                             ))}
                             </SelectContent>

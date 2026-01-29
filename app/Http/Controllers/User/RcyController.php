@@ -116,31 +116,47 @@ class RcyController extends Controller
             ]);
         }
 
-        $baseQuery = User::with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
+        $isNumeric = ctype_digit(str_replace('-', '', $search));
+
+        $query = User::query()
+            ->select('id','first_name','middle_name','last_name','birthdate','sex','email','course_id','year_level_id','office_id')
+            ->with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
             ->whereHas('userRole', function ($q) {
                 $q->whereIn(\DB::raw('LOWER(category)'), ['user', 'rcy']);
             })
-            ->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
-                ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+            ->where(function ($q) use ($search, $isNumeric) {
+
+                if ($isNumeric) {
+                    // numeric-like → search ISMIS + fallback to names
+                    $q->where('ismis_id', 'LIKE', "%{$search}%")
+                    ->orWhereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+                } else {
+                    // text-like → names only
+                    $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"]);
+                }
             });
 
-        $patientsQuery = $baseQuery
-            ->orderByRaw("
-                CASE
-                    WHEN LOWER(CONCAT(first_name,' ',last_name)) = ? THEN 0
-                    WHEN LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) = ? THEN 1
-                    WHEN LOWER(first_name) = ? THEN 2
-                    WHEN LOWER(last_name) = ? THEN 3
-                    ELSE 4
-                END
-            ", [$search, $search, $search, $search])
-            ->orderBy('id'); // stabilizer
+        // 🔹 Smart ordering (exact matches first)
+        $query->orderByRaw("
+            CASE
+                WHEN LOWER(CONCAT(first_name,' ',last_name)) = ? THEN 0
+                WHEN LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) = ? THEN 1
+                WHEN LOWER(first_name) = ? THEN 2
+                WHEN LOWER(last_name) = ? THEN 3
+                ELSE 4
+            END
+        ", [$search, $search, $search, $search])
+        ->orderBy('id');
 
-        $patients = $patientsQuery
+        $patients = $query
             ->offset($offset)
             ->limit($perPage + 1)
             ->get();

@@ -4,6 +4,33 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
   const formUrl = "/storage/forms/clinic_consultation_record_form.pdf";
   const formBytes = await fetch(formUrl).then((res) => res.arrayBuffer());
 
+  console.log("consultations: ", consultations);
+
+  async function embedSignature(pdfDoc, path) {
+    if (!path) return null;
+
+    // force correct public URL
+    const cleanPath = path.replace(/^\/?storage\/?/, "");
+    const url = `/storage/${cleanPath}`;
+
+    console.log("FINAL SIGNATURE URL:", url);
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error("Signature not found:", url);
+      return null;
+    }
+
+    const bytes = await res.arrayBuffer();
+
+    if (url.toLowerCase().endsWith(".png")) {
+      return pdfDoc.embedPng(bytes);
+    }
+
+    return pdfDoc.embedJpg(bytes);
+  }
+
   // Load original template
   const templatePdf = await PDFDocument.load(formBytes);
   const form = templatePdf.getForm();
@@ -91,6 +118,8 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
   const { width, height } = page.getSize();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontSize = 10;
+  const vitalFontSize = 8;     
+  const vitalLineHeight = 10;  
 
   let yPosition = height - 487;
   const lineHeight = 12;
@@ -132,6 +161,20 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
     page.drawText(String(text || ""), { x: xCentered, y, font, size });
   };
 
+  const drawLeftText = (text, col, y, size = fontSize) => {
+    const basePadding = 2;
+    const isBmiCategory = String(text || "").trim().startsWith("-");
+
+    const extraIndent = isBmiCategory ? 8 : 0; // controls how far it moves right
+
+    page.drawText(String(text || ""), {
+      x: col.x + basePadding + extraIndent,
+      y,
+      font,
+      size,
+    });
+  };
+
   const formatDateTime = (rawDate) => {
     if (!rawDate) return "";
     const dateObj = new Date(rawDate);
@@ -147,33 +190,71 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
 
   const records = (consultations?.data || []).filter(c => c.status === 'approved');
   
-  for (const c of records) {
+  const signatureCache = new Map();
+
+  for (let index = 0; index < records.length; index++) {
+    const c = records[index];
     const dateFontSize = 8;
     const dateLines = wrapText(formatDateTime(c.date), columns[0].width - 4, dateFontSize);
 
     // --- Convert vital signs object into a string ---
-    const vitalsText = c.vital_signs
-    ? [
-        c.vital_signs.bp ? `BP: ${c.vital_signs.bp}` : null,
-        c.vital_signs.rr ? `RR: ${c.vital_signs.rr}` : null,
-        c.vital_signs.pr ? `PR: ${c.vital_signs.pr}` : null,
-        c.vital_signs.temp ? `Temp: ${c.vital_signs.temp}°C` : null,
-        c.vital_signs.o2_sat ? `O2 Sat: ${c.vital_signs.o2_sat}` : null,
-        c.vital_signs.height ? `Height: ${c.vital_signs.height}` : null,
-        c.vital_signs.weight ? `Weight: ${c.vital_signs.weight}` : null,
-        c.vital_signs.bmi ? `BMI: ${c.vital_signs.bmi}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n")
-    : "-";
+    let bmiLine = null;
 
-    const vitalsLines = wrapText(vitalsText, columns[1].width - 4);
+    if (c.vital_signs?.bmi) {
+      const rawBmi = `BMI: ${c.vital_signs.bmi}`;
+      const availableWidth = columns[1].width - 4;
+
+      // measure width of full BMI line
+      const bmiWidth = font.widthOfTextAtSize(rawBmi, vitalFontSize);
+
+      if (bmiWidth <= availableWidth) {
+        // fits → keep in one line
+        bmiLine = rawBmi;
+      } else {
+        // does NOT fit → split nicely into two lines
+        const parts = String(c.vital_signs.bmi).split("–");
+
+        if (parts.length === 2) {
+          bmiLine = `BMI: ${parts[0].trim()}\n- ${parts[1].trim()}`;
+        } else {
+          bmiLine = rawBmi; // fallback
+        }
+      }
+    }
+
+    const vitalsText = c.vital_signs
+      ? [
+          c.vital_signs.bp ? `BP: ${c.vital_signs.bp}` : null,
+          c.vital_signs.rr ? `RR: ${c.vital_signs.rr}` : null,
+          c.vital_signs.pr ? `PR: ${c.vital_signs.pr}` : null,
+          c.vital_signs.temp ? `Temp: ${c.vital_signs.temp}` : null,
+          c.vital_signs.o2_sat ? `O2 Sat: ${c.vital_signs.o2_sat}` : null,
+          c.vital_signs.height ? `Height: ${c.vital_signs.height}` : null,
+          c.vital_signs.weight ? `Weight: ${c.vital_signs.weight}` : null,
+          bmiLine,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "-";
+
+    const vitalsLines = wrapText(
+      vitalsText,
+      columns[1].width - 4,
+      vitalFontSize
+    );
 
     const chiefLines = wrapText(c.medical_complaint || "", columns[2].width - 4);
     const managementLines = wrapText(c.management_and_treatment || "", columns[3].width - 4);
 
     const maxLines = Math.max(dateLines.length, vitalsLines.length, chiefLines.length, managementLines.length);
-    const requiredHeight = maxLines * lineHeight + rowPadding * 2;
+
+    const requiredHeight =
+      Math.max(
+        dateLines.length * lineHeight,
+        chiefLines.length * lineHeight,
+        managementLines.length * lineHeight,
+        vitalsLines.length * vitalLineHeight
+      ) + rowPadding * 2;
 
     if (yPosition - requiredHeight < 50) {
       const [newPage] = await pdfDoc.copyPages(templatePdf, [1]);
@@ -183,14 +264,70 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
     }
 
     for (let i = 0; i < maxLines; i++) {
-      const lineY = yPosition - i * lineHeight;
-      drawCenteredText(dateLines[i] || "", columns[0], lineY, dateFontSize);
-      drawCenteredText(vitalsLines[i] || "", columns[1], lineY);
-      drawCenteredText(chiefLines[i] || "", columns[2], lineY);
-      drawCenteredText(managementLines[i] || "", columns[3], lineY);
+      const normalY = yPosition - i * lineHeight;
+      const vitalY = yPosition - i * vitalLineHeight;
+
+      drawCenteredText(dateLines[i] || "", columns[0], normalY, dateFontSize);
+      drawLeftText(vitalsLines[i] || "", columns[1], vitalY, vitalFontSize);
+      drawCenteredText(chiefLines[i] || "", columns[2], normalY);
+      drawCenteredText(managementLines[i] || "", columns[3], normalY);
     }
 
     yPosition -= requiredHeight;
+
+    // ----------------------
+    // SIGNATURE LOGIC
+    // ----------------------
+
+    // SIGNATURE LOGIC
+    const currentUser = c.updater ?? c.creator;
+    const nextUser = records[index + 1]?.updater ?? records[index + 1]?.creator;
+
+    console.log("SIGNATURE PATH FROM DB:", currentUser?.signature);
+
+    // if last consultation OR next consultation is by a different user
+    if (currentUser && currentUser.signature && currentUser?.id !== nextUser?.id) {
+
+      // load signature once
+      if (!signatureCache.has(currentUser.signature)) {
+        const img = await embedSignature(pdfDoc, currentUser.signature);
+        signatureCache.set(currentUser.signature, img);
+      }
+
+      const signatureImage = signatureCache.get(currentUser.signature);
+
+      if (signatureImage) {
+
+        // BIGGER signature
+        const sigWidth = 120;
+        const sigHeight = 55;
+
+        // very small gap from consultation
+        yPosition -= 4;
+
+        // page break safety
+        if (yPosition - sigHeight < 50) {
+          const [newPage] = await pdfDoc.copyPages(templatePdf, [1]);
+          pdfDoc.addPage(newPage);
+          page = newPage;
+          yPosition = page.getHeight() - 225;
+        }
+
+        // center inside Management column
+        const centerX =
+          columns[3].x + (columns[3].width - sigWidth) / 2;
+
+        page.drawImage(signatureImage, {
+          x: centerX,
+          y: yPosition - sigHeight,
+          width: sigWidth,
+          height: sigHeight,
+        });
+
+        // space AFTER signature only once
+        yPosition -= sigHeight + 10;
+      }
+    }
   }
 
   // ----------------------

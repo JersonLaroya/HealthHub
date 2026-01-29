@@ -14,7 +14,10 @@ class OfficeController extends Controller
         $offices = Office::when($request->search, function ($q) use ($request) {
                 $search = strtolower($request->search);
 
-                $q->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                $q->where(function ($qq) use ($search) {
+                    $qq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
+                    ->orWhereRaw('LOWER(code) LIKE ?', ['%' . $search . '%']);
+                });
             })
             ->orderBy('name')
             ->paginate(10)
@@ -30,10 +33,12 @@ class OfficeController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:offices,name',
+            'code' => 'nullable|string|max:20|unique:offices,code',
         ]);
 
         Office::create([
-            'name' => $request->name,
+            'name' => $request->name, 
+            'code' => $request->code,
         ]);
 
         return back()->with('success', 'Office added successfully.');
@@ -43,10 +48,12 @@ class OfficeController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:offices,name,' . $office->id,
+            'code' => 'nullable|string|max:20|unique:offices,code,' . $office->id,
         ]);
 
         $office->update([
             'name' => $request->name,
+            'code' => $request->code, 
         ]);
 
         return back()->with('success', 'Office updated successfully.');

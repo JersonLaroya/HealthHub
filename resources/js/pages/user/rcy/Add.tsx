@@ -83,14 +83,34 @@ export default function Add({ diseases }: any) {
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
+  const cleanVitalValue = (value: string) => {
+    if (!value) return "";
+    return value.replace(/[^0-9./]/g, "");
+  };
+
+  const attachUnit = (value: string, unit: string) => {
+    const clean = cleanVitalValue(value);
+    return clean ? `${clean} ${unit}` : "";
+  };
+
   useEffect(() => {
-    const h = parseFloat(data.height);
-    const w = parseFloat(data.weight);
+    const h = parseFloat(cleanVitalValue(data.height));
+    const w = parseFloat(cleanVitalValue(data.weight));
 
     if (h > 0 && w > 0) {
       const heightInMeters = h / 100;
       const bmi = w / (heightInMeters * heightInMeters);
-      setData("bmi", bmi.toFixed(2));
+      const bmiValue = bmi.toFixed(2);
+
+      let category = "";
+      const num = parseFloat(bmiValue);
+
+      if (num < 18.5) category = "Underweight";
+      else if (num <= 24.9) category = "Healthy";
+      else if (num <= 29.9) category = "Overweight";
+      else category = "Obesity";
+
+      setData("bmi", `${bmiValue} – ${category}`);
     } else {
       setData("bmi", "");
     }
@@ -363,15 +383,91 @@ if (!selectedPatientId) {
                   {/* Vital Signs */}
                   <div className="border p-4 rounded-md bg-white dark:bg-neutral-800">
                     <h2 className="text-sm font-semibold mb-2">Vital Signs</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input placeholder="BP" value={data.bp} onChange={(e) => setData("bp", e.target.value)} />
-                      <Input placeholder="RR" value={data.rr} onChange={(e) => setData("rr", e.target.value)} />
-                      <Input placeholder="PR" value={data.pr} onChange={(e) => setData("pr", e.target.value)} />
-                      <Input placeholder="Temp (°C)" value={data.temp} onChange={(e) => setData("temp", e.target.value)} />
-                      <Input placeholder="O₂ Sat (%)" value={data.o2_sat} onChange={(e) => setData("o2_sat", e.target.value)} />
-                      <Input placeholder="Height (cm)" value={data.height} onChange={(e) => setData("height", e.target.value)} />
-                      <Input placeholder="Weight (kg)" value={data.weight} onChange={(e) => setData("weight", e.target.value)} />
-                      <Input placeholder="BMI" value={data.bmi} onChange={(e) => setData("bmi", e.target.value)} />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                      <div>
+                        <label className="text-xs font-medium">Blood Pressure</label>
+                        <Input
+                          placeholder="120/80"
+                          value={cleanVitalValue(data.bp)}
+                          onChange={(e) =>
+                            setData("bp", attachUnit(e.target.value, "mmHg"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">Respiratory Rate</label>
+                        <Input
+                          placeholder="16"
+                          value={cleanVitalValue(data.rr)}
+                          onChange={(e) =>
+                            setData("rr", attachUnit(e.target.value, "cpm"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">Pulse Rate</label>
+                        <Input
+                          placeholder="72"
+                          value={cleanVitalValue(data.pr)}
+                          onChange={(e) =>
+                            setData("pr", attachUnit(e.target.value, "bpm"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">Temperature</label>
+                        <Input
+                          placeholder="36.5"
+                          value={cleanVitalValue(data.temp)}
+                          onChange={(e) =>
+                            setData("temp", attachUnit(e.target.value, "°C"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">Oxygen Saturation</label>
+                        <Input
+                          placeholder="98"
+                          value={cleanVitalValue(data.o2_sat)}
+                          onChange={(e) =>
+                            setData("o2_sat", attachUnit(e.target.value, "%"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">Height</label>
+                        <Input
+                          placeholder="170"
+                          value={cleanVitalValue(data.height)}
+                          onChange={(e) =>
+                            setData("height", attachUnit(e.target.value, "cm"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">Weight</label>
+                        <Input
+                          placeholder="65"
+                          value={cleanVitalValue(data.weight)}
+                          onChange={(e) =>
+                            setData("weight", attachUnit(e.target.value, "kg"))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium">BMI (auto)</label>
+                        <Input disabled value={data.bmi} />
+                      </div>
+
                     </div>
                   </div>
 

@@ -46,6 +46,7 @@ class ConsultationController extends Controller
             'medical_complaint' => $request->medical_complaint,
             'management_and_treatment' => $request->management_and_treatment,
             'created_by' => $authUser->id,
+            'updated_by' => $authUser->id,
             'status' => $status,
         ]);
 

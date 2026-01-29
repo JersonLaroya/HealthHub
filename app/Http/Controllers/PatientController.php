@@ -37,17 +37,37 @@ class PatientController extends Controller
 
         $patients = User::with(['course', 'yearLevel', 'office', 'userRole'])
             ->whereDoesntHave('userRole', function ($q) {
-                $q->whereIn('name', ['Admin', 'Nurse']);
+                $q->whereIn('name', ['Admin', 'Nurse', 'Super Admin']);
             })
 
-            // text search
+            // search by name or ismis_id
             ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('first_name', 'ILIKE', "%{$search}%")
+
+                $search = strtolower(trim($search));
+                $isNumeric = ctype_digit(str_replace('-', '', $search));
+
+                $query->where(function ($q) use ($search, $isNumeric) {
+
+                    // 🔹 Fast path: looks like an ID
+                    if ($isNumeric) {
+                        $q->where('ismis_id', 'ILIKE', "%{$search}%");
+                    }
+
+                    // 🔹 Name search (always allowed)
+                    $q->orWhere('first_name', 'ILIKE', "%{$search}%")
                     ->orWhere('last_name', 'ILIKE', "%{$search}%")
-                    ->orWhereHas('course', fn ($c) => $c->where('name', 'ILIKE', "%{$search}%"))
-                    ->orWhereHas('yearLevel', fn ($y) => $y->where('name', 'ILIKE', "%{$search}%"))
-                    ->orWhereHas('office', fn ($o) => $o->where('name', 'ILIKE', "%{$search}%"));
+                    ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) ILIKE ?", ["%{$search}%"]);
+
+                    // 🔹 Related fields
+                    $q->orWhereHas('course', fn ($c) =>
+                            $c->where('name', 'ILIKE', "%{$search}%")
+                        )
+                    ->orWhereHas('yearLevel', fn ($y) =>
+                            $y->where('name', 'ILIKE', "%{$search}%")
+                        )
+                    ->orWhereHas('office', fn ($o) =>
+                            $o->where('name', 'ILIKE', "%{$search}%")
+                        );
                 });
             })
 
@@ -63,7 +83,7 @@ class PatientController extends Controller
         return inertia('patients/Index', [
             'patients' => $patients,
             'filters' => $request->only(['q', 'course', 'year', 'office']),
-            'courses' => \App\Models\Course::orderBy('name')->get(['id','name']),
+            'courses' => \App\Models\Course::orderBy('code')->get(['id', 'code', 'name', 'office_id']),
             'years' => \App\Models\YearLevel::orderBy('name')->get(['id','name']),
             'offices' => \App\Models\Office::orderBy('name')->get(['id','name']),
         ]);
@@ -94,8 +114,8 @@ class PatientController extends Controller
             ->with([
                 'diseases',
                 'vitalSigns',
-                'creator:id,first_name,last_name',
-                'updater:id,first_name,last_name',
+                'creator:id,first_name,last_name,signature',
+                'updater:id,first_name,last_name,signature',
             ])
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('date', 'asc')
