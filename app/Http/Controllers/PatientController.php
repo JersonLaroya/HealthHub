@@ -7,6 +7,7 @@ use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Disease;
 use App\Models\Record;
 use App\Models\Service;
+use App\Models\Treatment;
 use Inertia\Inertia;
 use App\Models\User;
 use App\Models\VitalSign;
@@ -113,6 +114,7 @@ class PatientController extends Controller
         $consultations = $patient->consultations()
             ->with([
                 'diseases',
+                'treatments',
                 'vitalSigns',
                 'creator:id,first_name,last_name,signature',
                 'updater:id,first_name,last_name,signature',
@@ -124,11 +126,13 @@ class PatientController extends Controller
             ->withQueryString();
 
         $diseases = Disease::orderBy('name')->get();
+        $treatments = Treatment::orderBy('name')->get();
 
         return inertia('patients/Show', [
             'patient' => $patient,
             'consultations' => $consultations,
             'diseases' => $diseases,
+            'treatments' => $treatments,
             'schoolYear' => $schoolYear,
         ]);
     }

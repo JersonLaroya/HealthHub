@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Events\RcyInquiryCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreRcyDtrRequest;
 use App\Models\Consultation;
 use App\Models\Disease;
+use App\Models\Inquiry;
+use App\Models\ListOfInquiry;
 use App\Models\User;
 use App\Models\VitalSign;
+use App\Notifications\RcyInquirySubmitted;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Notifications\RcyConsultationSubmitted;
@@ -97,6 +101,59 @@ class RcyController extends Controller
         }
 
         return back()->with('success', 'Consultation added successfully.');
+    }
+
+    public function inquiries()
+    {
+        return Inertia::render('user/rcy/Inquiries', [
+            'inquiryTypes' => ListOfInquiry::orderBy('name')->get(),
+            'breadcrumbs' => [
+                ['title' => 'RCY', 'href' => '/user/rcy'],
+                ['title' => 'Inquiries'],
+            ],
+        ]);
+    }
+
+    public function storeInquiry(Request $request, User $patient)
+    {
+        $data = $request->validate([
+            'inquiry_type_ids' => 'required|array|min:1',
+            'inquiry_type_ids.*' => 'exists:list_of_inquiries,id',
+            'description' => 'nullable|string',
+        ]);
+
+        $authUser = $request->user();
+
+        $inquiry = Inquiry::create([
+            'user_id' => $patient->id,
+            'created_by' => $authUser->id,
+            'description' => $data['description'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        $inquiry->inquiryTypes()->sync($data['inquiry_type_ids']);
+
+        // THIS is the important line
+        event(new RcyInquiryCreated($patient->id, $inquiry->id));
+
+        // notify Admin & Nurse
+        $staff = User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->get();
+
+        foreach ($staff as $user) {
+            $prefix = strtolower($user->userRole->name);
+
+            $user->notify(new RcyInquirySubmitted(
+                title: 'Inquiry Pending Approval',
+                message: "RCY submitted an inquiry.",
+                url: "/{$prefix}/patients/{$patient->id}/inquiries",
+                slug: 'rcy-inquiry',
+                inquiryId: $inquiry->id 
+            ));
+        }
+
+        return back()->with('success', 'Inquiry added successfully.');
     }
 
 

@@ -10,6 +10,31 @@ import { toast } from "sonner";
 import { fillClinicConsultationRecordForm } from '@/utils/fillClinicConsultationRecordForm'
 import { Textarea } from "@/components/ui/textarea";
 
+type VitalInputProps = {
+  value: string;
+  unit: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+};
+
+const VitalInput = ({ value, unit, placeholder, onChange }: VitalInputProps) => {
+  const cleanValue = value ? value.replace(/[^0-9./]/g, "") : "";
+
+  return (
+    <div className="flex items-center">
+      <Input
+        value={cleanValue}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-r-none"
+      />
+      <span className="px-3 py-2 border border-l-0 rounded-r-md text-sm bg-gray-100 dark:bg-neutral-800">
+        {unit}
+      </span>
+    </div>
+  );
+};
+
 export default function Show({ patient, consultations, breadcrumbs = [], schoolYear }) {
   console.log("FIRST CONSULTATION:", consultations?.data?.[0]);
   console.log("UPDATER:", consultations?.data?.[0]?.updater);
@@ -35,7 +60,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
   console.log("initial vital sign: ", patient.vital_sign);
  
-  const { auth, diseases } = usePage().props;
+  const { auth, diseases, treatments } = usePage().props;
 
   const role = auth.user?.user_role?.name?.toLowerCase();
   const prefix = role === "nurse" ? "nurse" : "admin"; 
@@ -46,6 +71,8 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   const [schoolYearState, setSchoolYearState] = useState(schoolYear ?? "");
   const [selectingDiseases, setSelectingDiseases] = useState(false);
   const [selectingDiseasesEdit, setSelectingDiseasesEdit] = useState(false);
+  const [selectingTreatments, setSelectingTreatments] = useState(false);
+  const [selectingTreatmentsEdit, setSelectingTreatmentsEdit] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
   const [expandedComplaints, setExpandedComplaints] = useState({});
 
@@ -95,6 +122,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     time: getCurrentTime(),
     medical_complaint: "", 
     disease_ids: [],
+    treatment_ids: [],
     management_and_treatment: "",
     vital_signs_id: "",  
 
@@ -144,6 +172,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
           time: getCurrentTime(),
           medical_complaint : "",
           disease_ids: [],
+          treatment_ids: [],
           management_and_treatment: "",
           bp: "",
           rr: "",
@@ -193,6 +222,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     medical_complaint : "",
     management_and_treatment: "",
     disease_ids: [],
+    treatment_ids: [],
   });
 
   const openEditConsultation = (c) => {
@@ -211,6 +241,7 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
       medical_complaint: c.medical_complaint || "",
       management_and_treatment: c.management_and_treatment || "",
       disease_ids: c.diseases?.map((d) => d.id) || [],
+      treatment_ids: c.treatments?.map((t) => t.id) || [],
     });
   };
 
@@ -322,13 +353,38 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     });
   };
 
+  const isEmptyText = (value?: string) => {
+    return !value || value.trim().length === 0;
+  };
+
+  const handleBack = () => {
+    router.get(
+      `/${prefix}/patients`,
+      {},
+      {
+        preserveState: true,
+        preserveScroll: true,
+      }
+    );
+  };
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Patient Record" />
       <div className="p-6 space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-          <h1 className="text-xl font-bold">Clinic Consultation Record</h1>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBack}
+            >
+              ← Back
+            </Button>
+
+            <h1 className="text-xl font-bold">Clinic Consultation Record</h1>
+          </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button
               className="w-full sm:w-auto"
@@ -356,7 +412,8 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                   vital_signs: "",
                   medical_complaint : "",
                   management_and_treatment: "",
-                  disease_ids: [], // make sure this is included
+                  disease_ids: [],
+                  treatment_ids: [],
                   bp: "",
                   rr: "",
                   pr: "",
@@ -452,12 +509,13 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
           <div className="w-full overflow-x-auto rounded-lg overflow-hidden border border-gray-300 dark:border-neutral-600">
             <table className="min-w-[900px] w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-gray-50 dark:bg-neutral-700">
+                <tr className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-300 dark:border-neutral-600">
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Date & Time</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Vital Signs</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Chief Complaint</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Disease</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Management & Treatment</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Treatments</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Updated By</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Status</th>
                   {canApprove && (
@@ -573,6 +631,14 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                           </div>
                         </td>
 
+                        <td className="p-2 align-top border">
+                          <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md">
+                            {c.treatments?.length
+                              ? c.treatments.map(t => t.name).join(", ")
+                              : "-"}
+                          </div>
+                        </td>
+
                         <td className="p-2 text-sm border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           {c.updater
                             ? `${c.updater.first_name} ${c.updater.last_name}`
@@ -597,40 +663,50 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                           <td className="p-2 align-bottom border-l border-r border-b border-gray-300 dark:border-neutral-600">
                             <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
 
-                              {/* Approve: Admin + Nurse */}
-                              <Button
-                                size="sm"
-                                className="w-full sm:w-auto px-2 sm:px-3"
-                                disabled={c.status === 'approved' || approvingId === c.id}
-                                onClick={() => {
-                                  setApprovingId(c.id);
-
-                                  router.patch(
-                                    `/${role}/patients/${patient.id}/consultations/${c.id}/approve`,
-                                    {},
-                                    {
-                                      preserveScroll: true,
-                                      onSuccess: () => {
-                                        toast.success("Consultation approved.");
-                                        window.dispatchEvent(new Event("notifications-updated"));
-                                      },
-                                      onError: () => toast.error("Failed to approve consultation."),
-                                      onFinish: () => setApprovingId(null),
+                              {/* Approve: Admin + Nurse — ONLY if pending */}
+                              {c.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  className="w-full sm:w-auto px-2 sm:px-3"
+                                  disabled={approvingId === c.id}
+                                  onClick={() => {
+                                    if (isEmptyText(c.management_and_treatment)) {
+                                      toast.error(
+                                        "Please input Management & Treatment before approving this consultation."
+                                      );
+                                      return;
                                     }
-                                  );
-                                }}
-                              >
-                                {c.status === 'approved'
-                                  ? 'Approved'
-                                  : approvingId === c.id
-                                  ? 'Approving...'
-                                  : 'Approve'}
-                              </Button>
 
-                              {/* Edit/Delete: Admin only */}
+                                    setApprovingId(c.id);
+
+                                    router.patch(
+                                      `/${role}/patients/${patient.id}/consultations/${c.id}/approve`,
+                                      {},
+                                      {
+                                        preserveScroll: true,
+                                        onSuccess: () => {
+                                          toast.success("Consultation approved.");
+                                          window.dispatchEvent(new Event("notifications-updated"));
+                                        },
+                                        onError: () => toast.error("Failed to approve consultation."),
+                                        onFinish: () => setApprovingId(null),
+                                      }
+                                    );
+                                  }}
+                                >
+                                  {approvingId === c.id ? "Approving..." : "Approve"}
+                                </Button>
+                              )}
+
+                              {(isAdmin || role === "nurse") && (
+                                <Button variant ="outline" size="sm" onClick={() => openEditConsultation(c)}>
+                                  Edit
+                                </Button>
+                              )}
+
+                              {/* Delete: Admin only */}
                               {isAdmin && (
                                 <>
-                                  <Button size="sm" onClick={() => openEditConsultation(c)}>Edit</Button>
 
                                   <Button
                                     size="sm"
@@ -690,6 +766,39 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
           )}
         </Card>
       </div>
+
+      <Dialog open={selectingTreatments} onOpenChange={setSelectingTreatments}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Treatments</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+            {treatments.map(t => (
+              <label key={t.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={consultationData.treatment_ids.includes(t.id)}
+                  onChange={(e) =>
+                    setConsultationData(
+                      "treatment_ids",
+                      e.target.checked
+                        ? [...consultationData.treatment_ids, t.id]
+                        : consultationData.treatment_ids.filter(id => id !== t.id)
+                    )
+                  }
+                />
+                {t.name}
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectingTreatments(false)}>Cancel</Button>
+            <Button onClick={() => setSelectingTreatments(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Modal */}
       <Dialog open={editing} onOpenChange={setEditing}>
@@ -806,77 +915,84 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
 
                   <div>
                     <label className="text-xs font-medium">Blood Pressure</label>
-                    <Input
+                    <VitalInput
                       placeholder="120/80"
-                      value={cleanVitalValue(consultationData.bp)}
-                      onChange={(e) =>
-                        setConsultationData("bp", attachUnit(e.target.value, "mmHg"))
+                      unit="mmHg"
+                      value={consultationData.bp}
+                      onChange={(v) =>
+                        setConsultationData("bp", attachUnit(v, "mmHg"))
                       }
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-medium">Respiratory Rate</label>
-                    <Input
+                    <VitalInput
                       placeholder="16"
-                      value={cleanVitalValue(consultationData.rr)}
-                      onChange={(e) =>
-                        setConsultationData("rr", attachUnit(e.target.value, "cpm"))
+                      unit="cpm"
+                      value={consultationData.rr}
+                      onChange={(v) =>
+                        setConsultationData("rr", attachUnit(v, "cpm"))
                       }
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-medium">Pulse Rate</label>
-                    <Input
+                    <VitalInput
                       placeholder="72"
-                      value={cleanVitalValue(consultationData.pr)}
-                      onChange={(e) =>
-                        setConsultationData("pr", attachUnit(e.target.value, "bpm"))
+                      unit="bpm"
+                      value={consultationData.pr}
+                      onChange={(v) =>
+                        setConsultationData("pr", attachUnit(v, "bpm"))
                       }
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-medium">Temperature</label>
-                    <Input
+                    <VitalInput
                       placeholder="36.5"
-                      value={cleanVitalValue(consultationData.temp)}
-                      onChange={(e) =>
-                        setConsultationData("temp", attachUnit(e.target.value, "°C"))
+                      unit="°C"
+                      value={consultationData.temp}
+                      onChange={(v) =>
+                        setConsultationData("temp", attachUnit(v, "°C"))
                       }
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-medium">Oxygen Saturation</label>
-                    <Input
+                    <VitalInput
                       placeholder="98"
-                      value={cleanVitalValue(consultationData.o2_sat)}
-                      onChange={(e) =>
-                        setConsultationData("o2_sat", attachUnit(e.target.value, "%"))
+                      unit="%"
+                      value={consultationData.o2_sat}
+                      onChange={(v) =>
+                        setConsultationData("o2_sat", attachUnit(v, "%"))
                       }
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-medium">Height</label>
-                    <Input
+                    <VitalInput
                       placeholder="170"
-                      value={cleanVitalValue(consultationData.height)}
-                      onChange={(e) =>
-                        setConsultationData("height", attachUnit(e.target.value, "cm"))
+                      unit="cm"
+                      value={consultationData.height}
+                      onChange={(v) =>
+                        setConsultationData("height", attachUnit(v, "cm"))
                       }
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-medium">Weight</label>
-                    <Input
+                    <VitalInput
                       placeholder="65"
-                      value={cleanVitalValue(consultationData.weight)}
-                      onChange={(e) =>
-                        setConsultationData("weight", attachUnit(e.target.value, "kg"))
+                      unit="kg"
+                      value={consultationData.weight}
+                      onChange={(v) =>
+                        setConsultationData("weight", attachUnit(v, "kg"))
                       }
                     />
                   </div>
@@ -941,6 +1057,30 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
               </div>
             </div>
 
+            <div>
+              <label className="text-sm font-medium">Treatments</label>
+
+              <div className="flex flex-wrap gap-2 mt-2 mb-1">
+                {consultationData.treatment_ids.length > 0
+                  ? consultationData.treatment_ids
+                      .map(id => treatments.find(t => t.id === id)?.name)
+                      .filter(Boolean)
+                      .map(name => (
+                        <span
+                          key={name}
+                          className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-sm"
+                        >
+                          {name}
+                        </span>
+                      ))
+                  : <span className="text-gray-500 text-sm">No treatments selected</span>}
+              </div>
+
+              <Button size="sm" type="button" onClick={() => setSelectingTreatments(true)}>
+                Select Treatments
+              </Button>
+            </div>
+
             <DialogFooter className="flex justify-end gap-2 mt-2">
               <Button variant="outline" type="button" onClick={() => setAddingConsultation(false)}>Cancel</Button>
               <Button type="submit" disabled={addingProcessing}>
@@ -987,10 +1127,44 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
         </DialogContent>
       </Dialog>
 
+      {/* Selecting Treatmens Modal */}
+      <Dialog open={selectingTreatmentsEdit} onOpenChange={setSelectingTreatmentsEdit}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Treatments</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+            {treatments.map(t => (
+              <label key={t.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editConsultData.treatment_ids.includes(t.id)}
+                  onChange={(e) =>
+                    setEditConsultData(
+                      "treatment_ids",
+                      e.target.checked
+                        ? [...editConsultData.treatment_ids, t.id]
+                        : editConsultData.treatment_ids.filter(id => id !== t.id)
+                    )
+                  }
+                />
+                {t.name}
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectingTreatmentsEdit(false)}>Cancel</Button>
+            <Button onClick={() => setSelectingTreatmentsEdit(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Edit Consultation Modal */}
       <Dialog open={!!editingConsultation} onOpenChange={closeEditConsultation}>
-        <DialogContent className="sm:max-w-lg bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+        <DialogContent className="w-[95%] sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Edit Consultation</DialogTitle>
           </DialogHeader>
@@ -1026,48 +1200,84 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
               {/* Vital Signs */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-sm">Vital Signs</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="BP"
-                    value={editConsultData.bp || ""}
-                    onChange={(e) => setEditConsultData("bp", e.target.value)}
-                  />
-                  <Input
-                    placeholder="RR"
-                    value={editConsultData.rr || ""}
-                    onChange={(e) => setEditConsultData("rr", e.target.value)}
-                  />
-                  <Input
-                    placeholder="PR"
-                    value={editConsultData.pr || ""}
-                    onChange={(e) => setEditConsultData("pr", e.target.value)}
-                  />
-                  <Input
-                    placeholder="Temp (°C)"
-                    value={editConsultData.temp || ""}
-                    onChange={(e) => setEditConsultData("temp", e.target.value)}
-                  />
-                  <Input
-                    placeholder="O₂ Sat (%)"
-                    value={editConsultData.o2_sat || ""}
-                    onChange={(e) => setEditConsultData("o2_sat", e.target.value)}
-                  />
-                  <Input
-                    placeholder="Height (cm)"
-                    value={editConsultData.height || ""}
-                    onChange={(e) => setEditConsultData("height", e.target.value)}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                  {/* BP */}
+                  <VitalInput
+                    unit="mmHg"
+                    placeholder="120/80"
+                    value={editConsultData.bp}
+                    onChange={(v) =>
+                      setEditConsultData("bp", attachUnit(v, "mmHg"))
+                    }
                   />
 
-                  <Input
-                    placeholder="Weight (kg)"
-                    value={editConsultData.weight || ""}
-                    onChange={(e) => setEditConsultData("weight", e.target.value)}
+                  {/* RR */}
+                  <VitalInput
+                    unit="cpm"
+                    placeholder="16"
+                    value={editConsultData.rr}
+                    onChange={(v) =>
+                      setEditConsultData("rr", attachUnit(v, "cpm"))
+                    }
                   />
 
+                  {/* PR */}
+                  <VitalInput
+                    unit="bpm"
+                    placeholder="72"
+                    value={editConsultData.pr}
+                    onChange={(v) =>
+                      setEditConsultData("pr", attachUnit(v, "bpm"))
+                    }
+                  />
+
+                  {/* Temp */}
+                  <VitalInput
+                    unit="°C"
+                    placeholder="36.5"
+                    value={editConsultData.temp}
+                    onChange={(v) =>
+                      setEditConsultData("temp", attachUnit(v, "°C"))
+                    }
+                  />
+
+                  {/* O2 Sat */}
+                  <VitalInput
+                    unit="%"
+                    placeholder="98"
+                    value={editConsultData.o2_sat}
+                    onChange={(v) =>
+                      setEditConsultData("o2_sat", attachUnit(v, "%"))
+                    }
+                  />
+
+                  {/* Height */}
+                  <VitalInput
+                    unit="cm"
+                    placeholder="170"
+                    value={editConsultData.height}
+                    onChange={(v) =>
+                      setEditConsultData("height", attachUnit(v, "cm"))
+                    }
+                  />
+
+                  {/* Weight */}
+                  <VitalInput
+                    unit="kg"
+                    placeholder="65"
+                    value={editConsultData.weight}
+                    onChange={(v) =>
+                      setEditConsultData("weight", attachUnit(v, "kg"))
+                    }
+                  />
+
+                  {/* BMI (read-only) */}
                   <Input
+                    disabled
                     placeholder="BMI"
                     value={editConsultData.bmi || ""}
-                    onChange={(e) => setEditConsultData("bmi", e.target.value)}
                   />
                 </div>
               </div>
@@ -1122,6 +1332,30 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                   <p className="text-red-600 text-sm mt-1">{editConsultErrors.management_and_treatment}</p>
                 )}
               </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Treatments</label>
+
+              <div className="flex flex-wrap gap-2 mt-2 mb-1">
+                {editConsultData.treatment_ids.length > 0
+                  ? editConsultData.treatment_ids
+                      .map(id => treatments.find(t => t.id === id)?.name)
+                      .filter(Boolean)
+                      .map(name => (
+                        <span
+                          key={name}
+                          className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-sm"
+                        >
+                          {name}
+                        </span>
+                      ))
+                  : <span className="text-gray-500 text-sm">No treatments selected</span>}
+              </div>
+
+              <Button size="sm" type="button" onClick={() => setSelectingTreatmentsEdit(true)}>
+                Select Treatments
+              </Button>
             </div>
 
             <DialogFooter className="flex justify-end gap-2 mt-2">

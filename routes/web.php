@@ -17,6 +17,7 @@ use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\FormAssignmentController;
 use App\Http\Controllers\FormResponseController;
+use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPdfController;
@@ -324,40 +325,44 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-
+// For Admin, Nurse, and RCY
 Route::middleware(['auth'])->group(function () {
     // Admin
     Route::prefix('admin')->middleware('role:Admin')->group(function () {
-        Route::get('/dtr', [DtrController::class, 'index'])->name('admin.dtr.index');
-        Route::post('/dtr', [DtrController::class, 'store'])->name('admin.dtr.store');
-        Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('admin.dtr.update');
-        Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('admin.dtr.destroy');
-        Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
-    });
-
-    // Head Nurse
-    Route::prefix('headnurse')->middleware('role:Head Nurse')->group(function () {
-        Route::get('/dtr', [DtrController::class, 'index'])->name('headnurse.dtr.index');
-        Route::post('/dtr', [DtrController::class, 'store'])->name('headnurse.dtr.store');
-        Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('headnurse.dtr.update');
-        Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('headnurse.dtr.destroy');
-        Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
+        Route::get('/patients/{patient}/inquiries', [InquiryController::class, 'index']);
+        Route::post('/patients/{patient}/inquiries', [InquiryController::class, 'store']);
+        Route::patch('/inquiries/{inquiry}/approve', [InquiryController::class, 'approve']);
+        Route::put('/inquiries/{inquiry}', [InquiryController::class, 'update']);
+        Route::delete('/inquiries/{inquiry}', [InquiryController::class, 'destroy']);
     });
 
     // Nurse
     Route::prefix('nurse')->middleware('role:Nurse')->group(function () {
-        Route::get('/dtr', [DtrController::class, 'index'])->name('nurse.dtr.index');
-        Route::post('/dtr', [DtrController::class, 'store'])->name('nurse.dtr.store');
-        Route::put('/dtr/{dtr}', [DtrController::class, 'update'])->name('nurse.dtr.update');
-        Route::delete('/dtr/{dtr}', [DtrController::class, 'destroy'])->name('nurse.dtr.destroy');
-        Route::get('/patients/search', [DtrController::class, 'searchPatients'])->name('patients.search');
+        Route::get('/patients/{patient}/inquiries', [InquiryController::class, 'index']);
+        Route::post('/patients/{patient}/inquiries', [InquiryController::class, 'store']);
+        Route::patch('/inquiries/{inquiry}/approve', [InquiryController::class, 'approve']);
+        Route::put('/inquiries/{inquiry}', [InquiryController::class, 'update']);
     });
 
     // RCY
-    Route::prefix('user')->middleware(['auth', RcyRoleMiddleware::class])->group(function () {
+    Route::prefix('user')
+    ->middleware(['auth', RcyRoleMiddleware::class])
+    ->group(function () {
+
+        // RCY Consultation
         Route::get('/rcy', [RcyController::class, 'create'])->name('rcy.add');
         Route::post('/rcy/{patient}', [RcyController::class, 'store'])->name('rcy.store');
-        Route::get('/patients/search', [RcyController::class, 'searchPatients'])->name('patients.search');
+
+        // RCY Inquiries
+        Route::get('/rcy/inquiries', [RcyController::class, 'inquiries'])
+            ->name('rcy.inquiries');
+        
+        // RCY create inquiry
+        Route::post(
+    '/rcy/patients/{patient}/inquiries',[RcyController::class, 'storeInquiry']);
+
+        // Shared patient search
+        Route::get('/patients/search', [RcyController::class, 'searchPatients']);
     });
 });
 
@@ -399,6 +404,7 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('nurse.patients.show');
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('nurse.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
+        Route::put('/patients/{patient}/consultations/{consultation}',[ConsultationController::class, 'update'])->name('nurse.patients.consultations.update');
         Route::get('/patients/{patient}/files', [PatientController::class, 'files']);
         Route::get('/patients/{patient}/files/{slug}', [PatientController::class, 'showFile']);
         Route::get('/patients/{patient}/files/{slug}/records/{record}', [PatientController::class, 'viewRecord']);

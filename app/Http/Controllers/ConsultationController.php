@@ -55,6 +55,11 @@ class ConsultationController extends Controller
             $consultation->diseases()->sync($request->disease_ids);
         }
 
+        // Attach treatments (MULTIPLE)
+        if ($request->filled('treatment_ids')) {
+            $consultation->treatments()->sync($request->treatment_ids);
+        }
+
         // --- NEW: Create record for this consultation form ---
         $service = Service::where('slug', 'clinic-consultation-record-form')->first();
         if ($service) {
@@ -98,6 +103,10 @@ class ConsultationController extends Controller
 
         if ($request->filled('disease_ids')) {
             $consultation->diseases()->sync($request->disease_ids);
+        }
+
+        if ($request->filled('treatment_ids')) {
+            $consultation->treatments()->sync($request->treatment_ids);
         }
 
         return back()->with('success', 'Consultation updated successfully.');

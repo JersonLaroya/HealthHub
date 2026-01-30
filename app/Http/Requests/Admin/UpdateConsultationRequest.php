@@ -11,8 +11,9 @@ class UpdateConsultationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Only admin can update
-        return $this->user()->userRole->name === 'Admin';
+        $role = $this->user()?->userRole?->name;
+
+        return in_array($role, ['Admin', 'Nurse']);
     }
 
     public function rules(): array
@@ -34,6 +35,8 @@ class UpdateConsultationRequest extends FormRequest
             'disease_ids' => 'nullable|array',
             'disease_ids.*' => 'exists:list_of_diseases,id',
             'management_and_treatment' => 'required|string|max:255',
+            'treatment_ids' => ['nullable', 'array'],
+            'treatment_ids.*' => ['exists:list_of_treatments,id'],
         ];
     }
 

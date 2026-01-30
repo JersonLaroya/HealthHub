@@ -11,6 +11,32 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
+type VitalInputProps = {
+  value: string;
+  unit: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+};
+
+const VitalInput = ({ value, unit, placeholder, onChange }: VitalInputProps) => {
+  const cleanValue = value ? value.replace(/[^0-9./]/g, "") : "";
+
+  return (
+    <div className="flex items-center">
+      <Input
+        value={cleanValue}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-r-none"
+      />
+      <span className="px-3 py-2 border border-l-0 rounded-r-md text-sm bg-gray-100 dark:bg-neutral-800">
+        {unit}
+      </span>
+    </div>
+  );
+};
+
+
 export default function Add({ diseases }: any) {
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
@@ -388,78 +414,71 @@ if (!selectedPatientId) {
 
                       <div>
                         <label className="text-xs font-medium">Blood Pressure</label>
-                        <Input
+                        <VitalInput
                           placeholder="120/80"
-                          value={cleanVitalValue(data.bp)}
-                          onChange={(e) =>
-                            setData("bp", attachUnit(e.target.value, "mmHg"))
-                          }
+                          unit="mmHg"
+                          value={data.bp}
+                          onChange={(v) => setData("bp", attachUnit(v, "mmHg"))}
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-medium">Respiratory Rate</label>
-                        <Input
+                        <VitalInput
                           placeholder="16"
-                          value={cleanVitalValue(data.rr)}
-                          onChange={(e) =>
-                            setData("rr", attachUnit(e.target.value, "cpm"))
-                          }
+                          unit="cpm"
+                          value={data.rr}
+                          onChange={(v) => setData("rr", attachUnit(v, "cpm"))}
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-medium">Pulse Rate</label>
-                        <Input
+                        <VitalInput
                           placeholder="72"
-                          value={cleanVitalValue(data.pr)}
-                          onChange={(e) =>
-                            setData("pr", attachUnit(e.target.value, "bpm"))
-                          }
+                          unit="bpm"
+                          value={data.pr}
+                          onChange={(v) => setData("pr", attachUnit(v, "bpm"))}
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-medium">Temperature</label>
-                        <Input
+                        <VitalInput
                           placeholder="36.5"
-                          value={cleanVitalValue(data.temp)}
-                          onChange={(e) =>
-                            setData("temp", attachUnit(e.target.value, "°C"))
-                          }
+                          unit="°C"
+                          value={data.temp}
+                          onChange={(v) => setData("temp", attachUnit(v, "°C"))}
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-medium">Oxygen Saturation</label>
-                        <Input
+                        <VitalInput
                           placeholder="98"
-                          value={cleanVitalValue(data.o2_sat)}
-                          onChange={(e) =>
-                            setData("o2_sat", attachUnit(e.target.value, "%"))
-                          }
+                          unit="%"
+                          value={data.o2_sat}
+                          onChange={(v) => setData("o2_sat", attachUnit(v, "%"))}
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-medium">Height</label>
-                        <Input
+                        <VitalInput
                           placeholder="170"
-                          value={cleanVitalValue(data.height)}
-                          onChange={(e) =>
-                            setData("height", attachUnit(e.target.value, "cm"))
-                          }
+                          unit="cm"
+                          value={data.height}
+                          onChange={(v) => setData("height", attachUnit(v, "cm"))}
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-medium">Weight</label>
-                        <Input
+                        <VitalInput
                           placeholder="65"
-                          value={cleanVitalValue(data.weight)}
-                          onChange={(e) =>
-                            setData("weight", attachUnit(e.target.value, "kg"))
-                          }
+                          unit="kg"
+                          value={data.weight}
+                          onChange={(v) => setData("weight", attachUnit(v, "kg"))}
                         />
                       </div>
 

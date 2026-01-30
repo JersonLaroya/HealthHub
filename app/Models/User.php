@@ -106,6 +106,24 @@ class User extends Authenticatable
         return $this->hasMany(Consultation::class, 'user_id');
     }
 
+    // inquiries made for this patient
+    public function inquiries()
+    {
+        return $this->hasMany(Inquiry::class);
+    }
+
+    // inquiries created by staff
+    public function createdInquiries()
+    {
+        return $this->hasMany(Inquiry::class, 'created_by');
+    }
+
+    // inquiries updated by staff
+    public function updatedInquiries()
+    {
+        return $this->hasMany(Inquiry::class, 'updated_by');
+    }
+
 
     public function homeAddress()
     {

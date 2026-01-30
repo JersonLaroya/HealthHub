@@ -315,8 +315,25 @@ const mainNavItems: NavItem[] =
         { title: "Records", href: "/user/records", icon: Archive },
 
         ...(isRcyMember
-        ? [{ title: "RCY", href: `/user/rcy`, icon: Cross }]
-        : []),
+            ? [
+                {
+                    title: "RCY",
+                    icon: Cross,
+                    children: [
+                    {
+                        title: "Consultation",
+                        href: "/user/rcy",
+                        icon: Stethoscope,
+                    },
+                    {
+                        title: "Inquiries",
+                        href: "/user/rcy/inquiries",
+                        icon: MessageCircle,
+                    },
+                    ],
+                },
+                ]
+            : []),
     ];
 
 

@@ -50,6 +50,14 @@ class Consultation extends Model
         );
     }
 
+    public function treatments()
+    {
+        return $this->belongsToMany(
+            \App\Models\Treatment::class,
+            'consultation_treatment'
+        );
+    }
+
 
     // Vital signs snapshot
     public function vitalSigns()

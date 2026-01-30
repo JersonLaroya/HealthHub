@@ -91,6 +91,10 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
     router.get(`/${prefix}/patients/${patient.id}`);
   };
 
+  const handleViewInquiries = (patient) => {
+    router.get(`/${prefix}/patients/${patient.id}/inquiries`);
+  };
+
   const handleViewMedicalFiles = (patient) => {
     router.get(`/${prefix}/patients/${patient.id}/files`);
   };
@@ -259,6 +263,11 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
                             <DropdownMenuItem onClick={() => handleViewConsultation(patient)}>
                               Consultation Records
                             </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={() => handleViewInquiries(patient)}>
+                              Inquiries
+                            </DropdownMenuItem>
+
                             <DropdownMenuItem onClick={() => handleViewMedicalFiles(patient)}>
                               Medical Files
                             </DropdownMenuItem>

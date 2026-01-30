@@ -6,9 +6,9 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Contracts\Queue\ShouldQueue;
+ use Illuminate\Contracts\Queue\ShouldQueue;
 
-class RcyConsultationSubmitted extends Notification implements ShouldQueue
+class RcyInquirySubmitted extends Notification  implements ShouldQueue
 {
     use Queueable;
 
@@ -16,8 +16,8 @@ class RcyConsultationSubmitted extends Notification implements ShouldQueue
         public string $title,
         public string $message,
         public ?string $url = null,
-        public ?string $slug = 'rcy-consultation',
-        public ?int $consultationId = null,
+        public ?string $slug = 'rcy-inquiry',
+        public ?int $inquiryId = null,
     ) {}
 
     public function via($notifiable): array
@@ -32,7 +32,7 @@ class RcyConsultationSubmitted extends Notification implements ShouldQueue
             'message' => $this->message,
             'url' => $this->url,
             'slug' => $this->slug,
-            'consultation_id' => $this->consultationId,
+            'inquiry_id' => $this->inquiryId,
         ];
     }
 
@@ -52,7 +52,7 @@ class RcyConsultationSubmitted extends Notification implements ShouldQueue
             ->subject($this->title)
             ->greeting('Hello ' . $notifiable->first_name . ',')
             ->line($this->message)
-            ->action('View Consultation', url($this->url))
-            ->line('Please review and approve this consultation.');
+            ->action('View Inquiry', url($this->url))
+            ->line('Please review and approve this inquiry.');
     }
 }

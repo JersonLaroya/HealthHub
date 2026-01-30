@@ -42,6 +42,8 @@ class StoreConsultationRequest extends FormRequest
             'disease_ids' => 'nullable|array',
             'disease_ids.*' => 'exists:list_of_diseases,id',
             'management_and_treatment' => 'required|string|max:255',
+            'treatment_ids' => ['nullable', 'array'],
+            'treatment_ids.*' => ['exists:list_of_treatments,id'],
         ];
     }
 }
