@@ -322,12 +322,12 @@ const mainNavItems: NavItem[] =
                     children: [
                     {
                         title: "Consultation",
-                        href: "/user/rcy",
+                        href: "/user/rcy/consultation",
                         icon: Stethoscope,
                     },
                     {
-                        title: "Inquiries",
-                        href: "/user/rcy/inquiries",
+                        title: "Inquiry",
+                        href: "/user/rcy/inquiry",
                         icon: MessageCircle,
                     },
                     ],

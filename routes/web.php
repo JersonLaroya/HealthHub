@@ -217,8 +217,7 @@ Route::middleware(['role:Admin'])
                 ->name('dtr.index');
             Route::get('/dtr/export', [AdminDtrReportController::class, 'export'])
                 ->name('dtr.export');
-            Route::get('/census', fn () => Inertia::render('admin/reports/census'))
-                ->name('census.index');
+            Route::get('/census', [AdminReportController::class, 'census']);
         });
 
         Route::resource('personnels', PersonnelController::class);
@@ -350,12 +349,12 @@ Route::middleware(['auth'])->group(function () {
     ->group(function () {
 
         // RCY Consultation
-        Route::get('/rcy', [RcyController::class, 'create'])->name('rcy.add');
+        Route::get('/rcy/consultation', [RcyController::class, 'create'])->name('rcy.add');
         Route::post('/rcy/{patient}', [RcyController::class, 'store'])->name('rcy.store');
 
         // RCY Inquiries
-        Route::get('/rcy/inquiries', [RcyController::class, 'inquiries'])
-            ->name('rcy.inquiries');
+        Route::get('/rcy/inquiry', [RcyController::class, 'inquiries'])
+            ->name('rcy.inquiry');
         
         // RCY create inquiry
         Route::post(

@@ -22,6 +22,13 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
   const [deleting, setDeleting] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
+  const calculateAge = (birthdate?: string) => {
+    if (!birthdate) return "—";
+    const dob = new Date(birthdate);
+    const diff = Date.now() - dob.getTime();
+    return Math.abs(new Date(diff).getUTCFullYear() - 1970);
+    };
+
   const { data, setData, post, put, processing, errors } = useForm({
     inquiry_type_ids: [],
     description: "",
@@ -59,7 +66,7 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <h1 className="text-xl font-bold">
-            Inquiries — {patient.first_name} {patient.last_name}
+            Inquiries
           </h1>
 
           <div className="flex gap-2">
@@ -74,6 +81,39 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
               Add Inquiry
             </Button>
           </div>
+        </div>
+
+        {/* Patient Info */}
+        <div className="bg-gray-50 dark:bg-neutral-800 p-6 rounded-lg shadow-sm text-base space-y-4">
+        <div className="flex justify-between">
+            <div>
+            <span className="font-medium">Name:</span>{" "}
+            {patient.first_name}{" "}
+            {patient.middle_name ? patient.middle_name + " " : ""}
+            {patient.last_name}
+            </div>
+
+            <div>
+            <span className="font-medium">Sex:</span>{" "}
+            {patient.sex ?? "-"}
+            </div>
+        </div>
+
+        <div className="flex justify-between">
+            <div>
+            <span className="font-medium">Age:</span>{" "}
+            {calculateAge(patient.birthdate)}
+            </div>
+
+            <div>
+            <span className="font-medium">
+                {patient.course ? "Course & Year:" : "Office:"}
+            </span>{" "}
+            {patient.course
+                ? `${patient.course.code ?? "-"} ${patient.year_level?.level ?? "-"}`
+                : patient.office?.name ?? patient.office?.code ?? "-"}
+            </div>
+        </div>
         </div>
 
         {/* Table */}

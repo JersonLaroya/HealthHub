@@ -17,6 +17,12 @@ class InquiryController extends Controller
      */
     public function index(User $patient)
     {
+        $patient->load([
+            'course:id,code',
+            'yearLevel:id,level',
+            'office:id,name,code',
+        ]);
+
         $inquiries = Inquiry::with([
                 'inquiryTypes',
                 'creator:id,first_name,last_name',

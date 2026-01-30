@@ -242,4 +242,126 @@ class AdminReportController extends Controller
         return $userRole->name;
     }
 
+public function census()
+{
+    \Log::info('Census start');
+
+    $years = Consultation::selectRaw('EXTRACT(YEAR FROM date) as year')
+        ->distinct()
+        ->orderBy('year', 'desc')
+        ->pluck('year');
+
+    $year  = request('year') ?? $years->first() ?? now()->year;
+    $month = request('month');
+    $group = request('group', 'student');
+
+    $userIds = $this->getCensusUserIds($group);
+
+    /*
+    |--------------------------------------------------------------------------
+    | WELL CENSUS — ALL INQUIRIES (ZERO INCLUDED)
+    |--------------------------------------------------------------------------
+    */
+    $wellCensus = DB::table('list_of_inquiries as loi')
+        ->leftJoin('inquiry_list_of_inquiry as ili', 'ili.list_of_inquiry_id', '=', 'loi.id')
+        ->leftJoin('inquiries as i', function ($join) use ($year, $month, $userIds) {
+            $join->on('ili.inquiry_id', '=', 'i.id')
+                 ->whereIn('i.user_id', $userIds)
+                 ->whereYear('i.created_at', $year);
+
+            if ($month) {
+                $join->whereMonth('i.created_at', $month);
+            }
+        })
+        ->select(
+            'loi.id',
+            'loi.name as label',
+            DB::raw('COUNT(i.id) as total')
+        )
+        ->groupBy('loi.id', 'loi.name')
+        ->orderBy('loi.name')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | SICK CENSUS — ALL DISEASES (ZERO INCLUDED)
+    |--------------------------------------------------------------------------
+    */
+    $sickCensus = DB::table('list_of_diseases as d')
+        ->leftJoin('consultation_disease as cd', 'cd.disease_id', '=', 'd.id')
+        ->leftJoin('consultations as c', function ($join) use ($year, $month, $userIds) {
+            $join->on('cd.consultation_id', '=', 'c.id')
+                 ->whereIn('c.user_id', $userIds)
+                 ->whereYear('c.date', $year);
+
+            if ($month) {
+                $join->whereMonth('c.date', $month);
+            }
+        })
+        ->select(
+            'd.id',
+            'd.name as label',
+            DB::raw('COUNT(c.id) as total')
+        )
+        ->groupBy('d.id', 'd.name')
+        ->orderBy('d.name')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | TREATMENT CENSUS — ALL TREATMENTS (ZERO INCLUDED)
+    |--------------------------------------------------------------------------
+    */
+    $treatmentCensus = DB::table('list_of_treatments as t')
+        ->leftJoin('consultation_treatment as ct', 'ct.treatment_id', '=', 't.id')
+        ->leftJoin('consultations as c', function ($join) use ($year, $month, $userIds) {
+            $join->on('ct.consultation_id', '=', 'c.id')
+                 ->whereIn('c.user_id', $userIds)
+                 ->whereYear('c.date', $year);
+
+            if ($month) {
+                $join->whereMonth('c.date', $month);
+            }
+        })
+        ->select(
+            't.id',
+            't.name as label',
+            DB::raw('COUNT(c.id) as total')
+        )
+        ->groupBy('t.id', 't.name')
+        ->orderBy('t.name')
+        ->get();
+
+    \Log::info('Census end');
+
+    return Inertia::render('admin/reports/census', [
+        'year' => $year,
+        'years' => $years,
+        'month' => $month,
+        'group' => $group,
+        'wellCensus' => $wellCensus,
+        'sickCensus' => $sickCensus,
+        'treatmentCensus' => $treatmentCensus,
+    ]);
+}
+
+
+
+    // ⬇⬇⬇ ADD THIS HELPER BELOW ⬇⬇⬇
+    private function getCensusUserIds(string $group)
+    {
+        return User::whereHas('userRole', function ($q) use ($group) {
+
+            if ($group === 'employee') {
+                $q->whereIn('name', ['Faculty', 'Staff']);
+            }
+
+            if ($group === 'student') {
+                $q->where('name', 'Student')
+                  ->orWhere('category', 'rcy');
+            }
+
+        })->pluck('id');
+    }
+
 }
