@@ -222,6 +222,26 @@ Route::middleware(['role:Admin'])
                 return app(AdminReportController::class)
                     ->downloadCensusTemplate();
             })->withoutMiddleware('*');
+
+            Route::post('/census/chart-upload', function () {
+                $data = request()->validate([
+                    'name' => 'required|string',
+                    'image' => 'required|string',
+                ]);
+
+                $image = base64_decode(
+                    preg_replace('#^data:image/\w+;base64,#i', '', $data['image'])
+                );
+
+                $dir = storage_path('app/charts');
+                if (!file_exists($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+
+                file_put_contents("{$dir}/{$data['name']}.png", $image);
+
+                return response()->json(['ok' => true]);
+            });
         });
 
         Route::resource('personnels', PersonnelController::class);

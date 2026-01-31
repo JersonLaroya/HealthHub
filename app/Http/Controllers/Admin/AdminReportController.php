@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
 
 class AdminReportController extends Controller
@@ -444,6 +445,17 @@ public function downloadCensusTemplate()
     $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
     $row += 2;
 
+    $wellChart = storage_path('app/charts/well.png');
+
+    if (file_exists($wellChart)) {
+        $img = new Drawing();
+        $img->setName('Well Census Chart');
+        $img->setPath($wellChart);
+        $img->setHeight(480);
+        $img->setCoordinates('D2');
+        $img->setWorksheet($sheet);
+    }
+
     /* =====================================================
        SICK CENSUS
     ===================================================== */
@@ -488,6 +500,17 @@ public function downloadCensusTemplate()
     $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
     $row += 2;
 
+    $sickChart = storage_path('app/charts/sick.png');
+
+    if (file_exists($sickChart)) {
+        $img = new Drawing();
+        $img->setName('Sick Census Chart');
+        $img->setPath($sickChart);
+        $img->setHeight(height: 480);
+        $img->setCoordinates('D35');
+        $img->setWorksheet($sheet);
+    }
+
     /* =====================================================
        TREATMENT CENSUS
     ===================================================== */
@@ -522,6 +545,17 @@ public function downloadCensusTemplate()
     $sheet->setCellValue("B{$row}", "=SUM(B{$treatStartRow}:B{$treatEndRow})");
     $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
     $row += 1;
+
+    $treatmentChart = storage_path('app/charts/treatment.png');
+
+    if (file_exists($treatmentChart)) {
+        $img = new Drawing();
+        $img->setName('Treatment Census Chart');
+        $img->setPath($treatmentChart);
+        $img->setHeight(480);
+        $img->setCoordinates('D70');
+        $img->setWorksheet($sheet);
+    }
 
     /* =====================================================
        TOTAL CASES + TOTAL SEEN (like your file)

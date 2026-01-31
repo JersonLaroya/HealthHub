@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import { useRef } from "react";
+import { toPng } from "html-to-image";
 
 import {
   BarChart,
@@ -39,6 +41,38 @@ export default function CensusReport() {
   const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
     .toISOString()
     .slice(0, 10);
+
+  const wellChartRef = useRef<HTMLDivElement>(null);
+  const sickChartRef = useRef<HTMLDivElement>(null);
+  const treatmentChartRef = useRef<HTMLDivElement>(null);
+
+async function uploadChart(
+  ref: React.RefObject<HTMLDivElement>,
+  name: string
+) {
+  if (!ref.current) return;
+
+  const image = await toPng(ref.current, {
+    pixelRatio: 5,
+    backgroundColor: "#ffffff",
+    skipFonts: true,
+    cacheBust: true,
+  });
+
+  const csrf =
+    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+      ?.content;
+
+  await fetch("/admin/reports/census/chart-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-TOKEN": csrf || "",
+    },
+    body: JSON.stringify({ name, image }),
+  });
+}
+
 
   // 🔹 Draft filters (UI only)
   const [filters, setFilters] = useState({
@@ -113,9 +147,6 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
 
           <div>
             <h1 className="text-xl font-semibold">Census Report</h1>
-            <p className="text-sm text-muted-foreground">
-              Census-based visualization of all inquiries, diseases, and treatments
-            </p>
           </div>
         </div>
 
@@ -179,7 +210,11 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
 
             <Button
               variant="outline"
-              onClick={() => {
+              onClick={async () => {
+                await uploadChart(wellChartRef, "well");
+                await uploadChart(sickChartRef, "sick");
+                await uploadChart(treatmentChartRef, "treatment");
+
                 const params = new URLSearchParams({
                   from: appliedFilters.from,
                   to: appliedFilters.to,
@@ -199,39 +234,45 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
         {loading ? (
           <LoadingCard />
         ) : (
-          <CensusChart
-            title="Well Census"
-            description="All inquiry types"
-            meta={`${groupLabel} • ${dateLabel}`}
-            data={wellCensus}
-            color="#0ea5e9"
-          />
+          <div ref={wellChartRef}>
+            <CensusChart
+              title="Well Census"
+              description="All inquiry types"
+              meta={`${groupLabel} • ${dateLabel}`}
+              data={wellCensus}
+              color="#0ea5e9"
+            />
+          </div>
         )}
 
         {/* SICK CENSUS */}
         {loading ? (
           <LoadingCard />
         ) : (
-          <CensusChart
-            title="Sick Census"
-            description="All diseases"
-            meta={`${groupLabel} • ${dateLabel}`}
-            data={sickCensus}
-            color="#ef4444"
-          />
+          <div ref={sickChartRef}>
+            <CensusChart
+              title="Sick Census"
+              description="All diseases"
+              meta={`${groupLabel} • ${dateLabel}`}
+              data={sickCensus}
+              color="#ef4444"
+            />
+          </div>
         )}
 
         {/* TREATMENT CENSUS */}
         {loading ? (
           <LoadingCard />
         ) : (
-          <CensusChart
-            title="Treatment Census"
-            description="All treatments"
-            meta={`${groupLabel} • ${dateLabel}`}
-            data={treatmentCensus}
-            color="#22c55e"
-          />
+          <div ref={treatmentChartRef}>
+            <CensusChart
+              title="Treatment Census"
+              description="All treatments"
+              meta={`${groupLabel} • ${dateLabel}`}
+              data={treatmentCensus}
+              color="#22c55e"
+            />
+          </div>
         )}
 
       </div>
