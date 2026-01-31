@@ -63,6 +63,25 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const [notifCount, setNotifCount] = useState(0);
     const [notifications, setNotifications] = useState<any[]>([]);
 
+    function getCookie(name: string): string {
+    const match = document.cookie.match(
+        new RegExp("(^| )" + name + "=([^;]+)")
+    );
+    return match ? decodeURIComponent(match[2]) : "";
+    }
+
+    function csrfFetch(url: string, options: RequestInit = {}) {
+    return fetch(url, {
+        credentials: "same-origin",
+        headers: {
+        Accept: "application/json",
+        ...options.headers,
+        "X-XSRF-TOKEN": getCookie("XSRF-TOKEN"),
+        },
+        ...options,
+    });
+    }
+
     async function loadNotifCount() {
         const res = await fetch("/notifications/unread-count");
         const data = await res.json();
@@ -75,12 +94,29 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         setNotifications(data);
     }
 
+    // async function markNotifRead(id: string, url?: string) {
+    //     await fetch(`/notifications/${id}/read`, {
+    //         method: "POST",
+    //         headers: {
+    //             "X-CSRF-TOKEN": (document.querySelector('meta[name="csrf-token"]') as any)?.content
+    //         }
+    //     });
+
+    //     // refresh after marking read
+    //     loadNotifCount();
+    //     loadNotifications();
+
+    //     // keep everything in sync
+    //     window.dispatchEvent(new Event("notifications-updated"));
+
+    //     if (url) {
+    //         router.visit(url);
+    //     }
+    // }
+
     async function markNotifRead(id: string, url?: string) {
-        await fetch(`/notifications/${id}/read`, {
+        await csrfFetch(`/notifications/${id}/read`, {
             method: "POST",
-            headers: {
-                "X-CSRF-TOKEN": (document.querySelector('meta[name="csrf-token"]') as any)?.content
-            }
         });
 
         // refresh after marking read
@@ -93,7 +129,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         if (url) {
             router.visit(url);
         }
-    }
+        }
 
     useEffect(() => {
         if (!auth?.user?.id) return;

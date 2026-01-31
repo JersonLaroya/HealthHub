@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ConsultationCluster;
+use App\Models\DiseaseCategory;
 use App\Models\User;
 use App\Models\Consultation;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
 
 class AdminReportController extends Controller
 {
@@ -246,14 +251,15 @@ public function census()
 {
     \Log::info('Census start');
 
-    $years = Consultation::selectRaw('EXTRACT(YEAR FROM date) as year')
-        ->distinct()
-        ->orderBy('year', 'desc')
-        ->pluck('year');
+    $from = request('from')
+        ? Carbon::parse(request('from'))->startOfDay()
+        : now()->startOfMonth();
 
-    $year  = request('year') ?? $years->first() ?? now()->year;
-    $month = request('month');
-    $group = request('group', 'student');
+    $to = request('to')
+        ? Carbon::parse(request('to'))->endOfDay()
+        : now()->endOfMonth();
+
+    $group = request('group', 'all');
 
     $userIds = $this->getCensusUserIds($group);
 
@@ -264,14 +270,10 @@ public function census()
     */
     $wellCensus = DB::table('list_of_inquiries as loi')
         ->leftJoin('inquiry_list_of_inquiry as ili', 'ili.list_of_inquiry_id', '=', 'loi.id')
-        ->leftJoin('inquiries as i', function ($join) use ($year, $month, $userIds) {
+        ->leftJoin('inquiries as i', function ($join) use ($from, $to, $userIds) {
             $join->on('ili.inquiry_id', '=', 'i.id')
                  ->whereIn('i.user_id', $userIds)
-                 ->whereYear('i.created_at', $year);
-
-            if ($month) {
-                $join->whereMonth('i.created_at', $month);
-            }
+                 ->whereBetween('i.created_at', [$from, $to]);
         })
         ->select(
             'loi.id',
@@ -289,14 +291,10 @@ public function census()
     */
     $sickCensus = DB::table('list_of_diseases as d')
         ->leftJoin('consultation_disease as cd', 'cd.disease_id', '=', 'd.id')
-        ->leftJoin('consultations as c', function ($join) use ($year, $month, $userIds) {
+        ->leftJoin('consultations as c', function ($join) use ($from, $to, $userIds) {
             $join->on('cd.consultation_id', '=', 'c.id')
-                 ->whereIn('c.user_id', $userIds)
-                 ->whereYear('c.date', $year);
-
-            if ($month) {
-                $join->whereMonth('c.date', $month);
-            }
+                ->whereIn('c.user_id', $userIds)
+                ->whereBetween('c.date', [$from, $to]);
         })
         ->select(
             'd.id',
@@ -314,14 +312,10 @@ public function census()
     */
     $treatmentCensus = DB::table('list_of_treatments as t')
         ->leftJoin('consultation_treatment as ct', 'ct.treatment_id', '=', 't.id')
-        ->leftJoin('consultations as c', function ($join) use ($year, $month, $userIds) {
+        ->leftJoin('consultations as c', function ($join) use ($from, $to, $userIds) {
             $join->on('ct.consultation_id', '=', 'c.id')
-                 ->whereIn('c.user_id', $userIds)
-                 ->whereYear('c.date', $year);
-
-            if ($month) {
-                $join->whereMonth('c.date', $month);
-            }
+                ->whereIn('c.user_id', $userIds)
+                ->whereBetween('c.date', [$from, $to]);
         })
         ->select(
             't.id',
@@ -335,9 +329,8 @@ public function census()
     \Log::info('Census end');
 
     return Inertia::render('admin/reports/census', [
-        'year' => $year,
-        'years' => $years,
-        'month' => $month,
+        'from' => $from->toDateString(),
+        'to' => $to->toDateString(),
         'group' => $group,
         'wellCensus' => $wellCensus,
         'sickCensus' => $sickCensus,
@@ -345,11 +338,13 @@ public function census()
     ]);
 }
 
-
-
-    // ⬇⬇⬇ ADD THIS HELPER BELOW ⬇⬇⬇
     private function getCensusUserIds(string $group)
     {
+        // ALL = no role filtering
+        if ($group === 'all') {
+            return User::pluck('id');
+        }
+
         return User::whereHas('userRole', function ($q) use ($group) {
 
             if ($group === 'employee') {
@@ -358,10 +353,246 @@ public function census()
 
             if ($group === 'student') {
                 $q->where('name', 'Student')
-                  ->orWhere('category', 'rcy');
+                ->orWhere('category', 'rcy');
             }
 
         })->pluck('id');
     }
+
+public function downloadCensusTemplate()
+{
+    ini_set('display_errors', 0);
+    error_reporting(0);
+
+    $from = request('from')
+        ? Carbon::parse(request('from'))->startOfMonth()
+        : now()->startOfMonth();
+
+    $to = request('to')
+        ? Carbon::parse(request('to'))->endOfMonth()
+        : now()->endOfMonth();
+
+    $group   = request('group', 'all');
+    $userIds = $this->getCensusUserIds($group);
+
+    $groupLabel = match ($group) {
+        'student'  => 'STUDENTS',
+        'employee' => 'EMPLOYEES',
+        default    => 'ALL PATIENTS',
+    };
+
+    // Spreadsheet
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Census Report');
+
+    $sheet->getColumnDimension('A')->setWidth(45);
+    $sheet->getColumnDimension('B')->setWidth(15);
+
+    $row = 1;
+
+    /* =====================================================
+       HEADER (like your file)
+    ===================================================== */
+    $sheet->mergeCells("A{$row}:B{$row}");
+    $sheet->setCellValue("A{$row}", "MONTH: " . strtoupper($from->format('F')) . " ");
+    $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+    $row++;
+
+    $sheet->mergeCells("A{$row}:B{$row}");
+    $sheet->setCellValue("A{$row}", $groupLabel);
+    $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+    $row++;
+
+    /* =====================================================
+       WELL CENSUS
+    ===================================================== */
+    $sheet->mergeCells("A{$row}:B{$row}");
+    $sheet->setCellValue("A{$row}", "WELL CENSUS");
+    $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+    $row++;
+
+    $sheet->mergeCells("A{$row}:B{$row}");
+    $sheet->setCellValue("A{$row}", "CHIEF COMPLAINT");
+    $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+    $row++;
+
+    $wellStartRow = $row;
+
+    $well = DB::table('list_of_inquiries as loi')
+        ->leftJoin('inquiry_list_of_inquiry as ili', 'ili.list_of_inquiry_id', '=', 'loi.id')
+        ->leftJoin('inquiries as i', function ($join) use ($from, $to, $userIds) {
+            $join->on('ili.inquiry_id', '=', 'i.id')
+                ->whereIn('i.user_id', $userIds)
+                ->whereBetween('i.created_at', [$from, $to]);
+        })
+        ->select('loi.name', DB::raw('COUNT(i.id) as total'))
+        ->groupBy('loi.name')
+        ->orderBy('loi.name')
+        ->get();
+
+    foreach ($well as $w) {
+        $sheet->setCellValue("A{$row}", $w->name);
+        $sheet->setCellValue("B{$row}", (int) $w->total); // ✅ counts in col B
+        $row++;
+    }
+
+    $wellEndRow = $row - 1;
+
+    $sheet->setCellValue("A{$row}", "TOTAL WELL CENSUS");
+    $sheet->setCellValue("B{$row}", "=SUM(B{$wellStartRow}:B{$wellEndRow})");
+    $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
+    $row += 2;
+
+    /* =====================================================
+       SICK CENSUS
+    ===================================================== */
+    $sheet->mergeCells("A{$row}:B{$row}");
+    $sheet->setCellValue("A{$row}", "SICK CENSUS");
+    $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+    $row++;
+
+    $sickStartRow = $row; // will be used for SUM (numeric cells only)
+
+    $categories = DiseaseCategory::with('diseases')
+        ->orderBy('name')
+        ->get();
+
+    foreach ($categories as $category) {
+
+        // Category header (bold, no count)
+        $sheet->setCellValue("A{$row}", strtoupper($category->name));
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $row++;
+
+        foreach ($category->diseases as $disease) {
+
+            $count = DB::table('consultation_disease as cd')
+                ->join('consultations as c', 'cd.consultation_id', '=', 'c.id')
+                ->where('cd.disease_id', $disease->id)
+                ->whereIn('c.user_id', $userIds)
+                ->whereBetween('c.date', [$from, $to])
+                ->count();
+
+            // ✅ include zeros (your file includes 0 rows)
+            $sheet->setCellValue("A{$row}", $disease->name);
+            $sheet->setCellValue("B{$row}", (int) $count);
+            $row++;
+        }
+    }
+
+    $sickEndRow = $row - 1;
+
+    $sheet->setCellValue("A{$row}", "TOTAL SICK CENSUS");
+    $sheet->setCellValue("B{$row}", "=SUM(B{$sickStartRow}:B{$sickEndRow})");
+    $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
+    $row += 2;
+
+    /* =====================================================
+       TREATMENT CENSUS
+    ===================================================== */
+    $sheet->mergeCells("A{$row}:B{$row}");
+    $sheet->setCellValue("A{$row}", "TREATMENT CENSUS");
+    $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+    $row++;
+
+    $treatStartRow = $row;
+
+    $treatments = DB::table('list_of_treatments as t')
+        ->leftJoin('consultation_treatment as ct', 'ct.treatment_id', '=', 't.id')
+        ->leftJoin('consultations as c', function ($join) use ($from, $to, $userIds) {
+            $join->on('ct.consultation_id', '=', 'c.id')
+                ->whereIn('c.user_id', $userIds)
+                ->whereBetween('c.date', [$from, $to]);
+        })
+        ->select('t.name', DB::raw('COUNT(c.id) as total'))
+        ->groupBy('t.name')
+        ->orderBy('t.name')
+        ->get();
+
+    foreach ($treatments as $t) {
+        $sheet->setCellValue("A{$row}", $t->name);
+        $sheet->setCellValue("B{$row}", (int) $t->total); // ✅ counts in col B
+        $row++;
+    }
+
+    $treatEndRow = $row - 1;
+
+    $sheet->setCellValue("A{$row}", "TOTAL TREATMENT CENSUS");
+    $sheet->setCellValue("B{$row}", "=SUM(B{$treatStartRow}:B{$treatEndRow})");
+    $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
+    $row += 1;
+
+    /* =====================================================
+       TOTAL CASES + TOTAL SEEN (like your file)
+       - TOTAL CASES: number of consultations in the range
+       - TOTAL SEEN: Well + Sick + Treatment totals
+    ===================================================== */
+    $totalCases = DB::table('consultations as c')
+        ->whereIn('c.user_id', $userIds)
+        ->whereBetween('c.date', [$from, $to])
+        ->count();
+
+    $row += 1;
+    $sheet->setCellValue("A{$row}", "TOTAL CASES");
+    $sheet->setCellValue("B{$row}", (int) $totalCases);
+    $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
+    $row++;
+
+    $seenLabel = match ($group) {
+        'student'  => 'TOTAL NO. OF STUDENTS SEEN',
+        'employee' => 'TOTAL NO. OF EMPLOYEES SEEN',
+        default    => 'TOTAL NO. OF PATIENTS SEEN',
+    };
+
+    // This matches your template: total seen = sum of the 3 totals
+    // We’ll reference the formula cells we created:
+    // - Total well cell row = ($wellTotalRow)
+    // - Total sick cell row = ($sickTotalRow)
+    // - Total treatment cell row = ($treatTotalRow)
+    // We'll track them now:
+    // NOTE: We know where they are because we just wrote them.
+    // But easiest is compute directly too:
+    $totalWell = DB::table('list_of_inquiries as loi')
+        ->leftJoin('inquiry_list_of_inquiry as ili', 'ili.list_of_inquiry_id', '=', 'loi.id')
+        ->leftJoin('inquiries as i', function ($join) use ($from, $to, $userIds) {
+            $join->on('ili.inquiry_id', '=', 'i.id')
+                ->whereIn('i.user_id', $userIds)
+                ->whereBetween('i.created_at', [$from, $to]);
+        })
+        ->count('i.id');
+
+    $totalSick = DB::table('consultation_disease as cd')
+        ->join('consultations as c', 'cd.consultation_id', '=', 'c.id')
+        ->whereIn('c.user_id', $userIds)
+        ->whereBetween('c.date', [$from, $to])
+        ->count();
+
+    $totalTreatment = DB::table('consultation_treatment as ct')
+        ->join('consultations as c', 'ct.consultation_id', '=', 'c.id')
+        ->whereIn('c.user_id', $userIds)
+        ->whereBetween('c.date', [$from, $to])
+        ->count();
+
+    $sheet->setCellValue("A{$row}", $seenLabel);
+    $sheet->setCellValue("B{$row}", (int) ($totalWell + $totalSick + $totalTreatment));
+    $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
+
+    /* =====================================================
+       DOWNLOAD
+    ===================================================== */
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    $filename = "CENSUS_CANDIJAY_" . strtoupper($from->format('M_Y')) . ".xlsx";
+
+    return response()->streamDownload(function () use ($spreadsheet) {
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+    }, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+}
 
 }

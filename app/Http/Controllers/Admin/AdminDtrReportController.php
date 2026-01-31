@@ -12,8 +12,13 @@ class AdminDtrReportController extends Controller
 {
 public function index(Request $request)
 {
-    $year  = $request->year ?? now()->year;
-    $month = $request->month;
+    $from = $request->from
+        ? Carbon::parse($request->from)->startOfDay()
+        : now()->startOfMonth();
+
+    $to = $request->to
+        ? Carbon::parse($request->to)->endOfDay()
+        : now()->endOfMonth();
 
     $years = Consultation::selectRaw('EXTRACT(YEAR FROM date) as year')
         ->distinct()
@@ -26,8 +31,7 @@ public function index(Request $request)
             'user.office',
             'vitalSigns'
         ])
-        ->whereYear('date', $year)
-        ->when($month, fn($q) => $q->whereMonth('date', $month))
+        ->whereBetween('date', [$from, $to])
         ->orderBy('date')
         ->orderBy('time')
         ->get();
@@ -46,8 +50,10 @@ public function index(Request $request)
 
     return Inertia::render('admin/reports/dtr', [
         'consultations' => $consultations,
-        'filters' => compact('year', 'month'),
-        'years' => $years,
+        'filters' => [
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+        ],
     ]);
 }
 

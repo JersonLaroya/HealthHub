@@ -1,16 +1,24 @@
 import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useForm } from "@inertiajs/react";
+import { useForm, router } from "@inertiajs/react";
 import { fillDtrReport } from "@/utils/fillDtrReport";
 import { useState } from "react";
 
 export default function DtrReport({ consultations = [], filters, years = [] }) {
 
-  const { data, setData, get, processing } = useForm({
-    year: filters.year || years?.[0] || new Date().getFullYear(),
-    month: filters.month || "",
-  });
+  const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      .toISOString()
+      .slice(0, 10);
+
+    const { data, setData, get, processing } = useForm({
+      from: filters.from || firstDay,
+      to: filters.to || lastDay,
+    });
 
   function SignatureImage({ src }: { src: string }) {
     const [loading, setLoading] = useState(true);
@@ -70,59 +78,79 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
     <AppLayout>
       <div className="p-6 space-y-6">
 
+        {/* HEADER */}
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.visit("/admin/reports")}
+          >
+            Back
+          </Button>
+
+          <h1 className="text-lg font-semibold">
+            Daily Time Record (DTR) Report
+          </h1>
+        </div>
+
         {/* FILTERS */}
         <Card className="p-4">
-          <form onSubmit={filter} className="flex flex-col sm:flex-row gap-3">
+          <form
+            onSubmit={filter}
+            className="flex flex-col gap-4 sm:flex-row sm:items-end"
+          >
 
-            {/* YEAR */}
-            <select
-              value={data.year}
-              onChange={e => setData("year", e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            {/* DATE RANGE */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 
-            {/* MONTH */}
-            <select
-              value={data.month}
-              onChange={e => setData("month", e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
-            >
-              <option value="">All months</option>
-              <option value="1">January</option>
-              <option value="2">February</option>
-              <option value="3">March</option>
-              <option value="4">April</option>
-              <option value="5">May</option>
-              <option value="6">June</option>
-              <option value="7">July</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">October</option>
-              <option value="11">November</option>
-              <option value="12">December</option>
-            </select>
+              {/* FROM */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground whitespace-nowrap">
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={data.from}
+                  onChange={(e) => setData("from", e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
+                />
+              </div>
 
-            <Button
-            type="submit"
-            disabled={processing}
-            className="w-full sm:w-auto"
-            >
-            {processing ? "Filtering..." : "Filter"}
-            </Button>
+              {/* TO */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground whitespace-nowrap">
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={data.to}
+                  onChange={(e) => setData("to", e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm dark:bg-neutral-700"
+                />
+              </div>
 
-            <div className="w-full sm:ml-auto sm:w-auto">
-            <Button
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
+
+              <Button
+                type="submit"
+                disabled={processing}
+                className="w-full sm:w-auto"
+              >
+                {processing ? "Filtering..." : "Filter"}
+              </Button>
+
+              <Button
                 type="button"
                 onClick={exportPdf}
                 disabled={!consultations.length || downloading}
                 className="w-full sm:w-auto"
-            >
+              >
                 {downloading ? "Generating PDF..." : "Download DTR PDF"}
-            </Button>
+              </Button>
+
             </div>
           </form>
         </Card>

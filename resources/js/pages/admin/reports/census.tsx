@@ -19,17 +19,40 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Label,
 } from "recharts";
 
 export default function CensusReport() {
   const {
-    year,
-    month,
+    from,
+    to,
     group,
     wellCensus,
     sickCensus,
     treatmentCensus,
   }: any = usePage().props;
+
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    .toISOString()
+    .slice(0, 10);
+
+  // 🔹 Draft filters (UI only)
+  const [filters, setFilters] = useState({
+    from: from || firstDay,
+    to: to || lastDay,
+    group: group || "all",
+  });
+
+  // 🔹 Applied filters (what charts actually represent)
+  const [appliedFilters, setAppliedFilters] = useState({
+    from: from || firstDay,
+    to: to || lastDay,
+    group: group || "all",
+  });
 
   const [loading, setLoading] = useState(true);
 
@@ -37,33 +60,15 @@ export default function CensusReport() {
     setLoading(false);
   }, []);
 
-  const months = [
-    { value: "all", label: "All Months" },
-    { value: "1", label: "January" },
-    { value: "2", label: "February" },
-    { value: "3", label: "March" },
-    { value: "4", label: "April" },
-    { value: "5", label: "May" },
-    { value: "6", label: "June" },
-    { value: "7", label: "July" },
-    { value: "8", label: "August" },
-    { value: "9", label: "September" },
-    { value: "10", label: "October" },
-    { value: "11", label: "November" },
-    { value: "12", label: "December" },
-  ];
-
   const reload = (params: any) => {
     setLoading(true);
 
+    // ✅ Commit filters only when Filter is clicked
+    setAppliedFilters(params);
+
     router.get(
       "/admin/reports/census",
-      {
-        year,
-        month,
-        group,
-        ...params,
-      },
+      params,
       {
         preserveScroll: true,
         preserveState: true,
@@ -72,57 +77,122 @@ export default function CensusReport() {
     );
   };
 
+  const groupLabelMap: Record<string, string> = {
+    all: "All Patients",
+    student: "Students",
+    employee: "Employees",
+  };
+
+  // ✅ LABELS NOW COME FROM APPLIED FILTERS
+  const groupLabel =
+    groupLabelMap[appliedFilters.group] || "All Patients";
+
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+
+const campusLabel = "Candijay Campus";
+const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFilters.to)}`;
+
+
   return (
     <AppLayout>
       <div className="p-6 space-y-10">
 
         {/* HEADER */}
-        <div>
-          <h1 className="text-xl font-semibold">Census Report</h1>
-          <p className="text-sm text-muted-foreground">
-            Census-based visualization of all inquiries, diseases, and treatments
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => router.visit("/admin/reports")}
+          >
+            Back
+          </Button>
+
+          <div>
+            <h1 className="text-xl font-semibold">Census Report</h1>
+            <p className="text-sm text-muted-foreground">
+              Census-based visualization of all inquiries, diseases, and treatments
+            </p>
+          </div>
         </div>
 
         {/* FILTERS */}
-        <Card className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl">
-          <Select
-            value={month ? String(month) : "all"}
-            onValueChange={(v) =>
-              reload({ month: v === "all" ? null : v })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <Card className="p-5 w-full max-w-4xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
 
-          <Select
-            value={group}
-            onValueChange={(v) => reload({ group: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select Group" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="student">Students</SelectItem>
-              <SelectItem value="employee">Employees</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* DATE RANGE */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 
-          <Button
-            variant="outline"
-            onClick={() => reload({ month: null })}
-          >
-            Reset
-          </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">From</span>
+                <input
+                  type="date"
+                  value={filters.from}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, from: e.target.value }))
+                  }
+                  className="border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">To</span>
+                <input
+                  type="date"
+                  value={filters.to}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, to: e.target.value }))
+                  }
+                  className="border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+
+            </div>
+
+            {/* GROUP */}
+            <Select
+              value={filters.group}
+              onValueChange={(v) =>
+                setFilters((prev) => ({ ...prev, group: v }))
+              }
+            >
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Select Group" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="student">Students</SelectItem>
+                <SelectItem value="employee">Employees</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              onClick={() => reload(filters)}
+              disabled={loading}
+              className="w-full sm:w-auto"
+            >
+              {loading ? "Filtering..." : "Filter"}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                const params = new URLSearchParams({
+                  from: appliedFilters.from,
+                  to: appliedFilters.to,
+                  group: appliedFilters.group,
+                }).toString();
+
+                window.location.href = `/admin/reports/census/download?${params}`;
+              }}
+            >
+              Download Excel
+            </Button>
+
+          </div>
         </Card>
 
         {/* WELL CENSUS */}
@@ -131,7 +201,8 @@ export default function CensusReport() {
         ) : (
           <CensusChart
             title="Well Census"
-            description="All inquiry types (including zero cases)"
+            description="All inquiry types"
+            meta={`${groupLabel} • ${dateLabel}`}
             data={wellCensus}
             color="#0ea5e9"
           />
@@ -143,7 +214,8 @@ export default function CensusReport() {
         ) : (
           <CensusChart
             title="Sick Census"
-            description="All diseases (including zero cases)"
+            description="All diseases"
+            meta={`${groupLabel} • ${dateLabel}`}
             data={sickCensus}
             color="#ef4444"
           />
@@ -155,7 +227,8 @@ export default function CensusReport() {
         ) : (
           <CensusChart
             title="Treatment Census"
-            description="All treatments (including zero cases)"
+            description="All treatments"
+            meta={`${groupLabel} • ${dateLabel}`}
             data={treatmentCensus}
             color="#22c55e"
           />
@@ -184,11 +257,13 @@ function LoadingCard() {
 function CensusChart({
   title,
   description,
+  meta,
   data,
   color,
 }: {
   title: string;
   description: string;
+  meta: string;
   data: any[];
   color: string;
 }) {
@@ -199,7 +274,7 @@ function CensusChart({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
-      <Card className="p-4 h-[420px]">
+      <Card className="p-4 h-[320px] sm:h-[420px]">
         {data?.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No records found.
@@ -215,11 +290,23 @@ function CensusChart({
               <XAxis
                 dataKey="label"
                 interval={0}
-                angle={-70}
+                angle={-60}
                 textAnchor="end"
-                height={100}
+                height={80}
                 tick={{ fontSize: 9 }}
-              />
+              >
+                <Label
+                  value={meta}
+                  position="insideBottom"
+                  offset={-70}
+                  style={{
+                    textAnchor: "middle",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fill: "#374151",
+                  }}
+                />
+              </XAxis>
 
               <YAxis
                 allowDecimals={false}

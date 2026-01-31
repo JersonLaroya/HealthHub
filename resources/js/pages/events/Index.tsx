@@ -412,7 +412,7 @@ function EventDescription({ text }: { text: string }) {
 
                   router.delete(`${baseUrl}/${eventToDelete.id}`, { // use baseUrl + id
                     onSuccess: () => {
-                      toast.error("Event deleted", {
+                      toast.success("Event deleted", {
                         description: `${eventToDelete.title} removed.`,
                       });
                       setShowDeleteModal(false);
@@ -436,7 +436,14 @@ function EventDescription({ text }: { text: string }) {
               clearForm();
             }
           }}>
-          <DialogContent className="sm:max-w-lg bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+          <DialogContent
+            className="
+              sm:max-w-lg
+              max-h-[90vh]
+              overflow-y-auto
+              bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md
+            "
+          >
           <DialogDescription />
             <DialogHeader>
               <DialogTitle>{editEvent ? "Edit Event" : "Add Event"}</DialogTitle>
@@ -492,7 +499,7 @@ function EventDescription({ text }: { text: string }) {
                 />
               </div>
 
-              <div>
+              <div className="order-2 sm:order-1">
                 <Label>Start At</Label>
                 <Input
                   type="datetime-local"
@@ -504,7 +511,7 @@ function EventDescription({ text }: { text: string }) {
                 )}
               </div>
 
-              <div>
+              <div className="order-1 sm:order-2">
                 <Label>End At</Label>
                 <Input
                   type="datetime-local"

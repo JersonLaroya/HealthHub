@@ -218,6 +218,10 @@ Route::middleware(['role:Admin'])
             Route::get('/dtr/export', [AdminDtrReportController::class, 'export'])
                 ->name('dtr.export');
             Route::get('/census', [AdminReportController::class, 'census']);
+            Route::get('/census/download', function () {
+                return app(AdminReportController::class)
+                    ->downloadCensusTemplate();
+            })->withoutMiddleware('*');
         });
 
         Route::resource('personnels', PersonnelController::class);
