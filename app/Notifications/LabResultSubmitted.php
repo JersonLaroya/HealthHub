@@ -20,17 +20,29 @@ class LabResultSubmitted extends Notification implements ShouldBroadcast, Should
 
     public function via($notifiable)
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     protected function data()
     {
         return [
-            'title'   => 'Laboratory Results Submitted',
-            'message' => "{$this->patient->first_name} {$this->patient->last_name} has submitted laboratory results.",
-            'user_id' => $this->patient->id,
-            'record_id' => $this->recordId,
-            'url' => "/admin/patients/{$this->patient->id}/files/laboratory-results",
+            'title'     => 'Laboratory Results Submitted',
+            'message'   => "{$this->patient->first_name} {$this->patient->last_name} has submitted laboratory results.",
+            'user_id'   => $this->patient->id,
+            'record_id'=> $this->recordId,
+            'url'       => "/admin/patients/{$this->patient->id}/files/laboratory-results",
         ];
     }
 

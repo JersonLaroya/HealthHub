@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class LabResultApproved extends Notification implements ShouldBroadcast
+class LabResultApproved extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
@@ -19,7 +19,19 @@ class LabResultApproved extends Notification implements ShouldBroadcast
 
     public function via($notifiable)
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     public function toDatabase($notifiable)

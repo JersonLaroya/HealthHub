@@ -20,7 +20,19 @@ class FormRejected extends Notification implements ShouldBroadcast, ShouldQueue
 
     public function via($notifiable)
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     public function toDatabase($notifiable)
@@ -29,7 +41,7 @@ class FormRejected extends Notification implements ShouldBroadcast, ShouldQueue
             'title'   => 'Medical Form Rejected',
             'message' => 'Your medical form was rejected. Please correct your submission or message clinic staff for more information.',
             'service' => $this->serviceName,
-            'url' => "/user/files/{$this->serviceSlug}",
+            'url'     => "/user/files/{$this->serviceSlug}",
         ];
     }
 

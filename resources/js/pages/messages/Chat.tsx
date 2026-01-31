@@ -2,8 +2,15 @@ import { Head } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { useEffect, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { Image as ImageIcon, Plus, Download, X } from "lucide-react";
+import { Image as ImageIcon, Paperclip, Plus, Download, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  FileText,
+  FileSpreadsheet,
+  FileArchive,
+  File,
+} from "lucide-react";
+
 
 interface User {
   id: number;
@@ -15,14 +22,17 @@ interface Message {
   id: number;
   body: string;
   image_path?: string | null;
-  image_batch_id?: string | null;
+
+  file_path?: string | null;
+  file_name?: string | null;
+  file_size?: number | null;
+
   sender: User;
   receiver: User;
   created_at: string;
   is_seen?: boolean;
   has_unread?: boolean;
   optimistic?: boolean;
-  loadingImage?: boolean;
 }
 
 export default function Chat() {
@@ -48,8 +58,52 @@ export default function Chat() {
   const isPrependingRef = useRef(false);
   const isNearBottomRef = useRef(true);
 
+
+function getCookie(name: string): string {
+  const match = document.cookie.match(
+    new RegExp("(^| )" + name + "=([^;]+)")
+  );
+  return match ? decodeURIComponent(match[2]) : "";
+}
+
+function csrfFetch(url: string, options: RequestInit = {}) {
+  return fetch(url, {
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      ...options.headers,
+      "X-XSRF-TOKEN": getCookie("XSRF-TOKEN"),
+    },
+    ...options,
+  });
+}
+
+
+function formatBytes(bytes?: number) {
+  if (!bytes) return "";
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+function FileIcon({ name }: { name?: string }) {
+  const ext = name?.split(".").pop()?.toLowerCase();
+
+  if (["pdf", "doc", "docx"].includes(ext!))
+    return <FileText className="w-4 h-4" />;
+
+  if (["xls", "xlsx"].includes(ext!))
+    return <FileSpreadsheet className="w-4 h-4" />;
+
+  if (["zip", "rar"].includes(ext!))
+    return <FileArchive className="w-4 h-4" />;
+
+  return <File className="w-4 h-4" />;
+}
+
+
   async function loadContacts() {
-    const res = await fetch("/messages/contacts");
+    const res = await fetch("/messages/contacts", { credentials: "same-origin" });
     const data = await res.json();
     setContacts(data);
   }
@@ -121,7 +175,7 @@ export default function Chat() {
   async function loadInbox() {
     setLoadingInbox(true);
     try {
-      const res = await fetch("/messages");
+      const res = await fetch("/messages", { credentials: "same-origin" });
       const data = await res.json();
       setInbox(data);
     } finally {
@@ -136,7 +190,7 @@ export default function Chat() {
     if (!boxRef.current) return;
 
     boxRef.current.scrollTo({
-      top: boxRef.current.scrollHeight + 5,
+      top: boxRef.current.scrollHeight,
       behavior,
     });
   }
@@ -168,7 +222,9 @@ export default function Chat() {
     setHasMore(true);
     setLoadingConversation(true);
 
-    const res = await fetch(`/messages/conversation/${user.id}`);
+    const res = await fetch(`/messages/conversation/${user.id}`, {
+  credentials: "same-origin",
+});
     const data = await res.json();
 
     imageLoadedMap.current = {};
@@ -183,13 +239,9 @@ export default function Chat() {
     setLoadingConversation(false);
 
     // MARK AS SEEN IN DATABASE
-    await fetch(`/messages/conversation/${user.id}/seen`, {
-      method: "POST",
-      headers: {
-        "X-CSRF-TOKEN":
-          document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
-      },
-    });
+    await csrfFetch(`/messages/conversation/${user.id}/seen`, {
+  method: "POST",
+});
 
     window.dispatchEvent(new Event("messages-seen"));
 
@@ -273,50 +325,52 @@ export default function Chat() {
 
 
     channel.listen(".MessageSent", (e: any) => {
-      let msg: Message = e.message;
+  let msg: Message = e.message;
 
-      const isActiveChat =
-        activeUser && msg.sender.id === activeUser.id;
+  // FIX #3: sender must NEVER trust "seen" from their own broadcast
+  if (msg.sender.id === authId) {
+    msg = { ...msg, is_seen: false };
+  }
 
-      // If currently open, mark as seen instantly
-      if (isActiveChat && msg.receiver.id === authId) {
-        msg = { ...msg, is_seen: true, has_unread: false };
+  const isActiveChat =
+    activeUser && msg.sender.id === activeUser.id;
 
-        fetch(`/messages/${msg.id}/seen`, {
-          method: "POST",
-          headers: {
-            "X-CSRF-TOKEN":
-              document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
-          },
-        });
-      }
+  // Receiver has chat open → mark seen
+  if (isActiveChat && msg.receiver.id === authId) {
+    msg = { ...msg, is_seen: true, has_unread: false };
 
-      // IMPORTANT PART
-      if (!isActiveChat && msg.receiver.id === authId) {
-        msg = { ...msg, has_unread: true };
-      }
-
-      if (isActiveChat) {
-        setMessages(prev => {
-          if (prev.some(p => p.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-      }
-
-      setInbox(prev => {
-        const filtered = prev.filter(
-          m =>
-            !(
-              (m.sender.id === msg.sender.id &&
-                m.receiver.id === msg.receiver.id) ||
-              (m.sender.id === msg.receiver.id &&
-                m.receiver.id === msg.sender.id)
-            )
-        );
-
-        return [msg, ...filtered];
-      });
+    csrfFetch(`/messages/${msg.id}/seen`, {
+      method: "POST",
     });
+  }
+
+  // Receiver but chat NOT open → unread
+  if (!isActiveChat && msg.receiver.id === authId) {
+    msg = { ...msg, has_unread: true };
+  }
+
+  if (isActiveChat) {
+    setMessages(prev => {
+      if (prev.some(p => p.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }
+
+  setInbox(prev => {
+    const filtered = prev.filter(
+      m =>
+        !(
+          (m.sender.id === msg.sender.id &&
+            m.receiver.id === msg.receiver.id) ||
+          (m.sender.id === msg.receiver.id &&
+            m.receiver.id === msg.sender.id)
+        )
+    );
+
+    return [msg, ...filtered];
+  });
+});
+
 
    return () => {
     window.Echo.leave(`chat.${authId}`);
@@ -388,21 +442,27 @@ export default function Chat() {
       formData.append("image", file);
       formData.append("image_batch_id", batchId);
 
-      const res = await fetch("/messages", {
-        method: "POST",
-        headers: {
-          "X-CSRF-TOKEN":
-            document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
-        },
-        body: formData,
-      });
+      const res = await csrfFetch("/messages", {
+  method: "POST",
+  body: formData,
+});
+
+      if (!res.ok) {
+  console.error("Message send failed", res.status);
+  throw new Error("Message send failed");
+}
 
       const realMsg: Message = await res.json();
 
       setMessages(prev =>
         prev.map(m =>
           m.id === tempId
-            ? { ...realMsg, loadingImage: true }
+            ? {
+                ...realMsg,
+                is_seen: false,     // FORCE unseen
+                optimistic: false,
+                loadingImage: true,
+              }
             : m
         )
       );
@@ -410,7 +470,12 @@ export default function Chat() {
       setInbox(prev =>
         prev.map(m =>
           m.id === tempId
-            ? { ...realMsg, loadingImage: true }
+            ? {
+                ...realMsg,
+                is_seen: false,     // FORCE unseen
+                optimistic: false,
+                loadingImage: true,
+              }
             : m
         )
       );
@@ -422,6 +487,63 @@ export default function Chat() {
       setSendingCount(c => Math.max(0, c - 1));
     }
   }
+
+  async function sendFile(file: File) {
+  if (!activeUser) return;
+
+  setSendingCount(c => c + 1);
+  const tempId = Date.now();
+
+  const optimisticMsg: Message = {
+    id: tempId,
+    body: "",
+    file_name: file.name,
+    file_size: file.size,
+    sender: auth.user,
+    receiver: activeUser,
+    created_at: new Date().toISOString(),
+    is_seen: false,
+    optimistic: true,
+  };
+
+  setMessages(prev => [...prev, optimisticMsg]);
+  setInbox(prev => [optimisticMsg, ...prev]);
+
+  try {
+    const formData = new FormData();
+    formData.append("receiver_id", String(activeUser.id));
+    formData.append("file", file);
+
+    const res = await csrfFetch("/messages", {
+      method: "POST",
+      body: formData,
+    });
+
+    const realMsg = await res.json();
+
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === tempId
+          ? { ...realMsg, is_seen: false, optimistic: false }
+          : m
+      )
+    );
+
+    setInbox(prev =>
+      prev.map(m =>
+        m.id === tempId
+          ? { ...realMsg, is_seen: false, optimistic: false }
+          : m
+      )
+    );
+
+  } catch {
+    setMessages(prev => prev.filter(m => m.id !== tempId));
+  } finally {
+    setSendingCount(c => c - 1);
+  }
+}
+
 
   /* ================================
       Send message
@@ -467,39 +589,48 @@ export default function Chat() {
       formData.append("receiver_id", String(activeUser.id));
       formData.append("body", text);
 
-      const res = await fetch("/messages", {
-        method: "POST",
-        headers: {
-          "X-CSRF-TOKEN":
-            document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
-        },
-        body: formData,
-      });
+      const res = await csrfFetch("/messages", {
+  method: "POST",
+  body: formData,
+});
+
+      if (!res.ok) {
+  console.error("Message send failed", res.status);
+  throw new Error("Message send failed");
+}
 
       const realMsg: Message = await res.json();
 
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === tempId
-            ? { ...realMsg, loadingImage: true } // keep bubble alive
-            : m
-        )
-      );
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === tempId
+              ? {
+                  ...realMsg,
+                  is_seen: false,     // FORCE unseen for sender
+                  optimistic: false,
+                }
+              : m
+          )
+        );
 
-      setInbox(prev =>
-        prev.map(m =>
-          m.id === tempId
-            ? { ...realMsg, loadingImage: true }
-            : m
-        )
-      );
+        setInbox(prev =>
+          prev.map(m =>
+            m.id === tempId
+              ? {
+                  ...realMsg,
+                  is_seen: false,     // FORCE unseen for sender
+                  optimistic: false,
+                }
+              : m
+          )
+        );
 
-    } catch (e) {
-      console.error(e);
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-    } finally {
-      setSendingCount(c => Math.max(0, c - 1));
-    }
+      } catch (e) {
+        console.error(e);
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      } finally {
+        setSendingCount(c => Math.max(0, c - 1));
+      }
   }
 
   /* ================================
@@ -548,9 +679,11 @@ export default function Chat() {
 
   function ImageGrid({
     images,
+    mine,
     onLastImageLoad,
   }: {
     images: Message[];
+    mine: boolean;
     onLastImageLoad?: () => void;
   }) {
     const [, forceUpdate] = useState(0);
@@ -568,8 +701,8 @@ export default function Chat() {
 
     const wrapperSize =
       count === 1
-        ? "max-w-[70%] sm:max-w-[260px] md:max-w-[320px]"
-        : "max-w-[90%] sm:max-w-[320px] md:max-w-[360px]";
+        ? "max-w-[180px] sm:max-w-[260px] md:max-w-[320px]"
+        : "max-w-[200px] sm:max-w-[320px] md:max-w-[360px]";
 
     return (
       <div className={`grid ${grid} gap-1.5 ${wrapperSize}`}>
@@ -589,10 +722,10 @@ export default function Chat() {
             <div
               key={img.id}
               className={`relative w-full aspect-square sm:aspect-[4/3]
-                          min-h-[120px]
+                          min-h-[80px] sm:min-h-[120px]
                           rounded-xl overflow-hidden
                           bg-gray-300 dark:bg-neutral-700
-                          ${isLastSingle ? "md:col-start-2" : ""}`}
+                          ${isLastSingle && mine ? "col-start-2" : ""}`}
             >
               {/* PLACEHOLDER (only while loading) */}
               {!isLoaded && (
@@ -729,7 +862,9 @@ export default function Chat() {
                       ? m.body
                       : m.image_path
                         ? (m.sender.id === authId ? "You sent a photo" : "sent a photo")
-                        : ""}
+                        : m.file_path
+                          ? (m.sender.id === authId ? "You sent a file" : "sent a file")
+                          : ""}
                   </div>
                 </button>
               );
@@ -811,7 +946,7 @@ export default function Chat() {
                       loadOlderMessages();
                     }
                   }}
-                  className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-neutral-800"
+                  className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 space-y-3 bg-gray-50 dark:bg-neutral-800"
                 >
                   {loadingConversation && (
                     <div className="flex flex-1 items-center justify-center text-sm text-gray-400 py-6">
@@ -865,26 +1000,116 @@ export default function Chat() {
                           )}
 
                           <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                            <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
-                              <div
-                                className={`px-3 py-2 rounded-2xl text-sm shadow ${
-                                  mine
-                                    ? "bg-blue-600 text-white rounded-br-sm"
-                                    : "bg-white text-gray-900 border dark:bg-neutral-900 dark:text-gray-100 dark:border-neutral-700 rounded-bl-sm"
-                                }`}
-                              >
-                                {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                            <div
+                              className={`flex flex-col ${
+                                mine ? "items-end" : "items-start"
+                              } max-w-[85%] sm:max-w-[75%] min-w-0 overflow-hidden`}
+                            >
 
-                                {/* TIME (only when gap exists) */}
-                                {shouldShowTime(m, next) && (
-                                  <div className="mt-1 text-[10px] opacity-70 text-right">
-                                    {new Date(m.created_at).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
+                              {/* TEXT MESSAGE */}
+                              {m.body && (
+                                <div
+                                  className={`px-3 py-2 rounded-2xl text-sm shadow
+                                    max-w-full break-words whitespace-pre-wrap
+                                    ${mine
+                                      ? "bg-blue-600 text-white rounded-br-sm"
+                                      : "bg-white text-gray-900 border dark:bg-neutral-900 dark:text-gray-100 dark:border-neutral-700 rounded-bl-sm"
+                                    }`}
+                                >
+                                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+
+                                  {shouldShowTime(m, next) && (
+                                    <div className="mt-1 text-[10px] opacity-70 text-right">
+                                      {new Date(m.created_at).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* FILE MESSAGE — RESPONSIVE & SAFE */}
+                              {m.file_path && (
+                                <a
+                                  href={`/storage/${m.file_path}`}
+                                  download
+                                  className={`mt-1 block
+                                    max-w-[240px] sm:max-w-[300px] md:max-w-[360px]
+                                    rounded-lg overflow-hidden
+                                    text-xs sm:text-sm
+                                    ${mine
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-gray-200 text-gray-900 dark:bg-neutral-700 dark:text-gray-100"
+                                    }`}
+                                >
+                                  <div
+                                    className="
+                                      flex items-center gap-2
+                                      px-2 py-2 sm:px-3 sm:py-3
+                                      min-w-0
+                                    "
+                                  >
+                                    {/* icon */}
+                                    <div className="shrink-0">
+                                      <FileIcon name={m.file_name} />
+                                    </div>
+
+                                    {/* filename */}
+                                    <div className="flex flex-col min-w-0 overflow-hidden">
+                                      <span className="font-medium truncate">
+                                        {m.file_name}
+                                      </span>
+                                      <span className="opacity-70 text-[10px] sm:text-xs">
+                                        {formatBytes(m.file_size)}
+                                      </span>
+                                    </div>
+
+                                    {/* spinner */}
+                                    {m.optimistic && (
+                                      <span className="ml-auto shrink-0 w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    )}
                                   </div>
-                                )}
-                              </div>
+                                </a>
+                              )}
+
+                              {/* FILE PLACEHOLDER (while sending) */}
+                              {!m.file_path && m.optimistic && m.file_name && (
+                                <div
+                                  className={`mt-1 block
+                                    max-w-[240px] sm:max-w-[300px] md:max-w-[360px]
+                                    rounded-lg overflow-hidden
+                                    text-xs sm:text-sm
+                                    opacity-70
+                                    ${mine
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-gray-200 text-gray-900 dark:bg-neutral-700 dark:text-gray-100"
+                                    }`}
+                                >
+                                  <div
+                                    className="
+                                      flex items-center gap-2
+                                      px-2 py-2 sm:px-3 sm:py-3
+                                      min-w-0
+                                    "
+                                  >
+                                    {/* icon */}
+                                    <div className="shrink-0">
+                                      <FileIcon name={m.file_name} />
+                                    </div>
+
+                                    {/* filename */}
+                                    <div className="flex flex-col min-w-0 overflow-hidden">
+                                      <span className="font-medium truncate">
+                                        {m.file_name}
+                                      </span>
+                                      <span className="opacity-70 text-[10px] sm:text-xs">
+                                        {formatBytes(m.file_size)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Seen */}
                               {isLastMineAndSeen(m, i) && (
@@ -898,6 +1123,7 @@ export default function Chat() {
                                   Sending…
                                 </div>
                               )}
+
                             </div>
                           </div>
                         </div>
@@ -918,11 +1144,12 @@ export default function Chat() {
                         )}
 
                         <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                          <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[75%]`}>
+                          <div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}>
                             <ImageGrid
                               images={group.items}
+                              mine={mine}
                               onLastImageLoad={() => {
-                                if (isPrependingRef.current) return; // DO NOT jump when loading older
+                                if (isPrependingRef.current) return;
                                 if (!isNearBottomRef.current) return;
                                 scrollToBottom("auto");
                               }}
@@ -935,7 +1162,12 @@ export default function Chat() {
                 </div>
 
                 {/* Input */}
-                <div className="p-3 border-t flex items-center gap-2 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                <div className="
+                  p-3 border-t
+                  flex flex-wrap md:flex-nowrap
+                  items-center gap-2
+                  bg-white dark:bg-neutral-900 dark:border-neutral-700
+                ">
                   <label
                     htmlFor="chat-image"
                     className="flex items-center justify-center w-9 h-9 rounded-full 
@@ -974,12 +1206,47 @@ export default function Chat() {
                     }}
                     className="hidden"
                   />
+
+                  <label
+                      htmlFor="chat-file"
+                      className="flex items-center justify-center w-9 h-9 rounded-full 
+                                hover:bg-gray-200 dark:hover:bg-neutral-700 
+                                text-gray-600 dark:text-gray-300 transition cursor-pointer"
+                    >
+                      <Paperclip className="w-5 h-5 text-blue-600 dark:text-blue-500" />
+                    </label>
+
+                    <input
+                      id="chat-file"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !activeUser) return;
+
+                        if (file.type.startsWith("image/")) {
+                          toast.error("Use the image button to send photos.");
+                          e.target.value = "";
+                          return;
+                        }
+
+                        sendFile(file);
+                        e.target.value = "";
+                      }}
+                    />
+
                   <input
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && send()}
                     placeholder="Type a message..."
-                    className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+                    className="
+                      flex-1 min-w-0
+                      border rounded-full
+                      px-4 py-2 text-sm
+                      focus:outline-none focus:ring
+                      dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
                     disabled={sendingCount > 0}
                   />
                   <button

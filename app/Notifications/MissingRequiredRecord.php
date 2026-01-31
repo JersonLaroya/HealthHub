@@ -3,12 +3,13 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class MissingRequiredRecord extends Notification implements ShouldBroadcast
+class MissingRequiredRecord extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
@@ -19,16 +20,28 @@ class MissingRequiredRecord extends Notification implements ShouldBroadcast
 
     public function via($notifiable)
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     protected function payload()
     {
         return [
-            'title' => 'Missing medical requirement',
+            'title'   => 'Missing medical requirement',
             'message' => $this->message,
-            'slug' => $this->slug,
-            'url' => '/user/files',
+            'slug'    => $this->slug,
+            'url'     => '/user/files',
         ];
     }
 

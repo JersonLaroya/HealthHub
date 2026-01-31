@@ -31,13 +31,16 @@ class MessageController extends Controller
 
         $messages = Message::whereIn('id', $latestMessages)
             ->select(
-                'id',
+            'id',
                 'sender_id',
                 'receiver_id',
                 'conversation_key',
                 'body',
                 'image_path',
                 'image_batch_id',
+                'file_path',
+                'file_name',
+                'file_size',
                 'is_seen',
                 'created_at'
             )
@@ -72,6 +75,9 @@ class MessageController extends Controller
                 'body',
                 'image_path',
                 'image_batch_id',
+                'file_path',
+                'file_name',
+                'file_size',
                 'is_seen',
                 'created_at'
             )
@@ -103,7 +109,9 @@ class MessageController extends Controller
             'receiver_id' => 'required|exists:users,id',
             'body' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
+            'file' => 'nullable|file|max:10240', // ⬅ 10MB files
             'image_batch_id' => 'nullable|string|max:100',
+            
         ]);
 
         $sender = Auth::user();
@@ -119,16 +127,31 @@ class MessageController extends Controller
             $imagePath = $request->file('image')->store('chat', 'public');
         }
 
+        $filePath = null;
+        $fileName = null;
+        $fileSize = null;
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $filePath = $file->store('chat-files', 'public');
+            $fileName = $file->getClientOriginalName();
+            $fileSize = $file->getSize();
+        }
+
         $message = Message::create([
             'sender_id' => $sender->id,
             'receiver_id' => $receiver->id,
             'body' => $request->body,
             'image_path' => $imagePath,
             'image_batch_id' => $request->image_batch_id,
+            'file_path' => $filePath,
+            'file_name' => $fileName,
+            'file_size' => $fileSize,
+            'is_seen' => DB::raw('false'),
         ]);
 
         // broadcast(new MessageSent($message))->toOthers();
-        broadcast(new MessageSent($message));
+        broadcast(new MessageSent($message))->toOthers();
         // broadcast(new MessageSent($message))->toOthers();
 
         return response()->json(

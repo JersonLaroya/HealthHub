@@ -3,11 +3,13 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class NewUserCreated extends Notification implements ShouldQueue
+class NewUserCreated extends Notification implements ShouldQueue, ShouldBroadcast
 {
     use Queueable;
 
@@ -17,7 +19,36 @@ class NewUserCreated extends Notification implements ShouldQueue
 
     public function via($notifiable)
     {
-        return ['mail'];
+        // database + broadcast = instant
+        // mail = delayed
+        return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
+    }
+
+    public function toDatabase($notifiable)
+    {
+        return [
+            'title'   => 'Account Created',
+            'message' => 'Your HealthHub account has been created. Check your email for login details.',
+            'slug'    => 'account-created',
+            'url'     => '/login',
+        ];
+    }
+
+    public function toBroadcast($notifiable)
+    {
+        return new BroadcastMessage(
+            $this->toDatabase($notifiable)
+        );
     }
 
     public function toMail($notifiable)

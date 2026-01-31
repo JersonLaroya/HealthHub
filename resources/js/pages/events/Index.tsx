@@ -16,7 +16,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import SortableHeader from "@/components/custom/sort-table-header";
 import { DialogDescription } from "@radix-ui/react-dialog";
 
 export default function Index({ events, filters, breadcrumbs, currentRole}) {
@@ -28,8 +27,6 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
   const [deleting, setDeleting] = useState(false);
 
   const [search, setSearch] = useState(filters.search || "");
-  const [sort, setSort] = useState(filters.sort || "start_at");
-  const [direction, setDirection] = useState(filters.direction || "asc");
 
   const [startDate, setStartDate] = useState(filters.start_date || "");
   const [endDate, setEndDate] = useState(filters.end_date || "");
@@ -94,19 +91,6 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
     setImagePreview(event.image ? `/storage/${event.image}` : null);
   };
 
-    // Sorting
-  const handleSort = (column: string) => {
-    const newDirection = sort === column && direction === "asc" ? "desc" : "asc";
-    setSort(column);
-    setDirection(newDirection);
-
-    router.get(
-      indexUrl,
-      { search, sort: column, direction: newDirection },
-      { preserveState: true, replace: true }
-    );
-  };
-
 
 // Search
   const handleSearch = (e: React.FormEvent) => {
@@ -159,7 +143,7 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
   // Pagination
   const goToPage = (url: string | null) => {
     if (!url) return;
-    router.get(url, { search, sort, direction }, { preserveState: true });
+    router.get(url, { search }, { preserveState: true });
   };
 
 //For See More / See Less  
@@ -270,29 +254,11 @@ function EventDescription({ text }: { text: string }) {
             <table className="w-full text-sm border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                  <SortableHeader
-                    column="title"
-                    label="Title"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
+                  <th className="p-2 border-b">Title</th>
                   <th className="p-2 border-b">Image</th>
                   <th className="p-2 border-b">Description</th>
-                  <SortableHeader
-                    column="start_at"
-                    label="Start At"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    column="end_at"
-                    label="End At"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
+                  <th className="p-2 border-b">Start At</th>
+                  <th className="p-2 border-b">End At</th>
                   <th className="p-2 border-b">Created By</th>
                   <th className="p-2 border-b">Edited By</th>
                   <th className="p-2 border-b">Created At</th>

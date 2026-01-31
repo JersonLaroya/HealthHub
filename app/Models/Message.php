@@ -11,6 +11,7 @@ class Message extends Model
 
     protected $casts = [
         'is_seen' => 'boolean',
+        'file_size' => 'integer',
     ];
 
     protected $fillable = [
@@ -18,8 +19,16 @@ class Message extends Model
         'receiver_id',
         'conversation_key',
         'body',
+
+        // images
         'image_path',
         'image_batch_id',
+
+        // files
+        'file_path',
+        'file_name',
+        'file_size',
+
         'is_seen',
     ];
 

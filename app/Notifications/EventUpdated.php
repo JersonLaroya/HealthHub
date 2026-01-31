@@ -17,26 +17,38 @@ class EventUpdated extends Notification implements ShouldBroadcast, ShouldQueue
 
     public function via($notifiable)
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     public function toDatabase($notifiable)
     {
         return [
-            'title' => 'Event updated',
-            'message' => "{$this->event->title} has been updated.",
-            'url' => '/user/dashboard',
-            'slug' => 'event-updated',
+            'title'    => 'Event Updated',
+            'message'  => "{$this->event->title} has been updated.",
+            'slug'     => 'event-updated',
             'event_id' => $this->event->id,
+            'url'      => '/user/dashboard',
         ];
     }
 
     public function toBroadcast($notifiable)
     {
         return new \Illuminate\Notifications\Messages\BroadcastMessage([
-            'title' => 'Event updated',
+            'title'   => 'Event Updated',
             'message' => "{$this->event->title} has been updated.",
-            'url' => '/user/dashboard',
+            'url'     => '/user/dashboard',
         ]);
     }
 
@@ -45,7 +57,7 @@ class EventUpdated extends Notification implements ShouldBroadcast, ShouldQueue
         return (new MailMessage)
             ->subject('Event Updated')
             ->greeting("Hello {$notifiable->first_name},")
-            ->line("The following event was updated:")
+            ->line('The following event was updated:')
             ->line($this->event->title)
             ->action('View Event', url('/user/dashboard'))
             ->line('Please check the updated details.');

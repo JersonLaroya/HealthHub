@@ -3,12 +3,13 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-class RcyConsultationSubmitted extends Notification implements ShouldQueue
+class RcyConsultationSubmitted extends Notification implements ShouldQueue, ShouldBroadcast
 {
     use Queueable;
 
@@ -22,27 +23,39 @@ class RcyConsultationSubmitted extends Notification implements ShouldQueue
 
     public function via($notifiable): array
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     public function toDatabase($notifiable): array
     {
         return [
-            'title' => $this->title,
-            'message' => $this->message,
-            'url' => $this->url,
-            'slug' => $this->slug,
-            'consultation_id' => $this->consultationId,
+            'title'            => $this->title,
+            'message'          => $this->message,
+            'url'              => $this->url,
+            'slug'             => $this->slug,
+            'consultation_id'  => $this->consultationId,
         ];
     }
 
     public function toBroadcast($notifiable)
     {
         return new BroadcastMessage([
-            'title' => $this->title,
+            'title'   => $this->title,
             'message' => $this->message,
-            'url' => $this->url,
-            'slug' => $this->slug,
+            'url'     => $this->url,
+            'slug'    => $this->slug,
         ]);
     }
 

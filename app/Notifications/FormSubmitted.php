@@ -18,12 +18,24 @@ class FormSubmitted extends Notification implements ShouldBroadcast, ShouldQueue
         public string $senderName,
         public int $patientId,
         public string $formSlug,
-        public int $recordId   
+        public int $recordId
     ) {}
 
     public function via($notifiable)
     {
+        // database + broadcast = instant
+        // mail = delayed
         return ['database', 'broadcast', 'mail'];
+    }
+
+    /**
+     * Delay only the email notification
+     */
+    public function withDelay($notifiable)
+    {
+        return [
+            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+        ];
     }
 
     protected function payload($notifiable)
@@ -37,12 +49,12 @@ class FormSubmitted extends Notification implements ShouldBroadcast, ShouldQueue
         };
 
         return [
-            'title'     => 'New form submitted',
-            'message'   => "{$this->formTitle} submitted by {$this->senderName}",
-            'slug'      => 'form-submitted',
+            'title'      => 'New form submitted',
+            'message'    => "{$this->formTitle} submitted by {$this->senderName}",
+            'slug'       => 'form-submitted',
 
-            'record_id' => $this->recordId,  
-            'patient_id'=> $this->patientId,
+            'record_id'  => $this->recordId,
+            'patient_id' => $this->patientId,
 
             'url' => "/{$prefix}/patients/{$this->patientId}/files/{$this->formSlug}",
         ];
@@ -67,7 +79,7 @@ class FormSubmitted extends Notification implements ShouldBroadcast, ShouldQueue
         return (new MailMessage)
             ->subject('New Medical Form Submitted')
             ->greeting('Hello ' . $notifiable->name . ',')
-            ->line("A new medical form has been submitted.")
+            ->line('A new medical form has been submitted.')
             ->line("Form type: {$this->formTitle}")
             ->line("Submitted by: {$this->senderName}")
             ->action('Open record', url($data['url']))

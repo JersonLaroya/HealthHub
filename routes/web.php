@@ -513,11 +513,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/messages/conversation/{user}/seen', [MessageController::class, 'markConversationSeen']);
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount']);
 
-    // Messages page (UI)
-    // Route::get('/messages-page', function () {
-    //     return Inertia::render('messages/Chat');
-    // })->name('messages.page');
-
 });
 
 // Notifications
