@@ -20,9 +20,10 @@ import { Card } from "@/components/ui/card";
 interface LabType {
   id: number;
   name: string;
+  created_at: string;
 }
 
-export default function Index({ labTypes }: { labTypes: LabType[] }) {
+export default function Index({ labTypes }) {
   const { data, setData, post, processing, reset } = useForm({ name: "" });
 
   const [open, setOpen] = useState(false);
@@ -84,25 +85,30 @@ export default function Index({ labTypes }: { labTypes: LabType[] }) {
         {/* Table Card */}
         <Card className="p-4 shadow-sm bg-white dark:bg-neutral-800">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm border-collapse text-center">
               <thead>
-                <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                  <th className="p-3 border-b">Name</th>
-                  <th className="p-3 border-b text-right">Actions</th>
+                <tr className="bg-gray-50 dark:bg-neutral-700">
+                  <th className="p-3 border-b font-medium w-1/3 text-center">Name</th>
+                  <th className="p-3 border-b font-medium w-1/3 text-center">Created At</th>
+                  <th className="p-3 border-b font-medium w-1/3 text-center">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {labTypes.length ? labTypes.map((lab) => (
+                {labTypes.data && labTypes.data.length ? labTypes.data.map((lab) => (
                   <tr
                     key={lab.id}
                     className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition"
                   >
-                    <td className="p-3 border-b font-medium">
+                    <td className="p-3 border-b font-medium text-center">
                       {lab.name}
                     </td>
 
-                    <td className="p-3 border-b text-right space-x-2">
+                    <td className="p-3 border-b text-center text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(lab.created_at).toLocaleString()}
+                    </td>
+
+                    <td className="p-3 border-b text-center space-x-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -126,13 +132,39 @@ export default function Index({ labTypes }: { labTypes: LabType[] }) {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={2} className="p-6 text-center text-gray-500">
+                    <td colSpan={3} className="p-6 text-center text-gray-500">
                       No laboratory types found.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+
+            {labTypes.links && (
+            <div className="flex items-center justify-between gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!labTypes.prev_page_url}
+                onClick={() => router.get(labTypes.prev_page_url)}
+              >
+                Previous
+              </Button>
+
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Page {labTypes.current_page} of {labTypes.last_page}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!labTypes.next_page_url}
+                onClick={() => router.get(labTypes.next_page_url)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
           </div>
         </Card>
       </div>

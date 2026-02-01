@@ -368,6 +368,35 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     );
   };
 
+const handleApproveWithUpdate = () => {
+  if (!editingConsultation) return;
+
+  // 1️⃣ Update consultation first
+  putConsultation(
+    `/${prefix}/patients/${patient.id}/consultations/${editingConsultation.id}`,
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        // 2️⃣ Then approve record
+        router.patch(
+          `/${prefix}/patients/${patient.id}/consultations/${editingConsultation.id}/approve`,
+          {},
+          {
+            preserveScroll: true,
+            onSuccess: () => {
+              toast.success("Consultation approved.");
+              closeEditConsultation();
+              setApprovingId(null);
+              window.dispatchEvent(new Event("notifications-updated"));
+            },
+          }
+        );
+      },
+    }
+  );
+};
+
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -526,6 +555,9 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
               <tbody>
                 {consultations?.data?.length > 0 ? (
                   consultations.data.map((c) => {
+                    const isPending = c.record?.status === "pending";
+                    const isApproved = c.record?.status === "approved";
+
                     const dateTime = new Date(`${c.date}T${c.time}`);
                     const formattedDateTime = dateTime.toLocaleString("en-US", {
                       month: "short",   
@@ -648,77 +680,65 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                         </td>
 
                         <td className="p-2 border-l border-r border-b border-gray-300 dark:border-neutral-600">
-                          {c.status === 'pending' ? (
+                          {c.record?.status === "pending" ? (
                             <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
                               Pending
                             </span>
-                          ) : (
+                          ) : c.record?.status === "approved" ? (
                             <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
                               Approved
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
+                              —
                             </span>
                           )}
                         </td>
 
                         {canApprove && (
                           <td className="p-2 align-bottom border-l border-r border-b border-gray-300 dark:border-neutral-600">
+                            {/* ACTIONS */}
                             <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
 
-                              {/* Approve: Admin + Nurse — ONLY if pending */}
-                              {c.status === "pending" && (
+                              {/* APPROVE (opens modal, not direct approve) */}
+                              {canApprove && isPending && (
                                 <Button
                                   size="sm"
-                                  className="w-full sm:w-auto px-2 sm:px-3"
-                                  disabled={approvingId === c.id}
                                   onClick={() => {
-                                    if (isEmptyText(c.management_and_treatment)) {
-                                      toast.error(
-                                        "Please input Management & Treatment before approving this consultation."
-                                      );
-                                      return;
-                                    }
-
-                                    setApprovingId(c.id);
-
-                                    router.patch(
-                                      `/${role}/patients/${patient.id}/consultations/${c.id}/approve`,
-                                      {},
-                                      {
-                                        preserveScroll: true,
-                                        onSuccess: () => {
-                                          toast.success("Consultation approved.");
-                                          window.dispatchEvent(new Event("notifications-updated"));
-                                        },
-                                        onError: () => toast.error("Failed to approve consultation."),
-                                        onFinish: () => setApprovingId(null),
-                                      }
-                                    );
+                                    openEditConsultation(c);
+                                    setApprovingId(c.id); // mark this modal as APPROVE mode
                                   }}
                                 >
-                                  {approvingId === c.id ? "Approving..." : "Approve"}
+                                  Approve
                                 </Button>
                               )}
 
-                              {(isAdmin || role === "nurse") && (
-                                <Button variant ="outline" size="sm" onClick={() => openEditConsultation(c)}>
+                              {/* EDIT — only when approved */}
+                              {canApprove && isApproved && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setApprovingId(null); // normal edit mode
+                                    openEditConsultation(c);
+                                  }}
+                                >
                                   Edit
                                 </Button>
                               )}
 
-                              {/* Delete: Admin only */}
+                              {/* DELETE — always visible to admin */}
                               {isAdmin && (
-                                <>
-
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => { 
-                                      setConsultationToDelete(c); 
-                                      setShowDeleteModal(true); 
-                                    }}
-                                  >
-                                    Delete
-                                  </Button>
-                                </>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setConsultationToDelete(c);
+                                    setShowDeleteModal(true);
+                                  }}
+                                >
+                                  Delete
+                                </Button>
                               )}
                             </div>
                           </td>
@@ -1169,7 +1189,13 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
             <DialogTitle>Edit Consultation</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleUpdateConsultation} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              approvingId ? handleApproveWithUpdate() : handleUpdateConsultation(e);
+            }}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 gap-4">
               {/* Date */}
               <div>
@@ -1363,7 +1389,13 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
                 Cancel
               </Button>
               <Button type="submit" disabled={editingConsultProcessing}>
-                {editingConsultProcessing ? "Updating..." : "Update"}
+                {editingConsultProcessing
+                  ? approvingId
+                    ? "Approving..."
+                    : "Updating..."
+                  : approvingId
+                  ? "Approve"
+                  : "Update"}
               </Button>
             </DialogFooter>
           </form>

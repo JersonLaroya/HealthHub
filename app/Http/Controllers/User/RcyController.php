@@ -9,6 +9,7 @@ use App\Models\Consultation;
 use App\Models\Disease;
 use App\Models\Inquiry;
 use App\Models\ListOfInquiry;
+use App\Models\Record;
 use App\Models\User;
 use App\Models\VitalSign;
 use App\Notifications\RcyInquirySubmitted;
@@ -39,7 +40,7 @@ class RcyController extends Controller
     {
         $authUser = $request->user();
 
-        $status = 'pending';
+        //$status = 'pending';
 
         // Create vital signs snapshot
         $vitalSigns = VitalSign::create([
@@ -56,18 +57,30 @@ class RcyController extends Controller
 
         // Create consultation
         $consultation = Consultation::create([
-            'user_id' => $patient->id,
+            'patient_id' => $patient->id,
             'date' => $request->date,
             'time' => $request->time,
             'vital_signs_id' => $vitalSigns->id,
             'medical_complaint' => $request->medical_complaint,
             'created_by' => $authUser->id,
-            'status' => $status,
+            //'status' => $status,
         ]);
 
         // Attach diseases (same as clinic side)
         if ($request->filled('disease_ids')) {
             $consultation->diseases()->sync($request->disease_ids);
+        }
+
+        $service = \App\Models\Service::where('slug', 'clinic-consultation-record-form')->first();
+
+        if ($service) {
+            Record::create([
+                'user_id' => $patient->id,
+                'consultation_id' => $consultation->id,
+                'service_id' => $service->id,
+                'response_data' => [],
+                'status' => Record::STATUS_PENDING,
+            ]);
         }
 
         // Event for auto show in Show.tsx

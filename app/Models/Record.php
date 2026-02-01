@@ -14,6 +14,16 @@ class Record extends Model
     const STATUS_APPROVED = 'approved';
     const STATUS_REJECTED = 'rejected';
 
+    public function scopeApproved($query)
+    {
+        return $query->where('records.status', self::STATUS_APPROVED);
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('records.status', self::STATUS_PENDING);
+    }
+
     protected $fillable = [
         'user_id',
         'consultation_id',
@@ -52,4 +62,5 @@ class Record extends Model
     {
         return $this->belongsTo(LabResult::class);
     }
+    
 }

@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import SortableHeader from "@/components/custom/sort-table-header";
 
 export default function DiseaseCategories({ categories, filters }) {
   const [showModal, setShowModal] = useState(false);
@@ -30,9 +29,6 @@ export default function DiseaseCategories({ categories, filters }) {
     name: "",
     search: filters.search || "",
   });
-
-  const [sort, setSort] = useState(filters.sort || "name");
-  const [direction, setDirection] = useState(filters.direction || "asc");
 
   const clearForm = () => {
     setData({ name: "", search: data.search });
@@ -96,19 +92,6 @@ export default function DiseaseCategories({ categories, filters }) {
     });
   };
 
-  // Sorting
-  const handleSort = (column) => {
-    const newDirection = sort === column && direction === "asc" ? "desc" : "asc";
-    setSort(column);
-    setDirection(newDirection);
-
-    router.get(
-      baseUrl,
-      { search: data.search, sort: column, direction: newDirection },
-      { preserveState: true, replace: true }
-    );
-  };
-
   // Search submit
   const handleSearch = (e) => {
     e.preventDefault();
@@ -148,24 +131,12 @@ export default function DiseaseCategories({ categories, filters }) {
         {/* Table */}
         <Card className="p-4 shadow-md bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse min-w-[400px]">
+            <table className="w-full table-fixed text-sm border-collapse min-w-[500px] text-center"></table><table className="w-full text-sm border-collapse min-w-[400px]">
               <thead>
-                <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                  <SortableHeader
-                    column="name"
-                    label="Name"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    column="created_at"
-                    label="Created At"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
-                  <th className="p-2 border-b">Actions</th>
+                <tr className="bg-gray-50 dark:bg-neutral-700">
+                  <th className="p-2 border-b font-medium w-1/3 text-center">Name</th>
+                  <th className="p-2 border-b font-medium w-1/3 text-center">Created At</th>
+                  <th className="p-2 border-b font-medium w-1/3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,11 +146,13 @@ export default function DiseaseCategories({ categories, filters }) {
                       key={cat.id}
                       className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
                     >
-                      <td className="p-2 border-b">{cat.name}</td>
-                      <td className="p-2 border-b">
+                      <td className="p-2 border-b text-center font-medium">{cat.name}</td>
+
+                      <td className="p-2 border-b text-center text-sm text-gray-600 dark:text-gray-400">
                         {new Date(cat.created_at).toLocaleString()}
                       </td>
-                      <td className="p-2 border-b space-x-2">
+
+                      <td className="p-2 border-b text-center space-x-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(cat)}>
                           Edit
                         </Button>
@@ -218,7 +191,7 @@ export default function DiseaseCategories({ categories, filters }) {
                 size="sm"
                 disabled={!categories.prev_page_url}
                 onClick={() =>
-                  router.get(categories.prev_page_url, { search: data.search, sort, direction }, { preserveState: true })
+                  router.get(categories.prev_page_url, { search: data.search }, { preserveState: true })
                 }
               >
                 Previous
@@ -231,7 +204,7 @@ export default function DiseaseCategories({ categories, filters }) {
                 size="sm"
                 disabled={!categories.next_page_url}
                 onClick={() =>
-                  router.get(categories.next_page_url, { search: data.search, sort, direction }, { preserveState: true })
+                  router.get(categories.next_page_url, { search: data.search }, { preserveState: true })
                 }
               >
                 Next

@@ -22,6 +22,12 @@ class DiseaseClusterAnalyticsController extends Controller
             $diseaseCount = [];
 
             foreach ($items as $item) {
+                 $consultation = $item->consultation;
+
+                if (!$consultation) {
+                    continue;
+                }
+                
                 foreach ($item->consultation->diseases as $disease) {
                     $diseaseCount[$disease->name] = ($diseaseCount[$disease->name] ?? 0) + 1;
                 }

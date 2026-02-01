@@ -111,6 +111,21 @@ class PatientController extends Controller
 
         $schoolYear = Setting::value('school_year');
 
+        // Use if Consultation have its own status field
+        // $consultations = $patient->consultations()
+        //     ->with([
+        //         'diseases',
+        //         'treatments',
+        //         'vitalSigns',
+        //         'creator:id,first_name,last_name,signature',
+        //         'updater:id,first_name,last_name,signature',
+        //     ])
+        //     ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+        //     ->orderBy('date', 'asc')
+        //     ->orderBy('time', 'asc')
+        //     ->paginate(10)
+        //     ->withQueryString();
+
         $consultations = $patient->consultations()
             ->with([
                 'diseases',
@@ -118,10 +133,20 @@ class PatientController extends Controller
                 'vitalSigns',
                 'creator:id,first_name,last_name,signature',
                 'updater:id,first_name,last_name,signature',
+                'record',
             ])
-            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
-            ->orderBy('date', 'asc')
-            ->orderBy('time', 'asc')
+            ->leftJoin('records', function ($join) {
+                $join->on('records.consultation_id', '=', 'consultations.id');
+            })
+            ->orderByRaw("
+                CASE 
+                    WHEN records.status = ? THEN 0 
+                    ELSE 1 
+                END
+            ", [Record::STATUS_PENDING])
+            ->orderBy('consultations.date', 'asc')
+            ->orderBy('consultations.time', 'asc')
+            ->select('consultations.*')
             ->paginate(10)
             ->withQueryString();
 
@@ -447,6 +472,20 @@ class PatientController extends Controller
     {
         $service = Service::where('slug', $slug)->firstOrFail();
 
+        $role = auth()->user()->userRole->name;
+
+        // Admin / Nurse can view any record
+        if (in_array($role, ['Admin', 'Nurse'])) {
+            return response()->json([
+                'service' => [
+                    'slug' => $service->slug,
+                    'file_path' => $service->file_path,
+                ],
+                'responses' => $record->response_data,
+            ]);
+        }
+
+        // Regular users: only their own records
         abort_if(
             $record->user_id !== $patient->id ||
             $record->service_id !== $service->id,
@@ -482,9 +521,14 @@ class PatientController extends Controller
 
     public function deleteRecord(User $patient, string $slug, $recordId)
     {
+        
         $record = Record::where('id', $recordId)
             ->where('user_id', $patient->id)
             ->firstOrFail();
+        
+        if ($record->status !== Record::STATUS_APPROVED) {
+            abort(403, 'Approved records cannot be deleted.');
+        }
 
         $record->delete();
 

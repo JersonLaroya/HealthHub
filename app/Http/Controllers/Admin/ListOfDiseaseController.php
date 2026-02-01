@@ -14,14 +14,12 @@ class ListOfDiseaseController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $sort = $request->input('sort', 'name');
-        $direction = $request->input('direction', 'asc');
 
         $diseases = Disease::with('category')
             ->when($search, function ($query, $search) {
                 $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%']);
             })
-            ->orderBy($sort, $direction)
+            ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
 
@@ -32,8 +30,6 @@ class ListOfDiseaseController extends Controller
             'categories' => $categories,
             'filters' => [
                 'search' => $search,
-                'sort' => $sort,
-                'direction' => $direction,
             ],
         ]);
     }

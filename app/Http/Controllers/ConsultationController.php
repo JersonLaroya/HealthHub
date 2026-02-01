@@ -39,7 +39,7 @@ class ConsultationController extends Controller
 
         // Create consultation
         $consultation = Consultation::create([
-            'user_id' => $patient->id,
+            'patient_id' => $patient->id,
             'date' => $request->date,
             'time' => $request->time,
             'vital_signs_id' => $vitalSigns->id,
@@ -47,7 +47,7 @@ class ConsultationController extends Controller
             'management_and_treatment' => $request->management_and_treatment,
             'created_by' => $authUser->id,
             'updated_by' => $authUser->id,
-            'status' => $status,
+            //'status' => $status,
         ]);
 
         // Attach diseases (MULTIPLE)
@@ -119,7 +119,7 @@ class ConsultationController extends Controller
     public function destroy(User $patient, Consultation $consultation)
     {
         // Make sure the consultation belongs to the patient
-        if ($consultation->user_id !== $patient->id) {
+        if ($consultation->patient_id !== $patient->id) {
             abort(404);
         }
 
@@ -156,29 +156,41 @@ class ConsultationController extends Controller
             abort(403);
         }
 
-        if ($consultation->status === 'approved') {
+        $record = Record::where('consultation_id', $consultation->id)
+            ->whereHas('service', fn ($q) =>
+                $q->where('slug', 'clinic-consultation-record-form')
+            )
+            ->latest()
+            ->first();
+
+        if ($record && $record->status === Record::STATUS_APPROVED) {
             return back()->with('info', 'Consultation is already approved.');
         }
 
-        $consultation->update([
-            'status' => 'approved',
-            'updated_by' => auth()->id(),
-        ]);
+        // if ($consultation->status === 'approved') {
+        //     return back()->with('info', 'Consultation is already approved.');
+        // }
 
-        // CREATE RECORD WHEN APPROVED
-        $service = Service::where('slug', 'clinic-consultation-record-form')->first();
+        $record = Record::where('consultation_id', $consultation->id)
+            ->whereHas('service', fn ($q) =>
+                $q->where('slug', 'clinic-consultation-record-form')
+            )
+            ->latest()
+            ->first();
 
-        if ($service && !Record::where('consultation_id', $consultation->id)->exists()) {
-            Record::create([
-                'user_id' => $consultation->user_id,
-                'consultation_id' => $consultation->id,
-                'service_id' => $service->id,
-                'response_data' => json_encode([]),
-                'status' => Record::STATUS_APPROVED,
-            ]);
+        if (!$record) {
+            abort(404, 'Consultation record not found.');
         }
 
-        event(new ConsultationApproved($consultation->user_id, $consultation->id));
+        if ($record->status === Record::STATUS_APPROVED) {
+            return back()->with('info', 'Consultation is already approved.');
+        }
+
+        $record->update([
+            'status' => Record::STATUS_APPROVED,
+        ]);
+
+        event(new ConsultationApproved($consultation->patient_id, $consultation->id));
         
         // mark the notification as read for both Admin and Nurse
         User::whereHas('userRole', function ($q) {

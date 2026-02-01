@@ -8,6 +8,7 @@ interface Props {
     first_name?: string;
     middle_name?: string;
     last_name?: string;
+    student_id?: string;
     birthdate?: string;
     sex?: string;
     course?: string;
@@ -54,7 +55,7 @@ export default function AthletePage2({ patient }: Props) {
     name: fullName,
 
     sport_event: '',
-    student_id: '',
+    student_id: patient.student_id || '',
     activity: '',
     activity_participated: '',
     organized_by: '',
@@ -160,13 +161,12 @@ export default function AthletePage2({ patient }: Props) {
                     />{' '}
                     with student ID{' '}
                     <input
-                    type="text"
-                    value={form.data.student_id}
-                    onChange={(e) => form.setData('student_id', e.target.value)}
-                    className={`inline w-24 border-b h-6 text-sm mx-1 focus:outline-none ${
-                      !studentIdValid ? 'border-red-600' : 'border-gray-400'
-                    }`}
-                    />, express my desire to participate in the{' '}
+                      type="text"
+                      value={form.data.student_id}
+                      readOnly
+                      className="inline w-24 border-b h-6 text-sm mx-1 focus:outline-none border-gray-400 bg-transparent"
+                    />
+                    , express my desire to participate in the{' '}
                     <input
                     type="text"
                     value={form.data.activity_participated}

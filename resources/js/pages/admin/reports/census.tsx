@@ -45,6 +45,7 @@ export default function CensusReport() {
   const wellChartRef = useRef<HTMLDivElement>(null);
   const sickChartRef = useRef<HTMLDivElement>(null);
   const treatmentChartRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
 
 async function uploadChart(
   ref: React.RefObject<HTMLDivElement>,
@@ -151,81 +152,93 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
         </div>
 
         {/* FILTERS */}
-        <Card className="p-5 w-full max-w-4xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <Card className="p-5 w-full">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:items-end">
 
             {/* DATE RANGE */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">From</span>
+            <div className="md:col-span-5 flex flex-col gap-3 sm:flex-row">
+              <div className="flex items-center gap-2 w-full">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  From
+                </span>
                 <input
                   type="date"
                   value={filters.from}
                   onChange={(e) =>
                     setFilters((prev) => ({ ...prev, from: e.target.value }))
                   }
-                  className="border rounded-md px-3 py-2 text-sm"
+                  className="border rounded-md px-3 py-2 text-sm w-full"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">To</span>
+              <div className="flex items-center gap-2 w-full">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  To
+                </span>
                 <input
                   type="date"
                   value={filters.to}
                   onChange={(e) =>
                     setFilters((prev) => ({ ...prev, to: e.target.value }))
                   }
-                  className="border rounded-md px-3 py-2 text-sm"
+                  className="border rounded-md px-3 py-2 text-sm w-full"
                 />
               </div>
-
             </div>
 
             {/* GROUP */}
-            <Select
-              value={filters.group}
-              onValueChange={(v) =>
-                setFilters((prev) => ({ ...prev, group: v }))
-              }
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Select Group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="student">Students</SelectItem>
-                <SelectItem value="employee">Employees</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="md:col-span-3">
+              <Select
+                value={filters.group}
+                onValueChange={(v) =>
+                  setFilters((prev) => ({ ...prev, group: v }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="student">Students</SelectItem>
+                  <SelectItem value="employee">Employees</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Button
-              onClick={() => reload(filters)}
-              disabled={loading}
-              className="w-full sm:w-auto"
-            >
-              {loading ? "Filtering..." : "Filter"}
-            </Button>
+            {/* ACTIONS */}
+            <div className="md:col-span-4 flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={() => reload(filters)}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? "Filtering..." : "Filter"}
+              </Button>
 
-            <Button
-              variant="outline"
-              onClick={async () => {
-                await uploadChart(wellChartRef, "well");
-                await uploadChart(sickChartRef, "sick");
-                await uploadChart(treatmentChartRef, "treatment");
+              <Button
+                variant="outline"
+                disabled={downloading}
+                onClick={async () => {
+                  setDownloading(true);
 
-                const params = new URLSearchParams({
-                  from: appliedFilters.from,
-                  to: appliedFilters.to,
-                  group: appliedFilters.group,
-                }).toString();
+                  await uploadChart(wellChartRef, "well");
+                  await uploadChart(sickChartRef, "sick");
+                  await uploadChart(treatmentChartRef, "treatment");
 
-                window.location.href = `/admin/reports/census/download?${params}`;
-              }}
-            >
-              Download Excel
-            </Button>
+                  const params = new URLSearchParams({
+                    from: appliedFilters.from,
+                    to: appliedFilters.to,
+                    group: appliedFilters.group,
+                  }).toString();
+
+                  window.location.href = `/admin/reports/census/download?${params}`;
+                  setDownloading(false);
+                }}
+                className="w-full"
+              >
+                {downloading ? "Downloading..." : "Download Excel"}
+              </Button>
+            </div>
 
           </div>
         </Card>

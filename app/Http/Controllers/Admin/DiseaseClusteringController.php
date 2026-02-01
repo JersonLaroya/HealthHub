@@ -10,7 +10,14 @@ class DiseaseClusteringController extends Controller
 {
     public function generate(DiseaseClusteringService $service)
     {
-        $service->cluster(3); // you can change k later
+        $result = $service->cluster(3);
+
+        if (!$result['ok']) {
+            return back()->with('warning',
+                "Disease pattern analysis requires at least {$result['required']} approved consultations with diseases. ".
+                "Currently available: {$result['count']}."
+            );
+        }
 
         return back()->with('success', 'Disease clusters generated successfully.');
     }

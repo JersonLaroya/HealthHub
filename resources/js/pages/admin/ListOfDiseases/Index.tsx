@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import SortableHeader from "@/components/custom/sort-table-header";
 
 export default function ListOfDiseases({ diseases, categories, filters }) {
   const [showModal, setShowModal] = useState(false);
@@ -31,9 +30,6 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
     disease_category_id: "",
     search: filters.search || "",
   });
-
-  const [sort, setSort] = useState(filters.sort || "name");
-  const [direction, setDirection] = useState(filters.direction || "asc");
 
   const clearForm = () => {
     setData({ name: "", disease_category_id: "", search: data.search });
@@ -92,17 +88,6 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
     });
   };
 
-  const handleSort = (column) => {
-    const newDirection = sort === column && direction === "asc" ? "desc" : "asc";
-    setSort(column);
-    setDirection(newDirection);
-    router.get(
-      baseUrl,
-      { search: data.search, sort: column, direction: newDirection },
-      { preserveState: true, replace: true }
-    );
-  };
-
   const handleSearch = (e) => {
     e.preventDefault();
     router.get(baseUrl, { search: data.search }, { preserveState: true, replace: true });
@@ -114,7 +99,7 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
       <div className="p-6 space-y-6">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
           <h1 className="text-2xl font-bold">List of Diseases</h1>
-          <Button onClick={handleAdd}>+ Add Disease</Button>
+          <Button onClick={handleAdd}>Add Disease</Button>
         </div>
 
         {/* Search */}
@@ -141,31 +126,13 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
         {/* Table */}
         <Card className="p-4 shadow-md bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse min-w-[500px]">
+            <table className="w-full table-fixed text-sm border-collapse min-w-[600px] text-center">
               <thead>
-                <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
-                  <SortableHeader
-                    column="name"
-                    label="Disease"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    column="disease_category_id"
-                    label="Category"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    column="created_at"
-                    label="Created At"
-                    sortBy={sort}
-                    sortDirection={direction}
-                    onSort={handleSort}
-                  />
-                  <th className="p-2 border-b">Actions</th>
+                <tr className="bg-gray-50 dark:bg-neutral-700">
+                  <th className="p-2 border-b font-medium w-1/4 text-center">Disease</th>
+                  <th className="p-2 border-b font-medium w-1/4 text-center">Category</th>
+                  <th className="p-2 border-b font-medium w-1/4 text-center">Created At</th>
+                  <th className="p-2 border-b font-medium w-1/4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,10 +142,17 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                       key={d.id}
                       className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
                     >
-                      <td className="p-2 border-b">{d.name}</td>
-                      <td className="p-2 border-b">{d.category?.name || "No category"}</td>
-                      <td className="p-2 border-b">{new Date(d.created_at).toLocaleString()}</td>
-                      <td className="p-2 border-b space-x-2">
+                      <td className="p-2 border-b text-center">{d.name}</td>
+
+                      <td className="p-2 border-b text-center">
+                        {d.category?.name || "No category"}
+                      </td>
+
+                      <td className="p-2 border-b text-center text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(d.created_at).toLocaleString()}
+                      </td>
+
+                      <td className="p-2 border-b text-center space-x-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(d)}>
                           Edit
                         </Button>
@@ -214,7 +188,7 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                 size="sm"
                 disabled={!diseases.prev_page_url}
                 onClick={() =>
-                  router.get(diseases.prev_page_url, { search: data.search, sort, direction }, { preserveState: true })
+                  router.get(diseases.prev_page_url, { search: data.search }, { preserveState: true })
                 }
               >
                 Previous
@@ -227,7 +201,7 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                 size="sm"
                 disabled={!diseases.next_page_url}
                 onClick={() =>
-                  router.get(diseases.next_page_url, { search: data.search, sort, direction }, { preserveState: true })
+                  router.get(diseases.next_page_url, { search: data.search }, { preserveState: true })
                 }
               >
                 Next

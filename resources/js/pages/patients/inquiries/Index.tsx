@@ -397,7 +397,7 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
 
                 setDeleting(true);
 
-                router.delete(`/${prefix}/inquiries/${deletingInquiry}`, {
+                router.delete(`/admin/inquiries/${deletingInquiry}`, {
                     preserveScroll: true,
                     onSuccess: () => {
                         toast.success("Inquiry deleted successfully.");

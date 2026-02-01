@@ -17,7 +17,7 @@ export async function fillAthleteMedicalForm(allPagesData: any, slug: string) {
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const form = pdfDoc.getForm();
 
-  console.log('Filling Pre-Enrollment Form with data:', allPagesData);
+  console.log('Filling Athlete Form with data:', allPagesData);
 
 // ----------------------
 // Page 1 (DUHS / Head Nurse)

@@ -46,8 +46,18 @@ export default function Index({ patient, assignments, breadcrumbs = [] }: Props)
     f => !['pre-enrollment-health-form', 'pre-employment-health-form'].includes(f.slug)
   );
 
+
+  const roleName = patient.user_role?.name;
+
+  // Remove athlete form for Staff & Faculty
+  const roleFilteredForms =
+    roleName === 'Staff' || roleName === 'Faculty'
+      ? filteredDbForms.filter(f => f.slug !== 'athlete-medical')
+      : filteredDbForms;
+
   // Combine pre-form + filtered DB forms + Lab Results
-  const forms = [preForm, ...filteredDbForms, labResultsForm];
+  const forms = [preForm, ...roleFilteredForms, labResultsForm];
+
 
   return (
     <AppLayout>

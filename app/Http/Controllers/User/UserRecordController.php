@@ -9,25 +9,23 @@ use Inertia\Inertia;
 use App\Models\User;
 use App\Models\Consultation;
 use App\Models\Setting;
+use App\Models\Record;
 
 class UserRecordController extends Controller
 {
-    /**
-     * Display the logged-in user's consultation records.
-     */
     public function index(Request $request)
     {
         /** @var User $user */
         $user = $request->user();
 
         // =========================
-        // Patient info (same as admin show page)
+        // Patient info
         // =========================
         $patient = User::with([
             'vitalSign' => function ($q) {
                 $q->whereNotNull('blood_type')
-                ->orderBy('created_at', 'asc')
-                ->limit(1);
+                  ->orderBy('created_at', 'asc')
+                  ->limit(1);
             },
             'homeAddress.barangay.municipality.province',
             'presentAddress.barangay.municipality.province',
@@ -38,23 +36,23 @@ class UserRecordController extends Controller
         ])->findOrFail($user->id);
 
         // =========================
-        // Consultations (VIEW ONLY)
+        // ONLY APPROVED CONSULTATIONS
         // =========================
-        $consultations = Consultation::where('user_id', $user->id)
+        $consultations = Consultation::where('patient_id', $user->id)
+            ->whereHas('record', function ($q) {
+                $q->where('status', Record::STATUS_APPROVED);
+            })
             ->with([
                 'vitalSigns',
-                'diseases',
-                'creator',
-                'updater',
+                'record',
             ])
-            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('date', 'asc')
             ->orderBy('time', 'asc')
             ->paginate(10)
             ->withQueryString();
 
         // =========================
-        // School year (from settings)
+        // School year
         // =========================
         $setting = Setting::first();
 

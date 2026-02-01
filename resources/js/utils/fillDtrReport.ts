@@ -15,54 +15,64 @@ export async function fillDtrReport(consultations) {
 
   const totalPages = chunks.length;
 
-  for (let pageIndex = 0; pageIndex < chunks.length; pageIndex++) {
-    const chunk = chunks[pageIndex];
+ for (let pageIndex = 0; pageIndex < chunks.length; pageIndex++) {
+  const chunk = chunks[pageIndex];
 
-    const pdfDoc = await PDFDocument.load(templateBytes);
-    const form = pdfDoc.getForm();
-    const page = pdfDoc.getPages()[0];
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const form = pdfDoc.getForm();
+  const page = pdfDoc.getPages()[0];
 
-    // PAGE NUMBER
-    const currentPage = pageIndex + 1;
-    form.getTextField("page").setText(
-      `${currentPage} of ${totalPages}`
-    );
+  form.getTextField("page").setText(
+    `${pageIndex + 1} of ${totalPages}`
+  );
 
-    for (let i = 0; i < 18; i++) {
-      const c = chunk[i];
-      if (!c) break;
 
-      const row = i + 1;
+  // 🔹 fill rows
+  for (let i = 0; i < 18; i++) {
+    const c = chunk[i];
+    if (!c) break;
 
-      form.getTextField(`date${row}`).setText(formatDate(c.date));
-      form.getTextField(`time${row}`).setText(c.formatted_time || "");
-      form.getTextField(`name${row}`).setText(c.user?.name || "");
+    const row = i + 1;
 
-      const age = c.user?.birthdate
-        ? String(new Date().getFullYear() - new Date(c.user.birthdate).getFullYear())
-        : "";
-      form.getTextField(`age${row}`).setText(age);
+    form.getTextField(`date${row}`).setText(formatDate(c.date));
+    form.getTextField(`time${row}`).setText(c.formatted_time || "");
+    form.getTextField(`name${row}`).setText(c.patient?.name || "");
 
-      form.getTextField(`sex${row}`).setText(c.user?.sex || "");
+    const age = c.patient?.birthdate && c.date
+      ? String(calculateAgeAtDate(c.patient.birthdate, c.date))
+      : "";
+    form.getTextField(`age${row}`).setText(age);
 
-      const cyo = c.user?.course
-        ? `${c.user.course.code} ${c.user.year_level?.level || ""}`
-        : c.user?.office?.name || "";
-      form.getTextField(`course_year_office${row}`).setText(cyo);
+    form.getTextField(`sex${row}`).setText(c.patient?.sex || "");
 
-      form.getTextField(`chief_complaint${row}`).setText(c.medical_complaint || "");
-      form.getTextField(`management${row}`).setText(c.management_and_treatment || "");
+    const cyo = c.patient?.course
+      ? `${c.patient.course.code} ${c.patient.year_level?.level || ""}`
+      : c.patient?.office?.name || "";
+    form.getTextField(`course_year_office${row}`).setText(cyo);
 
-      if (c.user?.signature) {
-        await drawSignature(pdfDoc, page, form, `signature${row}`, c.user.signature);
-      }
+    form.getTextField(`chief_complaint${row}`)
+      .setText(c.medical_complaint || "");
+
+    form.getTextField(`management${row}`)
+      .setText(c.management_and_treatment || "");
+
+    if (c.patient?.signature) {
+      await drawSignature(
+        pdfDoc,
+        page,
+        form,
+        `signature${row}`,
+        c.patient.signature
+      );
     }
-
-    form.flatten();
-
-    const [copiedPage] = await finalPdf.copyPages(pdfDoc, [0]);
-    finalPdf.addPage(copiedPage);
   }
+
+  // ✅ flatten AFTER all rows are filled
+  form.flatten();
+
+  const [copiedPage] = await finalPdf.copyPages(pdfDoc, [0]);
+  finalPdf.addPage(copiedPage);
+}
 
   const bytes = await finalPdf.save();
   return new Blob([bytes], { type: "application/pdf" });
@@ -91,4 +101,18 @@ async function drawSignature(pdfDoc, page, form, fieldName, signaturePath) {
     width: rect.width,
     height: rect.height,
   });
+}
+
+function calculateAgeAtDate(birthdate, referenceDate) {
+  const birth = new Date(birthdate);
+  const ref = new Date(referenceDate);
+
+  let age = ref.getFullYear() - birth.getFullYear();
+  const m = ref.getMonth() - birth.getMonth();
+
+  if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) {
+    age--;
+  }
+
+  return age;
 }

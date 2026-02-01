@@ -67,6 +67,10 @@ class FileController extends Controller
         $user = $request->user();
         $category = optional($user->userRole)->category;
 
+        if ($slug === 'athlete-medical' && in_array(optional($user->userRole)->name, ['Staff', 'Faculty'])) {
+            abort(403, 'Athlete form is not applicable for Staff or Faculty.');
+        }
+
         if (!in_array($category, ['user', 'rcy'])) {
             abort(403, 'You do not have access to files.');
         }
@@ -139,6 +143,7 @@ class FileController extends Controller
             'first_name'      => $user->first_name,
             'middle_name'     => $user->middle_name,
             'last_name'       => $user->last_name,
+            'student_id'      => $user->ismis_id,
             'birthdate'       => $user->birthdate,
             'sex'             => $user->sex,
             'contact_no'      => $user->contact_no,
@@ -409,12 +414,24 @@ private function mapPage4DiseaseToDbName(string $name): ?string
 
     public function submitForm(Request $request, string $formType)
     {
+        if (
+            $formType === 'athlete-medical' &&
+            in_array(optional(auth()->user()->userRole)->name, ['Staff', 'Faculty'])
+        ) {
+            abort(403, 'Athlete form is not applicable for Staff or Faculty.');
+        }
         if (!in_array($formType, [
             'athlete-medical',
             'pre-enrollment-health-form',
             'pre-employment-health-form',
         ])) {
             abort(404);
+        }
+
+        $responses = $request->responses;
+
+        if (empty($responses) || !is_array($responses)) {
+            abort(422, 'Athlete form submission is incomplete.');
         }
 
         $request->validate([
@@ -475,11 +492,31 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             ));
         }
 
+        $diseasePage = $formType === 'pre-employment-health-form'
+            ? ($responses['page3']['age_have'] ?? [])
+            : ($responses['page4']['age_have'] ?? []);
+
+        $hasDisease = false;
+
+        if (!empty($diseasePage) && is_array($diseasePage)) {
+            foreach ($diseasePage as $item) {
+                // disease selected if NA exists and is false
+                if (isset($item['na']) && $item['na'] === false) {
+                    $hasDisease = true;
+                    break;
+                }
+            }
+        }
+
         // remove related notification
-        if (in_array($formType, [
-            'pre-enrollment-health-form',
-            'pre-employment-health-form',
-        ]) && !$record->consultation_id) {
+        if (
+            in_array($formType, [
+                'pre-enrollment-health-form',
+                'pre-employment-health-form',
+            ]) &&
+            !$record->consultation_id &&
+            $hasDisease
+        ) {
 
             // create empty vital signs snapshot
             $vital = VitalSign::create([

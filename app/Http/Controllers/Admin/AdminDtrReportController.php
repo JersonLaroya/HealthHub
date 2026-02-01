@@ -26,9 +26,9 @@ public function index(Request $request)
         ->pluck('year');
 
     $consultations = Consultation::with([
-            'user.course',
-            'user.yearLevel',
-            'user.office',
+            'patient.course',
+            'patient.yearLevel',
+            'patient.office',
             'vitalSigns'
         ])
         ->whereBetween('date', [$from, $to])
@@ -68,9 +68,9 @@ public function export(Request $request)
     ->pluck('year');
 
     $consultations = Consultation::with([
-            'user.course',
-            'user.yearLevel',
-            'user.office',
+            'patient.course',
+            'patient.yearLevel',
+            'patient.office',
             'vitalSigns'
         ])
         ->whereYear('date', $year)

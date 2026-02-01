@@ -114,6 +114,42 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     //     }
     // }
 
+useEffect(() => {
+  if (!auth?.user?.id) return;
+
+  const role = auth.user.user_role?.name;
+  if (!["Admin", "Nurse"].includes(role)) return;
+
+  const echo = (window as any).Echo;
+  if (!echo) return;
+
+  // ----------------------------
+  // Consultations channel
+  // ----------------------------
+  const consultationsChannel = echo.private("admin-consultations");
+
+  consultationsChannel.listen(".consultation.approved", () => {
+    loadNotifCount();
+    loadNotifications();
+  });
+
+  // ----------------------------
+  // Inquiries channel
+  // ----------------------------
+  const inquiriesChannel = echo.private("admin-inquiries");
+
+  inquiriesChannel.listen(".inquiry.approved", () => {
+    loadNotifCount();
+    loadNotifications();
+  });
+
+  return () => {
+    echo.leave("private-admin-consultations");
+    echo.leave("private-admin-inquiries");
+  };
+}, [auth?.user?.id]);
+
+
     async function markNotifRead(id: string, url?: string) {
         await csrfFetch(`/notifications/${id}/read`, {
             method: "POST",
@@ -160,6 +196,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     console.error("Echo not found on window");
     return;
   }
+  
 
   const channelName = `App.Models.User.${auth.user.id}`;
 
@@ -306,12 +343,24 @@ const mainNavItems: NavItem[] =
         },
 
         {
+        title: "Inquiries",
+        href: "/admin/inquiries",
+        icon: MessageCircle,
+        },
+
+        {
         title: "Diseases",
         icon: Activity,
         children: [
             { title: "Disease Categories", href: "/admin/disease-categories", icon: BookOpen },
             { title: "List of Diseases", href: "/admin/list-of-diseases", icon: FileBarChart2 },
         ],
+        },
+
+        {
+        title: "Treatments",
+        href: "/admin/treatments",
+        icon: HeartHandshake,
         },
 
         {

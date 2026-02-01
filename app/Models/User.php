@@ -103,7 +103,7 @@ class User extends Authenticatable
 
     public function consultations()
     {
-        return $this->hasMany(Consultation::class, 'user_id');
+        return $this->hasMany(Consultation::class, 'patient_id');
     }
 
     // inquiries made for this patient

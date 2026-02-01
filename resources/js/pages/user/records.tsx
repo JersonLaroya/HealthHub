@@ -158,9 +158,6 @@ export default function Records() {
                   <th className="p-2 text-left border-b">Date & Time</th>
                   <th className="p-2 text-left border-b">Vital Signs</th>
                   <th className="p-2 text-left border-b">Chief Complaint</th>
-                  <th className="p-2 text-left border-b">Disease</th>
-                  <th className="p-2 text-left border-b">Management & Treatment</th>
-                  <th className="p-2 text-left border-b">Status</th>
                 </tr>
               </thead>
 
@@ -180,8 +177,19 @@ export default function Records() {
                   return (
                     <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
 
-                      <td className="p-2 border-b">{formatted}</td>
+                      {/* DATE & TIME */}
+                      <td className="p-2 border-b">
+                        {new Date(`${c.date}T${c.time}`).toLocaleString("en-US", {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </td>
 
+                      {/* VITAL SIGNS */}
                       <td className="p-2 border-b align-top">
                         <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md space-y-1">
                           {c.vital_signs ? (
@@ -191,87 +199,44 @@ export default function Records() {
                               {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
                               {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}°C</div>}
                               {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
-                              {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
-                              {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
-                              {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
                             </>
                           ) : "-"}
                         </div>
                       </td>
 
+                      {/* CHIEF COMPLAINT */}
                       <td className="p-2 border-b align-top">
                         <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md">
                           {c.medical_complaint
-                            ? <>
+                            ? (
+                              <>
                                 {(expandedComplaints[c.id]
                                   ? c.medical_complaint
-                                  : c.medical_complaint.slice(0, 30))}
+                                  : c.medical_complaint.slice(0, 50)
+                                )}
 
-                                {c.medical_complaint.length > 30 && (
+                                {c.medical_complaint.length > 50 && (
                                   <button
                                     className="ml-1 text-blue-600 underline text-xs"
                                     onClick={() =>
-                                      setExpandedComplaints((p) => ({ ...p, [c.id]: !p[c.id] }))
+                                      setExpandedComplaints(p => ({ ...p, [c.id]: !p[c.id] }))
                                     }
                                   >
                                     {expandedComplaints[c.id] ? "See less" : "See more"}
                                   </button>
                                 )}
                               </>
-                            : "-"}
+                            )
+                            : "-"
+                          }
                         </div>
                       </td>
 
-                      <td className="p-2 border-b align-top">
-                        <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md">
-                          {c.diseases?.length
-                            ? c.diseases.map((d) => d.name).join(", ")
-                            : "-"}
-                        </div>
-                      </td>
-
-                      <td className="p-2 border-b align-top">
-                        <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md">
-                          {c.management_and_treatment
-                            ? <>
-                                {(expandedComplaints[`m_${c.id}`]
-                                  ? c.management_and_treatment
-                                  : c.management_and_treatment.slice(0, 30))}
-
-                                {c.management_and_treatment.length > 30 && (
-                                  <button
-                                    className="ml-1 text-blue-600 underline text-xs"
-                                    onClick={() =>
-                                      setExpandedComplaints((p) => ({
-                                        ...p,
-                                        [`m_${c.id}`]: !p[`m_${c.id}`],
-                                      }))
-                                    }
-                                  >
-                                    {expandedComplaints[`m_${c.id}`] ? "See less" : "See more"}
-                                  </button>
-                                )}
-                              </>
-                            : "-"}
-                        </div>
-                      </td>
-
-                      <td className="p-2 border-b">
-                        {c.status === "pending" ? (
-                          <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
-                            Pending
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
-                            Approved
-                          </span>
-                        )}
-                      </td>
                     </tr>
                   );
                 }) : (
                   <tr>
-                    <td colSpan={7} className="p-4 text-center text-gray-500">
+                    <td colSpan={3} className="p-4 text-center text-gray-500">
                       No records found.
                     </td>
                   </tr>

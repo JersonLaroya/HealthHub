@@ -20,59 +20,11 @@ class AdminReportController extends Controller
 {
     public function index()
     {
-        // TOTAL CONSULTATIONS
-        $totalConsultations = Consultation::count();
-
-        // TOTAL PATIENTS (user + rcy)
-        $totalPatients = User::whereHas('userRole', function ($q) {
-            $q->whereIn('category', ['user', 'rcy']);
-        })->count();
-
-        // TOTAL FACULTY & STAFF
-        $totalFacultyStaff = User::whereHas('userRole', function ($q) {
-            $q->whereIn('name', ['Faculty', 'Staff']);
-        })->count();
-
-        // TOTAL STUDENTS (Student role OR rcy category)
-        $totalStudents = User::whereHas('userRole', function ($q) {
-            $q->where('name', 'Student')
-              ->orWhere('category', 'rcy');
-        })->count();
-
-        $year = request('year') ?? now()->year;
-
-        $monthly = Consultation::select(
-                DB::raw("EXTRACT(MONTH FROM consultations.date) as month"),
-                DB::raw("COUNT(*) as total"),
-                DB::raw("SUM(CASE 
-                    WHEN ur.name = 'Student' OR ur.category = 'rcy' THEN 1 ELSE 0 END
-                ) as students"),
-                DB::raw("SUM(CASE 
-                    WHEN ur.name IN ('Faculty','Staff') THEN 1 ELSE 0 END
-                ) as faculty_staff")
-            )
-            ->join('users as u', 'consultations.user_id', '=', 'u.id')
-            ->join('user_roles as ur', 'u.user_role_id', '=', 'ur.id')
-            ->whereYear('consultations.date', $year)
-            ->groupBy(DB::raw("EXTRACT(MONTH FROM consultations.date)"))
-            ->orderBy(DB::raw("EXTRACT(MONTH FROM consultations.date)"))
-            ->get();
-
-        $months = collect(range(1,12))->map(function ($m) use ($monthly) {
-            $row = $monthly->firstWhere('month', $m);
-
-            return [
-                'month' => $m,
-                'students' => $row->students ?? 0,
-                'faculty_staff' => $row->faculty_staff ?? 0,
-                'total' => $row->total ?? 0,
-            ];
-        });
 
         // Clustering
         $clusters = ConsultationCluster::with([
                 'consultation.diseases',
-                'consultation.user.userRole'
+                'consultation.patient.userRole'
             ])->get()
             ->groupBy('cluster');
 
@@ -87,13 +39,17 @@ class AdminReportController extends Controller
             foreach ($items as $item) {
 
                 $consultation = $item->consultation;
-                $user = $consultation->user;
+                $patient = $consultation?->patient;
+
+                if (!$consultation || !$patient) {
+                    continue;
+                }
 
                 // ----------------
                 // AGE GROUP
                 // ----------------
-                if ($user && $user->birthdate && $consultation->date) {
-                    $age = Carbon::parse($user->birthdate)
+                if ($patient && $patient->birthdate && $consultation->date) {
+                    $age = Carbon::parse($patient->birthdate)
                         ->diffInYears(Carbon::parse($consultation->date));
 
                     $group = $this->getAgeGroupLabel($age);
@@ -103,7 +59,7 @@ class AdminReportController extends Controller
                 // ----------------
                 // ROLE
                 // ----------------
-                $roleName = $this->normalizeRole($user?->userRole);
+                $roleName = $this->normalizeRole($patient?->userRole);
                 $roles[$roleName] = ($roles[$roleName] ?? 0) + 1;
 
                 // ----------------
@@ -210,13 +166,6 @@ class AdminReportController extends Controller
         });
 
         return Inertia::render('admin/reports/index', [
-            'stats' => [
-                'totalPatients' => $totalPatients,
-                'totalConsultations' => $totalConsultations,
-                'totalFacultyStaff' => $totalFacultyStaff,
-                'totalStudents' => $totalStudents,
-            ],
-            'months' => $months,
             'year' => $year,
             'clusters' => $clusterReports,
             'clusterChart' => $clusterChart,
@@ -294,7 +243,7 @@ public function census()
         ->leftJoin('consultation_disease as cd', 'cd.disease_id', '=', 'd.id')
         ->leftJoin('consultations as c', function ($join) use ($from, $to, $userIds) {
             $join->on('cd.consultation_id', '=', 'c.id')
-                ->whereIn('c.user_id', $userIds)
+                ->whereIn('c.patient_id', $userIds)
                 ->whereBetween('c.date', [$from, $to]);
         })
         ->select(
@@ -315,7 +264,7 @@ public function census()
         ->leftJoin('consultation_treatment as ct', 'ct.treatment_id', '=', 't.id')
         ->leftJoin('consultations as c', function ($join) use ($from, $to, $userIds) {
             $join->on('ct.consultation_id', '=', 'c.id')
-                ->whereIn('c.user_id', $userIds)
+                ->whereIn('c.patient_id', $userIds)
                 ->whereBetween('c.date', [$from, $to]);
         })
         ->select(
@@ -482,7 +431,7 @@ public function downloadCensusTemplate()
             $count = DB::table('consultation_disease as cd')
                 ->join('consultations as c', 'cd.consultation_id', '=', 'c.id')
                 ->where('cd.disease_id', $disease->id)
-                ->whereIn('c.user_id', $userIds)
+                ->whereIn('c.patient_id', $userIds)
                 ->whereBetween('c.date', [$from, $to])
                 ->count();
 
@@ -525,7 +474,7 @@ public function downloadCensusTemplate()
         ->leftJoin('consultation_treatment as ct', 'ct.treatment_id', '=', 't.id')
         ->leftJoin('consultations as c', function ($join) use ($from, $to, $userIds) {
             $join->on('ct.consultation_id', '=', 'c.id')
-                ->whereIn('c.user_id', $userIds)
+                ->whereIn('c.patient_id', $userIds)
                 ->whereBetween('c.date', [$from, $to]);
         })
         ->select('t.name', DB::raw('COUNT(c.id) as total'))
@@ -563,7 +512,7 @@ public function downloadCensusTemplate()
        - TOTAL SEEN: Well + Sick + Treatment totals
     ===================================================== */
     $totalCases = DB::table('consultations as c')
-        ->whereIn('c.user_id', $userIds)
+        ->whereIn('c.patient_id', $userIds)
         ->whereBetween('c.date', [$from, $to])
         ->count();
 
@@ -598,13 +547,13 @@ public function downloadCensusTemplate()
 
     $totalSick = DB::table('consultation_disease as cd')
         ->join('consultations as c', 'cd.consultation_id', '=', 'c.id')
-        ->whereIn('c.user_id', $userIds)
+        ->whereIn('c.patient_id', $userIds)
         ->whereBetween('c.date', [$from, $to])
         ->count();
 
     $totalTreatment = DB::table('consultation_treatment as ct')
         ->join('consultations as c', 'ct.consultation_id', '=', 'c.id')
-        ->whereIn('c.user_id', $userIds)
+        ->whereIn('c.patient_id', $userIds)
         ->whereBetween('c.date', [$from, $to])
         ->count();
 

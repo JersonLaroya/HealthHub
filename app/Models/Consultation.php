@@ -9,8 +9,12 @@ class Consultation extends Model
 {
     use HasFactory;
 
+    // NOTE:
+    // consultation.status is deprecated.
+    // Consultation state is determined via related records.status
+
     protected $fillable = [
-        'user_id',
+        'patient_id',
         'created_by',
         'updated_by',
         'medical_complaint',
@@ -18,17 +22,17 @@ class Consultation extends Model
         'vital_signs_id',
         'date',
         'time',
-        'status',
+        //'status',
     ];
 
     /* ======================
        Relationships
     ====================== */
 
-    // Patient (now User)
-    public function user()
+    // Patient
+    public function patient()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'patient_id');
     }
 
     // Admin / Nurse / RCY who created it
@@ -63,6 +67,11 @@ class Consultation extends Model
     public function vitalSigns()
     {
         return $this->belongsTo(VitalSign::class, 'vital_signs_id');
+    }
+
+        public function record()
+    {
+        return $this->hasOne(Record::class);
     }
 
     protected static function booted()

@@ -188,7 +188,9 @@ export async function fillClinicConsultationRecordForm(patient, consultations, s
     return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
   };
 
-  const records = (consultations?.data || []).filter(c => c.status === 'approved');
+  const records = (consultations?.data || []).filter(
+    c => c.record?.status === 'approved'
+  );
   
   const signatureCache = new Map();
 

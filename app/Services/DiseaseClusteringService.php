@@ -14,8 +14,9 @@ class DiseaseClusteringService
     {
         $diseases = Disease::orderBy('id')->get();
 
-        $consultations = Consultation::has('diseases')
-            ->with(['diseases', 'user.userRole'])
+        $consultations = Consultation::whereHas('diseases')
+            ->whereHas('record', fn ($q) => $q->where('status', 'approved'))
+            ->with(['diseases', 'patient.userRole'])
             ->get();
 
         $samples = [];
@@ -23,7 +24,9 @@ class DiseaseClusteringService
 
         foreach ($consultations as $consultation) {
 
-            if (!$consultation->user || !$consultation->date) {
+            $patient = $consultation->patient;
+
+            if (!$patient || !$consultation->date) {
                 continue;
             }
 
@@ -35,13 +38,13 @@ class DiseaseClusteringService
             // PEOPLE FEATURES
             // -------------------
 
-            $age = Carbon::parse($consultation->user->birthdate)
+            $age = Carbon::parse($patient->birthdate)
                 ->diffInYears(Carbon::parse($consultation->date));
 
             $ageGroup = $this->getAgeGroup($age);
 
-            $roleName = $consultation->user->userRole->name ?? null;
-            $category = $consultation->user->userRole->category ?? null;
+            $roleName = $patient->userRole->name ?? null;
+            $category = $patient->userRole->category ?? null;
 
             $roleCode = $this->getRoleCode($roleName, $category);
 
@@ -63,7 +66,12 @@ class DiseaseClusteringService
         }
 
         if (count($samples) < $k) {
-            throw new \Exception("Not enough consultations to form {$k} clusters.");
+            return [
+                'ok' => false,
+                'reason' => 'NOT_ENOUGH_DATA',
+                'count' => count($samples),
+                'required' => $k,
+            ];
         }
 
         $kmeans = new KMeans($k);
@@ -92,7 +100,10 @@ class DiseaseClusteringService
             }
         }
 
-        return $clusters;
+        return [
+            'ok' => true,
+            'clusters' => $clusters,
+        ];
     }
 
     // -------------------

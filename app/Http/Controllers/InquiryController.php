@@ -67,41 +67,53 @@ class InquiryController extends Controller
         return back()->with('success', 'Inquiry added successfully.');
     }
 
-    public function approve(Inquiry $inquiry)
-    {
-        abort_unless(
-            in_array(auth()->user()->userRole?->name, ['Admin', 'Nurse']),
-            403
-        );
+public function approve(Inquiry $inquiry)
+{
+    logger()->info('Before approve', $inquiry->toArray());
 
-        // Prevent double approval
-        if ($inquiry->status === 'approved') {
-            return back()->with('info', 'Inquiry already approved.');
-        }
+    abort_unless(
+        in_array(auth()->user()->userRole?->name, ['Admin', 'Nurse']),
+        403
+    );
 
-        $inquiry->update([
-            'status' => 'approved',
-            'updated_by' => auth()->id(),
-        ]);
+    // Always work with fresh DB state
+    $inquiry->refresh();
 
-        event(new InquiryApproved($inquiry->user_id, $inquiry->id));
-
-        /* =====================================================
-        MARK RELATED RCY INQUIRY NOTIFICATIONS AS READ
-        (Admin + Nurse)
-        ====================================================== */
-        User::whereHas('userRole', function ($q) {
-            $q->whereIn('name', ['Admin', 'Nurse']);
-        })->each(function ($user) use ($inquiry) {
-
-            $user->unreadNotifications()
-                ->whereRaw("data->>'slug' = ?", ['rcy-inquiry'])
-                ->whereRaw("data->>'inquiry_id' = ?", [(string) $inquiry->id])
-                ->update(['read_at' => now()]);
-        });
-
-        return back()->with('success', 'Inquiry approved.');
+    if ($inquiry->status === 'approved') {
+        return back()->with('info', 'Inquiry already approved.');
     }
+
+    // Approve inquiry
+    $inquiry->update([
+        'status' => 'approved',
+        'updated_by' => auth()->id(),
+    ]);
+
+    logger()->info('After approve', $inquiry->fresh()->toArray());
+
+    // Broadcast event (UI refresh)
+    event(new InquiryApproved($inquiry->user_id, $inquiry->id));
+
+    /**
+     * =====================================================
+     * MARK RELATED RCY INQUIRY NOTIFICATIONS AS READ
+     * (Admin + Nurse)
+     * =====================================================
+     */
+    User::whereHas('userRole', function ($q) {
+        $q->whereIn('name', ['Admin', 'Nurse']);
+    })->each(function ($user) use ($inquiry) {
+
+        $user->unreadNotifications()
+            ->whereRaw("data->>'slug' = ?", ['rcy-inquiry'])
+            ->whereRaw("data->>'inquiry_id' = ?", [(string) $inquiry->id])
+            ->update(['read_at' => now()]);
+    });
+
+    return back()->with('success', 'Inquiry approved.');
+}
+
+
 
     /**
      * Update an inquiry

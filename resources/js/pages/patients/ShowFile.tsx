@@ -84,6 +84,12 @@ export default function ShowFile({ patient, service, records }: Props) {
 
         const { responses, service: svc } = await res.json();
 
+        if (!responses || Object.keys(responses).length === 0) {
+        toast.error("This athlete form has no saved data.");
+        return;
+        }
+        console.log("Fetched responses: ", responses);
+
         let pdfBytes;
 
         if (svc.slug === "pre-enrollment-health-form") {
@@ -186,6 +192,7 @@ export default function ShowFile({ patient, service, records }: Props) {
 
                       <td className="p-2 border-b whitespace-normal break-words">
                         <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                            {/* View is ALWAYS visible */}
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -195,144 +202,57 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 {viewingRecordId === record.id ? "Viewing…" : "View PDF"}
                             </Button>
 
+                            {/* PENDING → Approve / Reject */}
                             {(isAdmin || role === "nurse") && record.status === "pending" && (
                                 <>
-                                    <Button
+                                <Button
                                     size="sm"
                                     variant="default"
-                                    onClick={() =>
-                                        router.post(`/${prefix}/forms/${record.id}/approve`, {}, {
-                                        onSuccess: () => {
-                                            toast.success("Form approved");
-
-                                            setRecordList(prev =>
-                                            prev.map(r =>
-                                                r.id === record.id ? { ...r, status: "approved" } : r
-                                            )
-                                            );
-
-                                            window.dispatchEvent(new Event("notifications-updated"));
-                                        }
-                                        })
-                                    }
-                                    >
-                                    Approve
-                                    </Button>
-
-                                    <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                        router.post(`/${prefix}/forms/${record.id}/reject`, {}, {
-                                        onSuccess: () => {
-                                            toast.error("Form rejected");
-
-                                            setRecordList(prev =>
-                                            prev.map(r =>
-                                                r.id === record.id ? { ...r, status: "rejected" } : r
-                                            )
-                                            );
-
-                                            window.dispatchEvent(new Event("notifications-updated"));
-                                        }
-                                        })
-                                    }
-                                    >
-                                    Reject
-                                    </Button>
-                                </>
-                                )}
-
-                                {(isAdmin || role === "nurse") && record.status === "approved" && (
-                                <Button size="sm" disabled className="cursor-not-allowed opacity-70">
-                                    Approved
-                                </Button>
-                                )}
-
-                                {(isAdmin || role === "nurse") && record.status === "rejected" && (
-                                <Button size="sm" disabled variant="destructive" className="cursor-not-allowed opacity-70">
-                                    Rejected
-                                </Button>
-                                )}
-
-                            {isStaff && service.slug === "pre-enrollment-health-form" && (
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => {
-                                        const rec = recordList.find(r => r.id === record.id); // use `rec` here
-                                        setEditingRecord(rec || null);
-                                        setFormData(rec?.response_data || {}); // load existing responses
-                                    }}
-                                    >
-                                    Edit
-                                </Button>
-                            )}
-
-                            {isStaff && service.slug === "athlete-medical" && (
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
                                     onClick={() => {
                                     const rec = recordList.find(r => r.id === record.id);
-
-                                    const baseData = rec?.response_data || {
-                                        vitalSigns: { bp: "", pr: "", rr: "", temp: "", o2sat: "" },
-                                        anthropometry: { height: "", weight: "", bmi: "" },
-                                        generalHealth: "",
-                                        organSystems: {
-                                        skin: { normal: false, abnormal: false, desc: "" },
-                                        head: { normal: false, abnormal: false, desc: "" },
-                                        eyes: { normal: false, abnormal: false, desc: "" },
-                                        ears: { normal: false, abnormal: false, desc: "" },
-                                        nose: { normal: false, abnormal: false, desc: "" },
-                                        mouth: { normal: false, abnormal: false, desc: "" },
-                                        neck: { normal: false, abnormal: false, desc: "" },
-                                        heart: { normal: false, abnormal: false, desc: "" },
-                                        lungs: { normal: false, abnormal: false, desc: "" },
-                                        back: { normal: false, abnormal: false, desc: "" },
-                                        abdomen: { normal: false, abnormal: false, desc: "" },
-                                        extremities: { normal: false, abnormal: false, desc: "" },
-                                        genito: { normal: false, abnormal: false, desc: "" },
-                                        neurologic: { normal: false, abnormal: false, desc: "" },
-                                        },
-                                        assessment: "",
-                                        recommendation: "",
-                                        clearance: "",
-                                        examiner: { name: "", prc: "", date: "" },
-                                    };
-
-                                    const enrichedData = {
-                                        ...baseData,
-                                        examiner: {
-                                            ...(baseData.examiner || {}),
-                                            date: baseData.examiner?.date || new Date().toISOString().split("T")[0],
-                                        },
-                                        page1: {
-                                        ...(baseData.page1 || {}),
-                                        duhs_name: loggedInUser?.name || patient.name || "",
-                                        duhs_signature: loggedInUser?.signature || null,
-                                        },
-                                    };
-
+                                    setEditMode("approve");
                                     setEditingRecord(rec || null);
-                                    setFormData(enrichedData);
+                                    setFormData(rec?.response_data || {});
                                     }}
                                 >
-                                    Edit
+                                    Approve
                                 </Button>
-                                )}
 
-                            {isAdmin && (
                                 <Button
                                     size="sm"
                                     variant="destructive"
-                                    onClick={() => setDeletingRecord(record)}
+                                    onClick={() =>
+                                    router.post(`/${prefix}/forms/${record.id}/reject`, {}, {
+                                        onSuccess: () => {
+                                        toast.error("Form rejected");
+                                        setRecordList(prev =>
+                                            prev.map(r =>
+                                            r.id === record.id ? { ...r, status: "rejected" } : r
+                                            )
+                                        );
+                                        window.dispatchEvent(new Event("notifications-updated"));
+                                        }
+                                    })
+                                    }
                                 >
-                                    Delete
+                                    Reject
+                                </Button>
+                                </>
+                            )}
+
+                            {/* APPROVED → Delete only */}
+                            {isAdmin && record.status === "approved" && (
+                                <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setDeletingRecord(record)}
+                                >
+                                Delete
                                 </Button>
                             )}
-                        </div>
+
+                            {/* REJECTED → nothing extra */}
+                            </div>
                       </td>
                     </tr>
                   ))
@@ -604,71 +524,49 @@ export default function ShowFile({ patient, service, records }: Props) {
             </div>
 
             {/* Examiner Info */}
-            <div className="mb-4 text-sm grid grid-cols-3 gap-2">
-            <div className="flex flex-col">
-                <label className="font-medium">Examined by:</label>
-                <input
-                type="text"
-                value={formData.examiner?.name || ""}
-                onChange={e =>
-                    setFormData({ ...formData, examiner: { ...formData.examiner, name: e.target.value } })
-                }
-                className="border p-1 rounded"
-                />
-            </div>
-            <div className="flex flex-col">
-                <label className="font-medium">PRC License no:</label>
-                <input
-                type="text"
-                value={formData.examiner?.prc || ""}
-                onChange={e =>
-                    setFormData({ ...formData, examiner: { ...formData.examiner, prc: e.target.value } })
-                }
-                className="border p-1 rounded"
-                />
-            </div>
-            <div className="flex flex-col">
-                <label className="font-medium">Date examined:</label>
-                <input
-                type="date"
-                value={formData.examiner?.date || new Date().toISOString().split("T")[0]}
-                onChange={e =>
-                    setFormData({ ...formData, examiner: { ...formData.examiner, date: e.target.value } })
-                }
-                className="border p-1 rounded"
-                />
-            </div>
-            </div>
-
-            {/* Save / Cancel */}
             <div className="flex justify-end space-x-2 mt-4">
                 <Button variant="outline" onClick={() => setEditingRecord(null)}>
-                Cancel
+                    Cancel
                 </Button>
+
                 <Button
-                onClick={async () => {
+                    variant="default"
+                    onClick={async () => {
                     try {
-                    await router.put(
+                        // 1️⃣ Save updated responses
+                        await router.put(
                         `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
-                        { responses: formData },
-                        {
-                        onSuccess: () => {
-                            toast.success("Record updated", {
-                            description: `Athlete medical record updated successfully.`,
-                            });
-                            setEditingRecord(null);
-                        },
-                        onError: () => toast.error("Failed to update record"),
-                        }
-                    );
-                    } catch (err) {
-                    console.error(err);
+                        { responses: formData }
+                        );
+
+                        // 2️⃣ Approve the record
+                        await router.post(
+                        `/${prefix}/forms/${editingRecord.id}/approve`
+                        );
+
+                        toast.success("Form approved");
+
+                        // 3️⃣ Update local state immediately
+                        setRecordList(prev =>
+                        prev.map(r =>
+                            r.id === editingRecord.id
+                            ? { ...r, status: "approved" }
+                            : r
+                        )
+                        );
+
+                        // 4️⃣ Close modal
+                        setEditingRecord(null);
+
+                        window.dispatchEvent(new Event("notifications-updated"));
+                    } catch {
+                        toast.error("Failed to approve form");
                     }
-                }}
+                    }}
                 >
-                Save
+                    Approve
                 </Button>
-            </div>
+                </div>
             </div>
         </div>
         )}
@@ -784,32 +682,41 @@ export default function ShowFile({ patient, service, records }: Props) {
                 </Button>
 
                 <Button
+                    variant="default"
                     onClick={async () => {
                         try {
+                        // 1️⃣ Save updated responses
                         await router.put(
                             `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
-                            { responses: formData },
-                            {
-                            onSuccess: () => {
-                                setEditingRecord(null);
-                                toast.success("Record updated", {
-                                description: `Record #${editingRecord.id} updated successfully.`,
-                                });
-                            },
-                            onError: () => {
-                                toast.error("Update failed", {
-                                description: "Please check your inputs and try again.",
-                                });
-                            },
-                            }
+                            { responses: formData }
                         );
-                        } catch (err) {
-                        console.error(err);
-                        toast.error("An unexpected error occurred");
+
+                        // 2️⃣ Approve record
+                        await router.post(
+                            `/${prefix}/forms/${editingRecord.id}/approve`
+                        );
+
+                        toast.success("Form approved");
+
+                        // 3️⃣ Update table state
+                        setRecordList(prev =>
+                            prev.map(r =>
+                            r.id === editingRecord.id
+                                ? { ...r, status: "approved" }
+                                : r
+                            )
+                        );
+
+                        // 4️⃣ Close modal
+                        setEditingRecord(null);
+
+                        window.dispatchEvent(new Event("notifications-updated"));
+                        } catch {
+                        toast.error("Failed to approve form");
                         }
                     }}
                     >
-                    Save
+                    Approve
                     </Button>
             </div>
             </div>

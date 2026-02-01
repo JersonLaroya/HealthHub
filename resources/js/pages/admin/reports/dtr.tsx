@@ -178,18 +178,18 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
                     <tr key={c.id} className="border-b">
                       <td className="p-2">{new Date(c.date).toLocaleDateString()}</td>
                       <td className="p-2">{c.formatted_time }</td>
-                      <td className="p-2 font-medium">{c.user?.name}</td>
-                      <td className="p-2">{c.user?.sex || "-"}</td>
+                      <td className="p-2 font-medium">{c.patient?.name}</td>
+                      <td className="p-2">{c.patient?.sex || "-"}</td>
                       <td className="p-2">
-                        {c.user?.course
-                          ? `${c.user.course.code} ${c.user.year_level?.level || ""}`
-                          : c.user?.office?.name || "-"}
+                        {c.patient?.course
+                          ? `${c.patient.course.code} ${c.patient.year_level?.level || ""}`
+                          : c.patient?.office?.name || "-"}
                       </td>
                       <td className="p-2">{c.medical_complaint}</td>
                       <td className="p-2">{c.management_and_treatment}</td>
                       <td className="p-2 text-center">
-                        {c.user?.signature ? (
-                        <SignatureImage src={`/storage/${c.user.signature}`} />
+                        {c.patient?.signature ? (
+                        <SignatureImage src={`/storage/${c.patient.signature}`} />
                         ) : (
                         <span className="text-xs text-muted-foreground">No signature</span>
                         )}

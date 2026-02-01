@@ -12,8 +12,12 @@ class LaboratoryTypeController extends Controller
 
     public function index()
     {
-        return Inertia::render('admin/laboratoryTypes/Index', [
-            'labTypes' => LaboratoryType::orderBy('name')->get(['id','name']),
+        $labTypes = LaboratoryType::orderBy('name')
+            ->paginate(10)
+            ->withQueryString();
+
+        return inertia('admin/laboratoryTypes/Index', [
+            'labTypes' => $labTypes,
         ]);
     }
 

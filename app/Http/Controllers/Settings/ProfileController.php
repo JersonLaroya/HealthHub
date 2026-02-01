@@ -53,11 +53,6 @@ class ProfileController extends Controller
         $signaturePath = $user->signature; // default to existing
         if ($canHaveSignature && $request->filled('signature') && str_starts_with($request->signature, 'data:image')) {
 
-            // Delete old signature if exists
-            if ($user->signature && Storage::disk('public')->exists($user->signature)) {
-                Storage::disk('public')->delete($user->signature);
-            }
-
             // Convert base64 to file
             if (preg_match('/^data:image\/(\w+);base64,/', $request->signature, $type)) {
                 $dataBase64 = substr($request->signature, strpos($request->signature, ',') + 1);

@@ -9,10 +9,14 @@ use App\Http\Controllers\Admin\LaboratoryRequestController;
 use App\Http\Controllers\Admin\LaboratoryTypeController;
 use App\Http\Controllers\Admin\LabRequestPageController;
 use App\Http\Controllers\Admin\ListOfDiseaseController;
+use App\Http\Controllers\Admin\ListOfInquiryController;
+use App\Http\Controllers\Admin\ListOfTreatmentController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\AdminNurseDashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\ConsultationController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DtrController;
 use App\Http\Controllers\Admin\RcyMemberController;
 use App\Http\Controllers\FormAssignmentController;
@@ -204,9 +208,8 @@ Route::middleware(['role:Admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('admin/dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', [AdminNurseDashboardController::class, 'index'])
+        ->name('dashboard');
 
         Route::get('/events', fn() => Inertia::render('admin/events'))->name('events');
         Route::get('/files', fn() => Inertia::render('admin/files'))->name('files');
@@ -265,7 +268,6 @@ Route::middleware(['role:Admin'])
         Route::get('/rcy/members/search-students', [RcyMemberController::class, 'searchStudents'])->name('rcy.members.search');
 
 
-
         Route::get('/forms', [ServiceController::class, 'index'])->name('forms.index');
         Route::post('/forms', [ServiceController::class, 'store'])->name('forms.store');
         Route::put('/forms/{form}', [ServiceController::class, 'update'])->name('forms.update');
@@ -285,12 +287,24 @@ Route::middleware(['role:Admin'])
             Route::get('/search-users', [LabRequestPageController::class, 'searchUsers']);
 
         });
+
+        // Inquiries
+        Route::get('/inquiries', [ListOfInquiryController::class, 'index']);
+        Route::post('/inquiries', [ListOfInquiryController::class, 'store']);
+        Route::put('/inquiries/{listOfInquiry}', [ListOfInquiryController::class, 'update']);
+        Route::delete('/inquiries/{listOfInquiry}', [ListOfInquiryController::class, 'destroy']);
         
         // Disease Categories
         Route::get('/disease-categories', [DiseaseCategoryController::class, 'index']);
         Route::post('/disease-categories', [DiseaseCategoryController::class, 'store']);
         Route::put('/disease-categories/{category}', [DiseaseCategoryController::class, 'update']);
         Route::delete('/disease-categories/{category}', [DiseaseCategoryController::class, 'destroy']);
+
+        // Treatments
+        Route::get('/treatments', [ListOfTreatmentController::class, 'index']);
+        Route::post('/treatments', [ListOfTreatmentController::class, 'store']);
+        Route::put('/treatments/{treatment}', [ListOfTreatmentController::class, 'update']);
+        Route::delete('/treatments/{treatment}', [ListOfTreatmentController::class, 'destroy']);
 
         Route::get('/list-of-diseases', [ListOfDiseaseController::class, 'index']);
         Route::post('/list-of-diseases', [ListOfDiseaseController::class, 'store']);
@@ -313,8 +327,9 @@ Route::middleware(['role:Admin'])
         )->name('analytics.disease-clusters');
 });
 
+// Routes for Nurse
 Route::middleware(['role:Nurse'])->prefix('nurse')->name('nurse.')->group(function () {
-    Route::get('/dashboard', fn() => Inertia::render('admin/dashboard'))->name('dashboard');
+    Route::get('/dashboard', [AdminNurseDashboardController::class, 'index'])->name('dashboard');
     Route::get('/dtr', fn() => Inertia::render('admin/dtr'))->name('dtr');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
