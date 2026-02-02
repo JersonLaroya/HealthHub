@@ -45,6 +45,7 @@ export default function ShowFile({ patient, service, records }: Props) {
   const role = loggedInUser?.user_role?.name?.toLowerCase();
   const isStaff = role === "admin" || role === "nurse";
   const prefix = role === "nurse" ? "nurse" : "admin";
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     if (!(window as any).Echo) return;
@@ -137,23 +138,47 @@ export default function ShowFile({ patient, service, records }: Props) {
     );
   };
 
+  const handleBack = () => {
+    router.get(
+        `/${prefix}/patients/${patient.id}/files`,
+        {},
+        {
+        preserveState: true,
+        preserveScroll: true,
+        }
+    );
+    };
+
+
   return (
     <AppLayout>
       <Head title={`${service.title} Records`} />
 
       <div className="p-6 space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {service.title}
-          </h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBack}
+                >
+                    Back
+                </Button>
 
-          {/* Form Type Label */}
-          <span className="px-3 py-1 rounded-full text-sm font-medium
-            bg-blue-100 text-blue-700
-            dark:bg-blue-900 dark:text-blue-300">
-            Medical Form
-          </span>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {service.title}
+                </h1>
+            </div>
+
+            {/* Form Type Label */}
+            <span
+                className="self-start sm:self-auto px-3 py-1 rounded-full text-sm font-medium
+                bg-blue-100 text-blue-700
+                dark:bg-blue-900 dark:text-blue-300"
+            >
+                Medical Form
+            </span>
         </div>
 
         {/* Patient Info */}

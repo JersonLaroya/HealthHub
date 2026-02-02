@@ -109,14 +109,14 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            <Card className="relative overflow-hidden p-4 sm:p-6 opacity-60 bg-gradient-to-br from-muted/60 via-background to-muted/40">
+            {/* <Card className="relative overflow-hidden p-4 sm:p-6 opacity-60 bg-gradient-to-br from-muted/60 via-background to-muted/40">
               <div className="h-full flex flex-col justify-center">
                 <p className="text-sm text-muted-foreground">More analytics</p>
                 <p className="text-base sm:text-lg font-medium mt-1">
                   Coming soon
                 </p>
               </div>
-            </Card>
+            </Card> */}
 
           </div>
 

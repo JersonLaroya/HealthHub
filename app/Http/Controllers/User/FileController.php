@@ -508,7 +508,6 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             }
         }
 
-        // remove related notification
         if (
             in_array($formType, [
                 'pre-enrollment-health-form',
@@ -518,7 +517,9 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             $hasDisease
         ) {
 
-            // create empty vital signs snapshot
+            /* =========================
+            CREATE VITAL SIGNS
+            ========================= */
             $vital = VitalSign::create([
                 'user_id' => Auth::id(),
                 'bp' => null,
@@ -531,38 +532,60 @@ private function mapPage4DiseaseToDbName(string $name): ?string
                 'bmi' => null,
             ]);
 
-            // create consultation
+            /* =========================
+            CREATE CONSULTATION
+            ========================= */
+            $now = now('Asia/Manila');
+
             $consultation = Consultation::create([
-                'user_id' => Auth::id(),
-                'date' => now()->toDateString(),
-                'time' => now()->format('H:i'),
-                'vital_signs_id' => $vital->id,
+                'patient_id'      => Auth::id(),
+                'date'            => now()->toDateString(),
+                'time'              => $now->format('H:i'),
+                'vital_signs_id'  => $vital->id,
                 'medical_complaint' => 'Initial record / consultation',
-                //'management_and_treatment' => 'For evaluation and monitoring.',
-                'created_by' => Auth::id(),
-                'status' => 'pending',
+                'created_by'      => Auth::id(),
             ]);
 
-            // attach consultation to the record
+            /* =========================
+            CREATE CONSULTATION RECORD (PENDING)
+            ========================= */
+            $consultationServiceId = Service::where(
+                'slug',
+                'clinic-consultation-record-form'
+            )->value('id');
+
+            Record::create([
+                'user_id'         => Auth::id(),
+                'service_id'      => $consultationServiceId,
+                'consultation_id' => $consultation->id,
+                'status'          => Record::STATUS_PENDING,
+            ]);
+
+            /* =========================
+            LINK FORM RECORD → CONSULTATION
+            ========================= */
             $record->update([
                 'consultation_id' => $consultation->id,
             ]);
 
-            // -------------------------------
-            // GET DISEASES (DIFFERENT PAGE PER FORM)
-            // -------------------------------
-
+            /* =========================
+            ATTACH DISEASES
+            ========================= */
             $diseasePage = $formType === 'pre-employment-health-form'
                 ? ($responses['page3']['age_have'] ?? [])
                 : ($responses['page4']['age_have'] ?? []);
 
             if (!empty($diseasePage)) {
 
-                $diseaseLabels = $this->diseaseProblemsPage4(); // same labels list
+                $diseaseLabels = $this->diseaseProblemsPage4();
 
                 $selectedFrontendDiseases = collect($diseasePage)
                     ->map(function ($item, $index) use ($diseaseLabels) {
-                        if (isset($item['na']) && $item['na'] === false && isset($diseaseLabels[$index])) {
+                        if (
+                            isset($item['na']) &&
+                            $item['na'] === false &&
+                            isset($diseaseLabels[$index])
+                        ) {
                             return $diseaseLabels[$index];
                         }
                         return null;

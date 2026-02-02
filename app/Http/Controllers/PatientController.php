@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\LabNotificationsRead;
 use App\Http\Requests\UpdatePatientRequest;
+use App\Models\Consultation;
 use App\Models\Disease;
 use App\Models\Record;
 use App\Models\Service;
@@ -126,7 +127,13 @@ class PatientController extends Controller
         //     ->paginate(10)
         //     ->withQueryString();
 
+        $consultationServiceId = Service::where(
+            'slug',
+            'clinic-consultation-record-form'
+        )->value('id');
+
         $consultations = $patient->consultations()
+            ->where('service_id', $consultationServiceId)
             ->with([
                 'diseases',
                 'treatments',
@@ -322,11 +329,33 @@ class PatientController extends Controller
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
+        // 1️⃣ Approve the form record
         $record->update([
             'status' => Record::STATUS_APPROVED,
         ]);
 
-        // mark related notifications as read for staff
+        // 2️⃣ If this form created a consultation → approve its consultation record
+        if ($record->consultation_id) {
+
+            $consultationServiceId = Service::where(
+                'slug',
+                'clinic-consultation-record-form'
+            )->value('id');
+
+            Record::where('consultation_id', $record->consultation_id)
+                ->where('service_id', $consultationServiceId)
+                ->where('status', Record::STATUS_PENDING)
+                ->update([
+                    'status' => Record::STATUS_APPROVED,
+                ]);
+            
+            // ✅ update consultation.updated_by
+            Consultation::where('id', $record->consultation_id)->update([
+                'updated_by' => auth()->id(),
+            ]);
+        }
+
+        // 3️⃣ Mark related notifications as read for staff
         User::whereHas('userRole', fn ($q) =>
             $q->whereIn('name', ['Admin', 'Nurse'])
         )->each(function ($staff) use ($record) {
@@ -337,7 +366,7 @@ class PatientController extends Controller
                 ->update(['read_at' => now()]);
         });
 
-        // notify user
+        // 4️⃣ Notify user
         $service = Service::find($record->service_id);
 
         $record->user->notify(
@@ -347,22 +376,57 @@ class PatientController extends Controller
             )
         );
 
-        // realtime refresh
+        // 5️⃣ Realtime update
         broadcast(new FormStatusUpdated($record))->toOthers();
 
-        return back()->with('success', 'Form approved.');
+        return back()->with('success', 'Form and related consultation approved.');
     }
-
 
     public function rejectFormRecord(Record $record)
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
+        /* =========================
+        CLEAN UP AUTO CONSULTATION
+        ========================= */
+
+        if ($record->consultation_id) {
+
+            $consultation = Consultation::with('vitalSigns', 'record')
+                ->find($record->consultation_id);
+
+            if ($consultation) {
+
+                // delete consultation's own record (if exists)
+                if ($consultation->record) {
+                    $consultation->record->delete();
+                }
+
+                // delete vital signs snapshot
+                if ($consultation->vitalSigns) {
+                    $consultation->vitalSigns->delete();
+                }
+
+                // delete consultation itself
+                $consultation->delete();
+            }
+
+            // unlink consultation from form record
+            $record->update(['consultation_id' => null]);
+        }
+
+        /* =========================
+        REJECT FORM RECORD
+        ========================= */
+
         $record->update([
             'status' => Record::STATUS_REJECTED,
         ]);
 
-        // mark related notifications as read for staff
+        /* =========================
+        MARK STAFF NOTIFICATIONS READ
+        ========================= */
+
         User::whereHas('userRole', fn ($q) =>
             $q->whereIn('name', ['Admin', 'Nurse'])
         )->each(function ($staff) use ($record) {
@@ -373,7 +437,10 @@ class PatientController extends Controller
                 ->update(['read_at' => now()]);
         });
 
-        // notify user
+        /* =========================
+        NOTIFY USER (THIS WAS MISSING)
+        ========================= */
+
         $service = Service::find($record->service_id);
 
         $record->user->notify(
@@ -383,10 +450,13 @@ class PatientController extends Controller
             )
         );
 
-        // realtime refresh
+        /* =========================
+        REALTIME UPDATE
+        ========================= */
+
         broadcast(new FormStatusUpdated($record))->toOthers();
 
-        return back()->with('success', 'Form rejected.');
+        return back()->with('success', 'Form rejected and consultation cancelled.');
     }
 
     public function approveLabResult(Record $record)

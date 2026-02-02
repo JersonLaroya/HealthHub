@@ -45,6 +45,11 @@ class LaboratoryResultController extends Controller
 
         return Inertia::render('user/files/labResults/Index', [
             'records' => $records,
+
+            'patient' => [
+                'id'   => $user->id,
+                'name' => $user->name,
+            ],
         ]);
     }
 

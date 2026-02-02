@@ -121,49 +121,39 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
             "
           >
             <Input
-              placeholder="Search by name, ISMIS ID, course, year, or office..."
+              placeholder="Search by name, ISMIS ID, course, year, or office…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full min-w-[220px] md:col-span-4 xl:col-span-1"
+              className="w-full"
             />
 
-            {/* OFFICE */}
-            <Select value={office} onValueChange={setOffice}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="All Offices" />
-              </SelectTrigger>
+            {/* Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 
-              <SelectContent className="max-h-60 overflow-y-auto">
-                <SelectItem value="all">All Offices</SelectItem>
-                {offices.map((o) => (
-                  <SelectItem key={o.id} value={String(o.id)}>
-                    {o.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {/* OFFICE */}
+              <Select value={office} onValueChange={setOffice}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Offices" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectItem value="all">All Offices</SelectItem>
+                  {offices.map((o) => (
+                    <SelectItem key={o.id} value={String(o.id)}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            {/* COURSE */}
             {(office === "all" || hasCoursesForOffice) && (
               <Select value={course} onValueChange={setCourse}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger>
                   <SelectValue placeholder="All Courses" />
                 </SelectTrigger>
-
-                <SelectContent
-                  position="popper"
-                  sideOffset={4}
-                  className="max-h-[60vh] max-w-[95vw] overflow-y-auto"
-                >
+                <SelectContent className="max-h-[60vh] overflow-y-auto">
                   <SelectItem value="all">All Courses</SelectItem>
-
                   {filteredCourses.map((c) => (
-                    <SelectItem
-                      key={c.id}
-                      value={String(c.id)}
-                      className="truncate"
-                      title={c.name}
-                    >
+                    <SelectItem key={c.id} value={String(c.id)}>
                       {c.code}
                     </SelectItem>
                   ))}
@@ -171,13 +161,12 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
               </Select>
             )}
 
-            {/* YEAR */}
-            {hasCoursesForOffice && (
+              {/* YEAR */}
+             {hasCoursesForOffice && (
               <Select value={year} onValueChange={setYear}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger>
                   <SelectValue placeholder="All Years" />
                 </SelectTrigger>
-
                 <SelectContent className="max-h-60 overflow-y-auto">
                   <SelectItem value="all">All Years</SelectItem>
                   {years.map((y) => (
@@ -189,23 +178,27 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
               </Select>
             )}
 
-            <Button
-              type="submit"
-              disabled={isSearching}
-              className={isSearching ? "opacity-50 cursor-not-allowed" : ""}
-            >
-              {isSearching ? "Filtering..." : "Filter"}
-            </Button>
+              <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
+                <Button
+                  type="submit"
+                  disabled={isSearching}
+                  className="w-full"
+                >
+                  {isSearching ? "Filtering…" : "Filter"}
+                </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isResetting || isSearching}
-              className={isResetting ? "opacity-50 cursor-not-allowed" : ""}
-              onClick={handleReset}
-            >
-              {isResetting ? "Resetting..." : "Reset"}
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isResetting || isSearching}
+                  className="w-full"
+                  onClick={handleReset}
+                >
+                  Reset
+                </Button>
+              </div>
+
+            </div>
           </form>
         </div>
 

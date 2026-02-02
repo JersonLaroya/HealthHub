@@ -409,7 +409,7 @@ const handleApproveWithUpdate = () => {
               size="sm"
               onClick={handleBack}
             >
-              ← Back
+              Back
             </Button>
 
             <h1 className="text-xl font-bold">Clinic Consultation Record</h1>

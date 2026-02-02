@@ -39,11 +39,24 @@ interface RecordItem {
 
 /* ================= COMPONENT ================= */
 
-export default function Index({ records }: { records: RecordItem[] }) {
-  const { auth } = usePage().props as any;
+export default function Index({
+  records,
+  patient,
+}: {
+  records: RecordItem[];
+  patient: { id: number; name: string };
+}) {
+  const { auth, url } = usePage().props as any;
   const role = auth.user.user_role.name;
   const isAdmin = role === "Admin";
   const isNurse = role === "Nurse";
+
+  // role → prefix
+  const roleName = auth.user.user_role.name.toLowerCase();
+  const prefix = roleName === "nurse" ? "nurse" : "admin";
+
+  // extract patient id from URL: /admin/patients/{id}/files/...
+  const patientId = url?.split("/patients/")[1]?.split("/")[0];
 
   const [liveRecords, setLiveRecords] = useState(records);
 
@@ -105,12 +118,38 @@ export default function Index({ records }: { records: RecordItem[] }) {
     };
   }, [fullImage]);
 
+  const handleBack = () => {
+
+    router.get(
+      `/${prefix}/patients/${patient.id}/files`,
+      {},
+      {
+        preserveState: true,
+        preserveScroll: true,
+      }
+    );
+  };
+
   return (
     <AppLayout>
       <Head title="Laboratory Results" />
 
       <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-semibold">Laboratory Results</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBack}
+            >
+              Back
+            </Button>
+
+            <h1 className="text-2xl font-semibold">
+              Laboratory Results
+            </h1>
+          </div>
+        </div>
 
         {records.length ? (
           <div className="border rounded-lg overflow-hidden">

@@ -1,7 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { usePage } from "@inertiajs/react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   patient: {
@@ -56,9 +57,36 @@ export default function Files({ patient, assignments, breadcrumbs = [] }: Props)
   // Final list of forms
   const forms = [preForm, ...filteredDbForms, labResultsForm];
 
+  const handleBack = () => {
+    router.get(
+      `/${prefix}/patients`,
+      {},
+      {
+        preserveState: true,
+        preserveScroll: true,
+      }
+    );
+  };
+
   return (
     <AppLayout>
       <Head title="Medical Files" />
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-6 pt-6">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBack}
+          >
+            Back
+          </Button>
+
+          <h1 className="text-xl font-bold tracking-tight">
+            Medical Files
+          </h1>
+        </div>
+      </div>
 
       <div className="p-6 space-y-6">
         {/* Patient Info */}
