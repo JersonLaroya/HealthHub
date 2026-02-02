@@ -23,19 +23,13 @@ export async function fillAthleteMedicalForm(allPagesData: any, slug: string) {
 // Page 1 (DUHS / Head Nurse)
 // ----------------------
 
-const p1 = allPagesData.page1 || {};
+const examiner = allPagesData.examiner || {};
 
-// Head nurse printed name
-form.getTextField('head_nurse_printed_name')?.setText(
-  p1.duhs_name || ''
-);
-
-// DUHS Signature
-if (p1.duhs_signature) {
+if (examiner.signature_image) {
   const sigBytes = await fetch(
-    p1.duhs_signature.startsWith('http')
-      ? p1.duhs_signature
-      : `/storage/${p1.duhs_signature}`
+    examiner.signature_image.startsWith('http')
+      ? examiner.signature_image
+      : `/storage/${examiner.signature_image}`
   ).then(r => r.arrayBuffer());
 
   const pngImage = await pdfDoc.embedPng(sigBytes);
@@ -44,9 +38,7 @@ if (p1.duhs_signature) {
   if (sigButton) {
     const widget = sigButton.acroField.getWidgets()[0];
     const rect = widget.getRectangle();
-
-    // Change page index if Page 1 is not index 0
-    const page = pdfDoc.getPages()[0];
+    const page = pdfDoc.getPages()[0]; // Page 1
 
     page.drawImage(pngImage, {
       x: rect.x,
@@ -668,11 +660,54 @@ form.getTextField('bmi')?.setText(anthropometry.bmi || '');
     form.getCheckBox('check_box_full_clearance')?.uncheck();
   }
 
-  const examiner = allPagesData.examiner || {};
+  // ----------------------
+  // Page 12 – Examiner Signature
+  // ----------------------
 
-  form.getTextField('examined_by')?.setText(examiner.name);
-  form.getTextField('prc_license_no')?.setText(examiner.prc);
-  form.getTextField('date_examined')?.setText(examiner.date);
+  if (examiner.signature_image) {
+    const sigBytes = await fetch(
+      examiner.signature_image.startsWith('http')
+        ? examiner.signature_image
+        : `/storage/${examiner.signature_image}`
+    ).then(r => r.arrayBuffer());
+
+    const pngImage = await pdfDoc.embedPng(sigBytes);
+
+    const sigButton = form.getButton('examined_by');
+    if (sigButton) {
+      const widget = sigButton.acroField.getWidgets()[0];
+      const rect = widget.getRectangle();
+
+      // Page 12 → index 11
+      const page = pdfDoc.getPages()[11];
+
+      page.drawImage(pngImage, {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    }
+  }
+
+  function formatToMDY(dateStr?: string) {
+    if (!dateStr) return '';
+
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+
+    return `${mm}/${dd}/${yyyy}`;
+  }
+
+  form
+    .getTextField('date_examined')
+    ?.setText(formatToMDY(examiner.date));
+
+
 
 
   // Flatten all fields

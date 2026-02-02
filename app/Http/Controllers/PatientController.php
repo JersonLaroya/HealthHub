@@ -329,10 +329,37 @@ class PatientController extends Controller
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
 
-        // 1️⃣ Approve the form record
-        $record->update([
+        $service = Service::find($record->service_id);
+
+        /* =========================
+        1️⃣ APPROVE FORM RECORD
+        ========================= */
+
+        $updateData = [
             'status' => Record::STATUS_APPROVED,
-        ]);
+        ];
+
+        /* =========================
+        2️⃣ ATHLETE FORM → STORE APPROVER SIGNATURE
+        ========================= */
+
+        if ($service?->slug === 'athlete-medical') {
+
+            $responses = $record->response_data ?? [];
+
+            $responses['examiner'] = [
+                'signature_image' => auth()->user()->signature,
+                'date' => now()->toDateString(),
+                'prc' => auth()->user()->prc_license_no ?? null,
+            ];
+
+            $record->update([
+                'status' => Record::STATUS_APPROVED,
+                'response_data' => $responses,
+            ]);
+        }
+
+        $record->update($updateData);
 
         // 2️⃣ If this form created a consultation → approve its consultation record
         if ($record->consultation_id) {

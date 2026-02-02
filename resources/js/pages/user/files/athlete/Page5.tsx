@@ -485,18 +485,22 @@ const pageValid =
 
         {/* Civil Status (REQUIRED) */}
         <div className="flex flex-col min-w-[180px]">
-            <span>
+        <span>
             Civil Status <span className="text-red-600">*</span>
-            </span>
-            <input
-            type="text"
+        </span>
+
+        <select
             value={form.data.civil_status}
             onChange={(e) => form.setData('civil_status', e.target.value)}
-            className={`${lineInput} ${
-                !civilStatusValid ? 'border-red-600' : ''
+            className={`w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 ${
+            !civilStatusValid ? 'border-red-600' : ''
             }`}
-            placeholder="Single / Married / Widowed / etc."
-            />
+        >
+            <option value="">Select status</option>
+            <option value="Single">Single</option>
+            <option value="Married">Married</option>
+            <option value="Widowed">Widowed</option>
+        </select>
         </div>
 
         {/* Sports */}
