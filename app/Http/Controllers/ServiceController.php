@@ -15,25 +15,25 @@ class ServiceController extends Controller
         return inertia('admin/forms/Index', ['forms' => $forms]);
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'file' => 'required|file|mimes:pdf|max:10240',
-        ]);
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'title' => 'required|string|max:255',
+    //         'description' => 'nullable|string',
+    //         'file' => 'required|file|mimes:pdf|max:10240',
+    //     ]);
 
-        $path = $request->file('file')->store('forms', 'public');
+    //     $path = $request->file('file')->store('forms', 'public');
 
-        Service::create([
-            'title' => $request->title,
-            'slug' => Str::slug($request->title),
-            'description' => $request->description,
-            'file_path' => $path,
-        ]);
+    //     Service::create([
+    //         'title' => $request->title,
+    //         'slug' => Str::slug($request->title),
+    //         'description' => $request->description,
+    //         'file_path' => $path,
+    //     ]);
 
-        return redirect()->back()->with('success', 'Form created successfully!');
-    }
+    //     return redirect()->back()->with('success', 'Form created successfully!');
+    // }
 
     public function update(Request $request, Service $form)
     {
@@ -58,14 +58,14 @@ class ServiceController extends Controller
         return back()->with('success', 'Form updated successfully.');
     }
 
-    public function destroy(Service $form)
-    {
-        if ($form->file_path && Storage::disk('public')->exists($form->file_path)) {
-            Storage::disk('public')->delete($form->file_path);
-        }
+    // public function destroy(Service $form)
+    // {
+    //     if ($form->file_path && Storage::disk('public')->exists($form->file_path)) {
+    //         Storage::disk('public')->delete($form->file_path);
+    //     }
 
-        $form->delete();
+    //     $form->delete();
 
-        return redirect()->back()->with('success', 'Form deleted successfully.');
-    }
+    //     return redirect()->back()->with('success', 'Form deleted successfully.');
+    // }
 }

@@ -37,12 +37,16 @@ class PatientController extends Controller
         $yearId = $request->input('year');
         $officeId = $request->input('office');
 
+        // normalize "all" and empty values
+        $courseId = ($courseId === 'all' || $courseId === '') ? null : $courseId;
+        $yearId = ($yearId === 'all' || $yearId === '') ? null : $yearId;
+        $officeId = ($officeId === 'all' || $officeId === '') ? null : $officeId;
+
         $patients = User::with(['course', 'yearLevel', 'office', 'userRole'])
             ->whereDoesntHave('userRole', function ($q) {
                 $q->whereIn('name', ['Admin', 'Nurse', 'Super Admin']);
             })
 
-            // search by name or ismis_id
             ->when($search, function ($query, $search) {
 
                 $search = strtolower(trim($search));
@@ -50,17 +54,14 @@ class PatientController extends Controller
 
                 $query->where(function ($q) use ($search, $isNumeric) {
 
-                    // 🔹 Fast path: looks like an ID
                     if ($isNumeric) {
                         $q->where('ismis_id', 'ILIKE', "%{$search}%");
                     }
 
-                    // 🔹 Name search (always allowed)
                     $q->orWhere('first_name', 'ILIKE', "%{$search}%")
                     ->orWhere('last_name', 'ILIKE', "%{$search}%")
                     ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) ILIKE ?", ["%{$search}%"]);
 
-                    // 🔹 Related fields
                     $q->orWhereHas('course', fn ($c) =>
                             $c->where('name', 'ILIKE', "%{$search}%")
                         )
@@ -73,7 +74,6 @@ class PatientController extends Controller
                 });
             })
 
-            // dropdown filters
             ->when($courseId, fn ($q) => $q->where('course_id', $courseId))
             ->when($yearId, fn ($q) => $q->where('year_level_id', $yearId))
             ->when($officeId, fn ($q) => $q->where('office_id', $officeId))

@@ -293,8 +293,8 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
                     course,
                     year,
                     office,
-                    sort,
-                    direction,
+                    // sort,
+                    // direction,
                   }, { preserveState: true })
                 }
               >
@@ -313,8 +313,8 @@ export default function Index({ patients = { data: [] }, filters = {}, courses =
                     course,
                     year,
                     office,
-                    sort,
-                    direction,
+                    // sort,
+                    // direction,
                   }, { preserveState: true })
                 }
               >

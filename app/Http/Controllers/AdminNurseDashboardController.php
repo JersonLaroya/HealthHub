@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Record;
 use App\Models\Event;
+use App\Models\Service;
 use Carbon\CarbonPeriod;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
@@ -16,21 +17,31 @@ class AdminNurseDashboardController extends Controller
         $monthStart = now()->startOfMonth();
         $monthEnd   = now()->endOfMonth();
 
+        // ✅ Consultation service (clinic consultation only)
+        $consultationServiceId = Service::where(
+            'slug',
+            'clinic-consultation-record-form'
+        )->value('id');
+
         /* =========================
            SUMMARY CARDS
         ========================= */
 
         // Total approved consultations this month
         $totalConsultations = Record::where('records.status', Record::STATUS_APPROVED)
+            ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
             ->whereBetween('consultations.date', [$monthStart, $monthEnd])
             ->count();
 
-        // Pending records (all time)
-        $pendingRecords = Record::where('records.status', Record::STATUS_PENDING)->count();
+        // Pending consultation records (all time)
+        $pendingRecords = Record::where('records.status', Record::STATUS_PENDING)
+            ->where('records.service_id', $consultationServiceId)
+            ->count();
 
         // Unique patients seen this month
         $patientsSeen = Record::where('records.status', Record::STATUS_APPROVED)
+            ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
             ->whereBetween('consultations.date', [$monthStart, $monthEnd])
             ->distinct('consultations.patient_id')
@@ -38,6 +49,7 @@ class AdminNurseDashboardController extends Controller
 
         // Today’s approved consultations
         $todayConsultations = Record::where('records.status', Record::STATUS_APPROVED)
+            ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
             ->whereDate('consultations.date', $today)
             ->count();
@@ -49,6 +61,7 @@ class AdminNurseDashboardController extends Controller
         $dates = CarbonPeriod::create($monthStart, $monthEnd);
 
         $rawData = Record::where('records.status', Record::STATUS_APPROVED)
+            ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
             ->whereBetween('consultations.date', [$monthStart, $monthEnd])
             ->selectRaw('consultations.date as date, COUNT(*) as total')

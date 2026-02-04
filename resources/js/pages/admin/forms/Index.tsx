@@ -91,10 +91,10 @@ export default function FormsPage({ forms, breadcrumbs = [] }: { forms: any; bre
   };
 
   // Delete
-  const handleDelete = (form: any) => {
-    setFormToDelete(form);
-    setShowDeleteModal(true);
-  };
+  // const handleDelete = (form: any) => {
+  //   setFormToDelete(form);
+  //   setShowDeleteModal(true);
+  // };
 
   const confirmDelete = () => {
     if (!formToDelete) return;
@@ -116,7 +116,7 @@ export default function FormsPage({ forms, breadcrumbs = [] }: { forms: any; bre
       <div className="p-6 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl font-semibold">Form Management</h1>
-          <Button onClick={handleAdd}>+ Add Form</Button>
+          {/* <Button onClick={handleAdd}>+ Add Form</Button> */}
         </div>
 
         {/* Table */}
@@ -148,7 +148,7 @@ export default function FormsPage({ forms, breadcrumbs = [] }: { forms: any; bre
                         </td>
                       <td className="p-2 border-b text-right space-x-2">
                         <Button size="sm" onClick={() => handleEdit(form)}>Edit</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(form)}>Delete</Button>
+                        {/* <Button variant="destructive" size="sm" onClick={() => handleDelete(form)}>Delete</Button> */}
                       </td>
                     </tr>
                   ))}
@@ -202,7 +202,7 @@ export default function FormsPage({ forms, breadcrumbs = [] }: { forms: any; bre
         </Dialog>
 
         {/* Delete Modal */}
-        <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        {/* <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
           <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
             <DialogHeader>
               <DialogTitle>Confirm Deletion</DialogTitle>
@@ -217,7 +217,7 @@ export default function FormsPage({ forms, breadcrumbs = [] }: { forms: any; bre
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
       </div>
     </AppLayout>
   );

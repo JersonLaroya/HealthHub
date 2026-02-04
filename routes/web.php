@@ -269,9 +269,9 @@ Route::middleware(['role:Admin'])
 
 
         Route::get('/forms', [ServiceController::class, 'index'])->name('forms.index');
-        Route::post('/forms', [ServiceController::class, 'store'])->name('forms.store');
+        //Route::post('/forms', [ServiceController::class, 'store'])->name('forms.store');
         Route::put('/forms/{form}', [ServiceController::class, 'update'])->name('forms.update');
-        Route::delete('/forms/{form}', [ServiceController::class, 'destroy'])->name('forms.destroy');
+        //Route::delete('/forms/{form}', [ServiceController::class, 'destroy'])->name('forms.destroy');
 
         // Laboratory Type
         Route::get('/laboratory-types', [LaboratoryTypeController::class, 'index']);
