@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminDtrReportController;
 use App\Http\Controllers\Admin\AdminReportController;
+use App\Http\Controllers\Admin\AppointmentManagementController;
 use App\Http\Controllers\Admin\DiseaseCategoryController;
 use App\Http\Controllers\Admin\DiseaseClusterAnalyticsController;
 use App\Http\Controllers\Admin\DiseaseClusteringController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Admin\ListOfInquiryController;
 use App\Http\Controllers\Admin\ListOfTreatmentController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\AdminNurseDashboardController;
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\ConsultationController;
@@ -72,12 +74,23 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
     ->name('user.')
     ->group(function () {
 
-    // Route::get('/dashboard', function () {
-    //     return Inertia::render('user/dashboard');
-    // })->name('dashboard');
-
     Route::get('/dashboard', [UserDashboardController::class, 'index'])
     ->name('dashboard');
+
+    // Appointment
+    Route::prefix('appointments')
+    ->name('appointments.')
+    ->group(function () {
+
+        Route::get('/', [AppointmentController::class, 'index'])
+            ->name('index'); // view own appointments
+
+        Route::post('/', [AppointmentController::class, 'store'])
+            ->name('store'); // request appointment
+
+        Route::patch('/{appointment}/cancel', [AppointmentController::class, 'cancel'])
+            ->name('cancel');
+    });
 
     // Personal Information page (view & update)
     Route::get('/personal-info', [PersonalInfoController::class, 'edit'])
@@ -434,6 +447,22 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/messages', function () {
             return Inertia::render('messages/Chat');
         })->name('admin.messages');
+
+        // Appointment
+        Route::prefix('appointments')->name('admin.appointments.')->group(function () {
+
+            Route::get('/', [AppointmentManagementController::class, 'index'])
+                ->name('index');
+
+            Route::patch('/{appointment}/approve', [AppointmentManagementController::class, 'approve'])
+                ->name('approve');
+
+            Route::patch('/{appointment}/reject', [AppointmentManagementController::class, 'reject'])
+                ->name('reject');
+
+            Route::patch('/{appointment}/reschedule', [AppointmentManagementController::class, 'reschedule'])
+                ->name('reschedule');
+        });
     });
 
     // Nurse
@@ -457,6 +486,22 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::get('/messages', function () {
             return Inertia::render('messages/Chat');
         })->name('nurse.messages');
+
+        // Appointment
+        Route::prefix('appointments')->name('nurse.appointments.')->group(function () {
+
+            Route::get('/', [AppointmentManagementController::class, 'index'])
+                ->name('index');
+
+            Route::patch('/{appointment}/approve', [AppointmentManagementController::class, 'approve'])
+                ->name('approve');
+
+            Route::patch('/{appointment}/reject', [AppointmentManagementController::class, 'reject'])
+                ->name('reject');
+
+            Route::patch('/{appointment}/reschedule', [AppointmentManagementController::class, 'reschedule'])
+                ->name('reschedule');
+        });
     });
 });
 

@@ -166,6 +166,12 @@ function EventDescription({ text }: { text: string }) {
   );
 }
 
+const nowDateTimeLocal = () => {
+  const now = new Date();
+  now.setSeconds(0, 0); // remove seconds/ms
+  return now.toISOString().slice(0, 16);
+};
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -244,7 +250,7 @@ function EventDescription({ text }: { text: string }) {
           </form>
 
           <Button onClick={handleAdd} className="w-full md:w-auto">
-            + Add Event
+            Add Event
           </Button>
         </div>
 
@@ -503,6 +509,7 @@ function EventDescription({ text }: { text: string }) {
                 <Label>Start At</Label>
                 <Input
                   type="datetime-local"
+                  min={nowDateTimeLocal()}
                   value={data.start_at}
                   onChange={(e) => setData("start_at", e.target.value)}
                 />
@@ -515,6 +522,7 @@ function EventDescription({ text }: { text: string }) {
                 <Label>End At</Label>
                 <Input
                   type="datetime-local"
+                  min={data.start_at || nowDateTimeLocal()}
                   value={data.end_at}
                   onChange={(e) => setData("end_at", e.target.value)}
                 />

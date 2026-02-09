@@ -16,18 +16,41 @@ class NewEventPosted extends Notification implements ShouldBroadcast, ShouldQueu
 
     public function via($notifiable)
     {
-        // database + broadcast = instant
-        // mail = delayed
-        return ['database', 'broadcast', 'mail'];
+        $channels = ['database', 'broadcast'];
+
+        if ($this->shouldSendEmail($notifiable)) {
+            $channels[] = 'mail';
+        }
+
+        return $channels;
     }
 
-    /**
-     * Delay only the email notification
-     */
+    protected function shouldSendEmail($notifiable): bool
+    {
+        if (empty($notifiable->email)) {
+            return false;
+        }
+
+        if (!filter_var($notifiable->email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $blockedDomains = [
+            'test.com',
+            'example.com',
+            'mailinator.com',
+            'tempmail.com',
+        ];
+
+        $domain = substr(strrchr($notifiable->email, "@"), 1);
+
+        return ! in_array($domain, $blockedDomains);
+    }
+
     public function withDelay($notifiable)
     {
         return [
-            'mail' => now()->addSeconds(10), // ⏱ email sent after 10 seconds
+            'mail' => now()->addSeconds(10),
         ];
     }
 

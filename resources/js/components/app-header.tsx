@@ -302,6 +302,7 @@ function clinicNav(role: string): NavItem[] {
   return [
     { title: "Dashboard", href: `/${role}/dashboard`, icon: LayoutGrid },
     { title: "Patients", href: `/${role}/patients`, icon: Users },
+    { title: "Appointments", href: `/${role}/appointments`, icon: CalendarDays },
     { title: "Events", href: `/${role}/events`, icon: CalendarDays },
   ];
 }
@@ -396,6 +397,7 @@ const mainNavItems: NavItem[] =
         : [
         { title: "Dashboard", href: "/user/dashboard", icon: LayoutGrid },
         { title: "Personal Information", href: "/user/personal-info", icon: UserCircle },
+        { title: "Appointments", href: "/user/appointments", icon: CalendarDays },
         { title: "Files", href: "/user/files", icon: Folder },
         { title: "Records", href: "/user/records", icon: Archive },
 

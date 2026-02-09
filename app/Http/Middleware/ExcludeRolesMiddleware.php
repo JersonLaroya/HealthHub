@@ -18,7 +18,9 @@ class ExcludeRolesMiddleware
             abort(403, 'Unauthorized');
         }
 
-        if (in_array($user->role, $this->excludedRoles)) {
+        $roleName = optional($user->userRole)->name;
+
+        if (in_array($roleName, $this->excludedRoles)) {
             abort(403, 'Unauthorized');
         }
 
