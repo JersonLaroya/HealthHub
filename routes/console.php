@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('app:complete-past-appointments')
     ->dailyAt('00:05');
+
+Schedule::command('appointments:send-reminders')
+    ->dailyAt('08:00');

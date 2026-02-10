@@ -96,6 +96,17 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     );
   }
 
+  function formatTime(time: string) {
+    const [hours, minutes] = time.split(":").map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+
+    return date.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
   return (
     <AppLayout>
       <Head title="Manage Appointments" />
@@ -359,8 +370,9 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
                     </div>
 
                     <div>
-                    <strong>Time:</strong>{" "}
-                    {selectedAppointment.start_time} – {selectedAppointment.end_time}
+                      <strong>Time:</strong>{" "}
+                      {formatTime(selectedAppointment.start_time)} –{" "}
+                      {formatTime(selectedAppointment.end_time)}
                     </div>
 
                     <div>

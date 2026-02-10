@@ -47,6 +47,12 @@ export default function Add({ diseases }: any) {
   const isFetchingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const [diseaseSearch, setDiseaseSearch] = useState("");
+
+  const filteredDiseases = diseases.filter((d: any) =>
+    d.name.toLowerCase().includes(diseaseSearch.toLowerCase())
+  );
+
   const clearForm = () => {
     setData({
       name: "",
@@ -118,6 +124,10 @@ export default function Add({ diseases }: any) {
     const clean = cleanVitalValue(value);
     return clean ? `${clean} ${unit}` : "";
   };
+
+  useEffect(() => {
+    if (!selectingDiseases) setDiseaseSearch("");
+  }, [selectingDiseases]);
 
   useEffect(() => {
     const h = parseFloat(cleanVitalValue(data.height));
@@ -528,26 +538,53 @@ if (!selectedPatientId) {
             {/* Diseases Modal */}
             <Dialog open={selectingDiseases} onOpenChange={setSelectingDiseases}>
               <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
+                <DialogHeader>
+                  <DialogTitle>Select Diseases</DialogTitle>
+                </DialogHeader>
+
+                {/* SEARCH INPUT */}
+                <Input
+                  placeholder="Search disease..."
+                  value={diseaseSearch}
+                  onChange={(e) => setDiseaseSearch(e.target.value)}
+                  className="mb-2"
+                />
+
                 <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
-                  {diseases.map((d: any) => (
-                    <label key={d.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        value={d.id}
-                        checked={data.disease_ids.includes(d.id)}
-                        onChange={(e) => {
-                          const id = d.id;
-                          setData("disease_ids", e.target.checked ? [...data.disease_ids, id] : data.disease_ids.filter(i => i !== id));
-                        }}
-                      />
-                      {d.name}
-                    </label>
-                  ))}
+                  {filteredDiseases.length > 0 ? (
+                    filteredDiseases.map((d: any) => (
+                      <label key={d.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={data.disease_ids.includes(d.id)}
+                          onChange={(e) => {
+                            const id = d.id;
+                            setData(
+                              "disease_ids",
+                              e.target.checked
+                                ? [...data.disease_ids, id]
+                                : data.disease_ids.filter(i => i !== id)
+                            );
+                          }}
+                        />
+                        {d.name}
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 col-span-full text-center">
+                      No diseases found
+                    </p>
+                  )}
                 </div>
-                <div className="flex justify-end gap-2 mt-2">
-                  <Button variant="outline" onClick={() => setSelectingDiseases(false)}>Cancel</Button>
-                  <Button onClick={() => setSelectingDiseases(false)}>Done</Button>
-                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setSelectingDiseases(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => setSelectingDiseases(false)}>
+                    Done
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>

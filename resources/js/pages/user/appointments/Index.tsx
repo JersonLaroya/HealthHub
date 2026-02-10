@@ -31,6 +31,7 @@ export default function UserAppointments({
   filters?: { status?: string };
 }) {
   const [open, setOpen] = useState(false);
+  const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
 
   const { data, setData, post, processing, errors, reset } = useForm({
     appointment_date: "",
@@ -187,6 +188,24 @@ export default function UserAppointments({
                 >
                   {appt.status}
                 </span>
+
+                {(appt.status === "pending" || appt.status === "approved") && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setRescheduling(appt);
+                      setData({
+                        appointment_date: appt.appointment_date,
+                        start_time: appt.start_time,
+                        end_time: appt.end_time,
+                        purpose: appt.purpose,
+                      });
+                    }}
+                  >
+                    Reschedule
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -202,6 +221,7 @@ export default function UserAppointments({
 
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Date */}
               <div>
                 <label className="text-sm">Date</label>
                 <Input
@@ -219,6 +239,7 @@ export default function UserAppointments({
                 )}
               </div>
 
+              {/* Start Time */}
               <div>
                 <label className="text-sm">Start Time</label>
                 <Input
@@ -233,6 +254,7 @@ export default function UserAppointments({
                 )}
               </div>
 
+              {/* End Time */}
               <div>
                 <label className="text-sm">End Time</label>
                 <Input
@@ -248,6 +270,14 @@ export default function UserAppointments({
               </div>
             </div>
 
+            {/* ✅ OVERLAP ERROR GOES HERE */}
+            {errors.appointment_time && (
+              <div className="text-sm text-red-600">
+                {errors.appointment_time}
+              </div>
+            )}
+
+            {/* Purpose */}
             <div>
               <label className="text-sm">Purpose</label>
               <Textarea
@@ -262,17 +292,95 @@ export default function UserAppointments({
               )}
             </div>
 
-            <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={processing}>
+                {processing ? "Submitting..." : "Submit"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* RESCHEDULE MODAL */}
+      <Dialog
+        open={!!rescheduling}
+        onOpenChange={() => setRescheduling(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+
+              if (!rescheduling) return;
+
+              router.patch(
+                `/user/appointments/${rescheduling.id}/reschedule`,
+                {
+                  appointment_date: data.appointment_date,
+                  start_time: data.start_time,
+                  end_time: data.end_time,
+                },
+                {
+                  onSuccess: () => {
+                    toast.success("Appointment rescheduled");
+                    setRescheduling(null);
+                    reset();
+                  },
+                  onError: () => {
+                    toast.error("Failed to reschedule appointment");
+                  },
+                  preserveScroll: true,
+                }
+              );
+            }}
+            className="space-y-4"
+          >
+            {/* SAME FIELDS */}
+            <Input
+              type="date"
+              min={today}
+              value={data.appointment_date}
+              onChange={(e) =>
+                setData("appointment_date", e.target.value)
+              }
+            />
+
+            <Input
+              type="time"
+              value={data.start_time}
+              onChange={(e) => setData("start_time", e.target.value)}
+            />
+
+            <Input
+              type="time"
+              value={data.end_time}
+              onChange={(e) => setData("end_time", e.target.value)}
+            />
+
+            {errors.appointment_time && (
+              <div className="text-sm text-red-600">
+                {errors.appointment_time}
+              </div>
+            )}
+
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setOpen(false)}
+                onClick={() => setRescheduling(null)}
               >
                 Cancel
               </Button>
 
-              <Button type="submit" disabled={processing}>
-                {processing ? "Submitting..." : "Submit"}
+              <Button type="submit">
+                Reschedule
               </Button>
             </DialogFooter>
           </form>

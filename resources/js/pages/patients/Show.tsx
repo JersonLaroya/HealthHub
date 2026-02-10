@@ -76,6 +76,25 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   const [approvingId, setApprovingId] = useState(null);
   const [expandedComplaints, setExpandedComplaints] = useState({});
 
+  const [diseaseSearch, setDiseaseSearch] = useState("");
+  const [diseaseSearchEdit, setDiseaseSearchEdit] = useState("");
+  const filteredDiseases = diseases.filter(d =>
+    d.name.toLowerCase().includes(diseaseSearch.toLowerCase())
+  );
+
+  const filteredDiseasesEdit = diseases.filter(d =>
+    d.name.toLowerCase().includes(diseaseSearchEdit.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (!selectingDiseases) setDiseaseSearch("");
+  }, [selectingDiseases]);
+
+  useEffect(() => {
+    if (!selectingDiseasesEdit) setDiseaseSearchEdit("");
+  }, [selectingDiseasesEdit]);
+
+
   const { data, setData, put, processing, errors } = useForm({
     user_id: patient.id || "",
 
@@ -1118,29 +1137,42 @@ const handleApproveWithUpdate = () => {
             <DialogTitle>Select Diseases</DialogTitle>
           </DialogHeader>
 
+          {/* SEARCH INPUT */}
+          <Input
+            placeholder="Search disease..."
+            value={diseaseSearch}
+            onChange={(e) => setDiseaseSearch(e.target.value)}
+            className="mb-2"
+          />
+
           <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
-            {diseases.map((disease) => (
-              <label key={disease.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  value={disease.id}
-                  checked={consultationData.disease_ids.includes(disease.id)}
-                  onChange={(e) => {
-                    const id = disease.id;
-                    setConsultationData(
-                      "disease_ids",
-                      e.target.checked
-                        ? [...consultationData.disease_ids, id]
-                        : consultationData.disease_ids.filter((d) => d !== id)
-                    );
-                  }}
-                />
-                {disease.name}
-              </label>
-            ))}
+            {filteredDiseases.length > 0 ? (
+              filteredDiseases.map((disease) => (
+                <label key={disease.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={consultationData.disease_ids.includes(disease.id)}
+                    onChange={(e) => {
+                      const id = disease.id;
+                      setConsultationData(
+                        "disease_ids",
+                        e.target.checked
+                          ? [...consultationData.disease_ids, id]
+                          : consultationData.disease_ids.filter((d) => d !== id)
+                      );
+                    }}
+                  />
+                  {disease.name}
+                </label>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 col-span-full text-center">
+                No diseases found
+              </p>
+            )}
           </div>
 
-          <DialogFooter className="flex justify-end gap-2 mt-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setSelectingDiseases(false)}>Cancel</Button>
             <Button onClick={() => setSelectingDiseases(false)}>Done</Button>
           </DialogFooter>
@@ -1409,26 +1441,38 @@ const handleApproveWithUpdate = () => {
             <DialogTitle>Select Diseases</DialogTitle>
           </DialogHeader>
 
+          <Input
+            placeholder="Search disease..."
+            value={diseaseSearchEdit}
+            onChange={(e) => setDiseaseSearchEdit(e.target.value)}
+            className="mb-2"
+          />
+
           <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
-            {diseases.map((disease) => (
-              <label key={disease.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  value={disease.id}
-                  checked={editConsultData.disease_ids?.includes(disease.id)}
-                  onChange={(e) => {
-                    const id = disease.id;
-                    setEditConsultData(
-                      "disease_ids",
-                      e.target.checked
-                        ? [...(editConsultData.disease_ids || []), id]
-                        : editConsultData.disease_ids.filter((d) => d !== id)
-                    );
-                  }}
-                />
-                {disease.name}
-              </label>
-            ))}
+            {filteredDiseasesEdit.length > 0 ? (
+              filteredDiseasesEdit.map((disease) => (
+                <label key={disease.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editConsultData.disease_ids?.includes(disease.id)}
+                    onChange={(e) => {
+                      const id = disease.id;
+                      setEditConsultData(
+                        "disease_ids",
+                        e.target.checked
+                          ? [...(editConsultData.disease_ids || []), id]
+                          : editConsultData.disease_ids.filter((d) => d !== id)
+                      );
+                    }}
+                  />
+                  {disease.name}
+                </label>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 col-span-full text-center">
+                No diseases found
+              </p>
+            )}
           </div>
 
           <DialogFooter className="flex justify-end gap-2 mt-2">

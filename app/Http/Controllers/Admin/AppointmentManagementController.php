@@ -55,6 +55,27 @@ class AppointmentManagementController extends Controller
             abort(400, 'Only pending appointments can be approved.');
         }
 
+        /* --------------------------------
+        ✅ PREVENT APPROVAL CONFLICTS
+        -------------------------------- */
+        $hasConflict = Appointment::where('appointment_date', $appointment->appointment_date)
+            ->where('status', 'approved')
+            ->where('id', '!=', $appointment->id)
+            ->where(function ($q) use ($appointment) {
+                $q->where('start_time', '<', $appointment->end_time)
+                ->where('end_time', '>', $appointment->start_time);
+            })
+            ->exists();
+
+        if ($hasConflict) {
+            return back()->withErrors([
+                'appointment' => 'This appointment conflicts with another approved appointment.',
+            ]);
+        }
+
+        /* --------------------------------
+        ✅ APPROVE APPOINTMENT
+        -------------------------------- */
         $appointment->update([
             'status' => 'approved',
             'assigned_to' => Auth::id(),

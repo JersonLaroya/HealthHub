@@ -90,6 +90,11 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
 
         Route::patch('/{appointment}/cancel', [AppointmentController::class, 'cancel'])
             ->name('cancel');
+
+        Route::patch('/{appointment}/reschedule', [
+            AppointmentController::class,
+            'reschedule',
+        ])->name('reschedule');
     });
 
     // Personal Information page (view & update)

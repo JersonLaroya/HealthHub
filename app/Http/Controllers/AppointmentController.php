@@ -48,6 +48,21 @@ class AppointmentController extends Controller
             'purpose' => ['required', 'string', 'max:255'],
         ]);
 
+        // Check for overlapping appointments
+        $hasConflict = Appointment::where('appointment_date', $request->appointment_date)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where(function ($q) use ($request) {
+                $q->where('start_time', '<', $request->end_time)
+                ->where('end_time', '>', $request->start_time);
+            })
+            ->exists();
+
+        if ($hasConflict) {
+            return back()->withErrors([
+                'appointment_time' => 'The selected time slot is already taken.',
+            ]);
+        }
+
         $appointment = Appointment::create([
             'user_id' => Auth::id(),
             'appointment_date' => $request->appointment_date,
@@ -66,5 +81,59 @@ class AppointmentController extends Controller
         );
 
         return back()->with('success', 'Appointment request submitted.');
+    }
+
+    public function reschedule(Request $request, Appointment $appointment)
+    {
+        // Ownership check
+        abort_if($appointment->user_id !== auth()->id(), 403);
+
+        // Cannot reschedule these
+        abort_if(
+            in_array($appointment->status, ['completed', 'rejected']),
+            403,
+            'This appointment cannot be rescheduled.'
+        );
+
+        $data = $request->validate([
+            'appointment_date' => ['required', 'date'],
+            'start_time' => ['required'],
+            'end_time' => ['required', 'after:start_time'],
+        ]);
+
+        // Check for overlapping appointments (exclude this appointment)
+        $hasConflict = Appointment::where('appointment_date', $data['appointment_date'])
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('id', '!=', $appointment->id)
+            ->where(function ($q) use ($data) {
+                $q->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time']);
+            })
+            ->exists();
+
+        if ($hasConflict) {
+            return back()->withErrors([
+                'appointment_time' => 'The selected time slot is already taken.',
+            ]);
+        }
+
+        // Update SAME appointment
+        $appointment->update([
+            'appointment_date' => $data['appointment_date'],
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'status' => 'pending',
+            'rejection_reason' => null, // clear old rejection if any
+            'assigned_to' => null,       // unassign previous handler
+        ]);
+
+        // 🔔 Notify Admin + Nurse again
+        User::whereHas('userRole', fn ($q) =>
+            $q->whereIn('name', ['Admin', 'Nurse'])
+        )->each(fn ($staff) =>
+            $staff->notify(new NewAppointmentRequested($appointment))
+        );
+
+        return back()->with('success', 'Appointment rescheduled and sent for approval.');
     }
 }
