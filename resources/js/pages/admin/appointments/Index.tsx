@@ -51,6 +51,8 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     {
       onSuccess: () => {
         toast.success("Appointment approved");
+
+        window.dispatchEvent(new Event("notifications-updated"));
       },
       onError: () => {
         toast.error("Failed to approve appointment");

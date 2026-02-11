@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Appointment;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -23,18 +24,20 @@ class AppointmentApproved extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $date = Carbon::parse($this->appointment->appointment_date)
+            ->format('M d, Y');
+
+        $start = Carbon::parse($this->appointment->start_time)
+            ->format('g:i A');
+
+        $end = Carbon::parse($this->appointment->end_time)
+            ->format('g:i A');
+
         return (new MailMessage)
             ->subject('Appointment Approved')
             ->greeting('Good news!')
             ->line('Your appointment has been approved.')
-            ->line(
-                'Schedule: ' .
-                $this->appointment->appointment_date .
-                ' | ' .
-                $this->appointment->start_time .
-                ' - ' .
-                $this->appointment->end_time
-            )
+            ->line("Schedule: {$date} | {$start} - {$end}")
             ->action('View Appointment', url('/user/appointments'));
     }
 

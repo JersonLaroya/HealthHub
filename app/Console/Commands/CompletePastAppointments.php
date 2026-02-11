@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Appointment;
 use Illuminate\Console\Command;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class CompletePastAppointments extends Command
 {
@@ -26,15 +28,18 @@ class CompletePastAppointments extends Command
      */
     public function handle()
     {
-        $today = now()->startOfDay();
+        // Convert "now" to Manila time manually
+        $now = now()->setTimezone('Asia/Manila');
 
-        $count = Appointment::where('status', 'approved')
-            ->whereDate('appointment_date', '<', $today)
+        $updated = Appointment::where('status', 'approved')
+            ->whereRaw("
+                (appointment_date || ' ' || end_time)::timestamp <= ?
+            ", [$now->format('Y-m-d H:i:s')])
             ->update([
-                'status' => 'completed',
+                'status' => 'completed'
             ]);
 
-        $this->info("Completed {$count} past appointments.");
+        $this->info("Completed {$updated} appointments.");
 
         return Command::SUCCESS;
     }

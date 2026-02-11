@@ -3,6 +3,8 @@ import { usePage } from "@inertiajs/react";
 import { Card } from "@/components/ui/card";
 import { CalendarDays, Stethoscope, User, GraduationCap, Building2 } from "lucide-react";
 import { useState } from "react";
+import { router } from "@inertiajs/react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +14,8 @@ import {
 import { Clock } from "lucide-react";
 
 export default function Dashboard() {
-  const { user, totalConsultations, events, schoolYear } = usePage().props as any;
+  const { user, totalConsultations, events, appointments, schoolYear } =
+  usePage().props as any;
 
   const role = user.user_role?.name;
   const category = user.user_role?.category;
@@ -119,6 +122,54 @@ export default function Dashboard() {
             </Card> */}
 
           </div>
+
+          {/* ===== MY UPCOMING APPOINTMENTS ===== */}
+          <Card className="relative p-4 sm:p-6 border bg-gradient-to-br from-blue-50/60 via-background to-blue-100/30 dark:from-blue-500/10 dark:to-blue-400/5 shadow-sm">
+
+            <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-blue-400/60 to-blue-300/10" />
+
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-100/70 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                <CalendarDays className="w-5 h-5" />
+              </div>
+              <h2 className="text-base sm:text-lg font-semibold">
+                My Upcoming Appointment
+              </h2>
+            </div>
+
+            {(!appointments || appointments.length === 0) && (
+              <div className="text-sm text-muted-foreground text-center py-6">
+                No upcoming appointments.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {appointments?.map((appointment: any) => (
+                <div
+                  key={appointment.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3 bg-background/70 hover:bg-muted/40 transition"
+                >
+                  <div>
+                    <p className="font-medium text-sm sm:text-base">
+                      {appointment.purpose || "Clinic Appointment"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(
+                        `${appointment.appointment_date} ${appointment.start_time}`
+                      ).toLocaleString(undefined, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
 
           {/* ===== EVENTS (PROMINENT) ===== */}
           <Card className="relative p-4 sm:p-6 border bg-gradient-to-br from-blue-50/60 via-background to-blue-100/30 dark:from-blue-500/10 dark:to-blue-400/5 shadow-sm">

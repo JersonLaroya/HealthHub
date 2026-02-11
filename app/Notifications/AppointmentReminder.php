@@ -23,19 +23,21 @@ class AppointmentReminder extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $date = \Carbon\Carbon::parse($this->appointment->appointment_date)
+            ->format('M d, Y');
+
+        $start = \Carbon\Carbon::parse($this->appointment->start_time)
+            ->format('g:i A');
+
+        $end = \Carbon\Carbon::parse($this->appointment->end_time)
+            ->format('g:i A');
+
         return (new MailMessage)
             ->subject('Appointment Reminder')
             ->greeting('Hello ' . $notifiable->first_name . '!')
             ->line('This is a reminder for your upcoming appointment.')
-            ->line(
-                'Date: ' . $this->appointment->appointment_date
-            )
-            ->line(
-                'Time: ' .
-                $this->appointment->start_time .
-                ' - ' .
-                $this->appointment->end_time
-            )
+            ->line('Date: ' . $date)
+            ->line("Time: {$start} - {$end}")
             ->line('Purpose: ' . $this->appointment->purpose)
             ->line('Please arrive on time.')
             ->salutation('Thank you.');

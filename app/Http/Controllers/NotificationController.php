@@ -6,21 +6,26 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return auth()->user()
+        $perPage = 10;
+
+        $notifications = auth()->user()
             ->notifications()
             ->latest()
-            ->take(10)
-            ->get()
-            ->map(fn ($n) => [
+            ->paginate($perPage);
+
+        return response()->json([
+            'data' => $notifications->map(fn ($n) => [
                 'id' => $n->id,
                 'title' => $n->data['title'] ?? 'Notification',
                 'message' => $n->data['message'] ?? '',
                 'url' => $n->data['url'] ?? null,
                 'read_at' => $n->read_at,
                 'created_at' => $n->created_at->diffForHumans(),
-            ]);
+            ]),
+            'has_more' => $notifications->hasMorePages(),
+        ]);
     }
 
     public function unreadCount()

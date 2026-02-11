@@ -32,6 +32,8 @@ class AdminReportController extends Controller
 
         foreach ($clusters as $clusterNumber => $items) {
 
+            $patients = [];
+
             $diseaseCount = [];
             $ageGroups = [];
             $roles = [];
@@ -39,16 +41,31 @@ class AdminReportController extends Controller
             foreach ($items as $item) {
 
                 $consultation = $item->consultation;
-                $patient = $consultation?->patient;
 
-                if (!$consultation || !$patient) {
+                if (!$consultation) {
                     continue;
                 }
 
-                // ----------------
+                // ✅ Count diseases FIRST (independent of patient)
+                foreach ($consultation->diseases as $disease) {
+                    $diseaseCount[$disease->name] =
+                        ($diseaseCount[$disease->name] ?? 0) + 1;
+                }
+
+                $patient = $consultation->patient;
+
+                if (!$patient) {
+                    continue; // skip age & role only
+                }
+
+                // ✅ Collect patients
+                $patients[] = [
+                    'id' => $patient->id,
+                    'name' => trim($patient->first_name . ' ' . $patient->last_name),
+                ];
+
                 // AGE GROUP
-                // ----------------
-                if ($patient && $patient->birthdate && $consultation->date) {
+                if ($patient->birthdate && $consultation->date) {
                     $age = Carbon::parse($patient->birthdate)
                         ->diffInYears(Carbon::parse($consultation->date));
 
@@ -56,20 +73,13 @@ class AdminReportController extends Controller
                     $ageGroups[$group] = ($ageGroups[$group] ?? 0) + 1;
                 }
 
-                // ----------------
                 // ROLE
-                // ----------------
-                $roleName = $this->normalizeRole($patient?->userRole);
+                $roleName = $this->normalizeRole($patient->userRole ?? null);
                 $roles[$roleName] = ($roles[$roleName] ?? 0) + 1;
-
-                // ----------------
-                // DISEASES
-                // ----------------
-                foreach ($consultation->diseases as $disease) {
-                    $diseaseCount[$disease->name] =
-                        ($diseaseCount[$disease->name] ?? 0) + 1;
-                }
             }
+
+            // IMPORTANT: unique AFTER consultation loop
+            $uniquePatients = collect($patients)->unique('id')->values();
 
             arsort($diseaseCount);
             arsort($ageGroups);
@@ -109,6 +119,7 @@ class AdminReportController extends Controller
                 'top_age_group' => $topAgeGroup,
                 'top_role' => $topRole,
                 'summary' => ucfirst($summary),
+                'patients' => $uniquePatients,
             ];
         }
 

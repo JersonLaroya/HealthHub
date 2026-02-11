@@ -86,6 +86,17 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
     d.name.toLowerCase().includes(diseaseSearchEdit.toLowerCase())
   );
 
+  const [treatmentSearch, setTreatmentSearch] = useState("");
+  const [treatmentSearchEdit, setTreatmentSearchEdit] = useState("");
+
+  const filteredTreatments = treatments.filter(t =>
+    t.name.toLowerCase().includes(treatmentSearch.toLowerCase())
+  );
+
+  const filteredTreatmentsEdit = treatments.filter(t =>
+    t.name.toLowerCase().includes(treatmentSearchEdit.toLowerCase())
+  );
+
   useEffect(() => {
     if (!selectingDiseases) setDiseaseSearch("");
   }, [selectingDiseases]);
@@ -93,6 +104,14 @@ export default function Show({ patient, consultations, breadcrumbs = [], schoolY
   useEffect(() => {
     if (!selectingDiseasesEdit) setDiseaseSearchEdit("");
   }, [selectingDiseasesEdit]);
+
+  useEffect(() => {
+    if (!selectingTreatments) setTreatmentSearch("");
+  }, [selectingTreatments]);
+
+  useEffect(() => {
+    if (!selectingTreatmentsEdit) setTreatmentSearchEdit("");
+  }, [selectingTreatmentsEdit]);
 
 
   const { data, setData, put, processing, errors } = useForm({
@@ -807,34 +826,52 @@ const handleApproveWithUpdate = () => {
       </div>
 
       <Dialog open={selectingTreatments} onOpenChange={setSelectingTreatments}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Select Treatments</DialogTitle>
           </DialogHeader>
 
+          {/* SEARCH */}
+          <Input
+            placeholder="Search treatment..."
+            value={treatmentSearch}
+            onChange={(e) => setTreatmentSearch(e.target.value)}
+            className="mb-2"
+          />
+
           <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
-            {treatments.map(t => (
-              <label key={t.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={consultationData.treatment_ids.includes(t.id)}
-                  onChange={(e) =>
-                    setConsultationData(
-                      "treatment_ids",
-                      e.target.checked
-                        ? [...consultationData.treatment_ids, t.id]
-                        : consultationData.treatment_ids.filter(id => id !== t.id)
-                    )
-                  }
-                />
-                {t.name}
-              </label>
-            ))}
+            {filteredTreatments.length > 0 ? (
+              filteredTreatments.map(t => (
+                <label key={t.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={consultationData.treatment_ids.includes(t.id)}
+                    onChange={(e) =>
+                      setConsultationData(
+                        "treatment_ids",
+                        e.target.checked
+                          ? [...consultationData.treatment_ids, t.id]
+                          : consultationData.treatment_ids.filter(id => id !== t.id)
+                      )
+                    }
+                  />
+                  {t.name}
+                </label>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 col-span-full text-center">
+                No treatments found
+              </p>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectingTreatments(false)}>Cancel</Button>
-            <Button onClick={() => setSelectingTreatments(false)}>Done</Button>
+            <Button variant="outline" onClick={() => setSelectingTreatments(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setSelectingTreatments(false)}>
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1181,34 +1218,52 @@ const handleApproveWithUpdate = () => {
 
       {/* Selecting Treatmens Modal */}
       <Dialog open={selectingTreatmentsEdit} onOpenChange={setSelectingTreatmentsEdit}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Select Treatments</DialogTitle>
           </DialogHeader>
 
+          {/* SEARCH */}
+          <Input
+            placeholder="Search treatment..."
+            value={treatmentSearchEdit}
+            onChange={(e) => setTreatmentSearchEdit(e.target.value)}
+            className="mb-2"
+          />
+
           <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
-            {treatments.map(t => (
-              <label key={t.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={editConsultData.treatment_ids.includes(t.id)}
-                  onChange={(e) =>
-                    setEditConsultData(
-                      "treatment_ids",
-                      e.target.checked
-                        ? [...editConsultData.treatment_ids, t.id]
-                        : editConsultData.treatment_ids.filter(id => id !== t.id)
-                    )
-                  }
-                />
-                {t.name}
-              </label>
-            ))}
+            {filteredTreatmentsEdit.length > 0 ? (
+              filteredTreatmentsEdit.map(t => (
+                <label key={t.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editConsultData.treatment_ids.includes(t.id)}
+                    onChange={(e) =>
+                      setEditConsultData(
+                        "treatment_ids",
+                        e.target.checked
+                          ? [...editConsultData.treatment_ids, t.id]
+                          : editConsultData.treatment_ids.filter(id => id !== t.id)
+                      )
+                    }
+                  />
+                  {t.name}
+                </label>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 col-span-full text-center">
+                No treatments found
+              </p>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectingTreatmentsEdit(false)}>Cancel</Button>
-            <Button onClick={() => setSelectingTreatmentsEdit(false)}>Done</Button>
+            <Button variant="outline" onClick={() => setSelectingTreatmentsEdit(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setSelectingTreatmentsEdit(false)}>
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

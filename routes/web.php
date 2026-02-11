@@ -609,6 +609,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::post('/notifications/mark-all-read', function () {
+        auth()->user()
+            ->unreadNotifications
+            ->markAsRead();
+
+        return response()->json(['success' => true]);
+    });
 });
 
 

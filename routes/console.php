@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('app:complete-past-appointments')
-    ->dailyAt('00:05');
+    ->everyMinute();
 
 Schedule::command('appointments:send-reminders')
-    ->dailyAt('08:00');
+    ->everyMinute();

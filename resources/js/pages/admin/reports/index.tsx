@@ -2,6 +2,8 @@ import AppLayout from "@/layouts/app-layout";
 import { Card } from "@/components/ui/card";
 import { Link, router, usePage } from "@inertiajs/react";
 import { FileText, BarChart3 } from "lucide-react";
+import { useState } from "react";
+
 
 export default function ReportsIndex({ clusters }) {
 
@@ -11,6 +13,9 @@ export default function ReportsIndex({ clusters }) {
       warning?: string;
     };
   };
+
+  const [openCluster, setOpenCluster] = useState<number | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<any | null>(null);
 
   return (
     <AppLayout>
@@ -123,10 +128,57 @@ export default function ReportsIndex({ clusters }) {
                   </ul>
                 </div>
 
+                <button
+                  onClick={() => setSelectedCluster(cluster)}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  View Patients
+                </button>
+
               </Card>
             ))}
           </div>
         </div>
+
+        {selectedCluster && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white w-full max-w-md rounded-xl shadow-xl p-5">
+
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-semibold text-sm">
+          Patients in Disease Pattern {selectedCluster.cluster}
+        </h3>
+        <button
+          onClick={() => setSelectedCluster(null)}
+          className="text-sm text-muted-foreground hover:text-black"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="max-h-80 overflow-y-auto border rounded-md p-2">
+        {selectedCluster.patients?.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            No patients found.
+          </p>
+        )}
+
+        <ul className="space-y-1 text-xs">
+          {selectedCluster.patients?.map((patient: any) => (
+            <li
+              key={patient.id}
+              className="px-2 py-1 rounded hover:bg-muted"
+            >
+              {patient.name}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+    </div>
+  </div>
+)}
+
 
         {/* DISEASE PATTERN DISTRIBUTION */}
         {/* <div className="space-y-4">

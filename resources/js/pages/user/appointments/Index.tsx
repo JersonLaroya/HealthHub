@@ -100,57 +100,73 @@ export default function UserAppointments({
         </div>
 
         {/* FILTERS */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            className="w-full sm:w-auto"
-            variant={!filters?.status ? "default" : "outline"}
-            onClick={() => filter()}
-          >
-            All
-          </Button>
+        <div className="space-y-2">
 
-          <Button
-            size="sm"
-            className="w-full sm:w-auto"
-            variant={filters?.status === "pending" ? "default" : "outline"}
-            onClick={() => filter("pending")}
-          >
-            Pending
-          </Button>
+          {/* ✅ MOBILE: Dropdown */}
+          <div className="sm:hidden">
+            <select
+              value={filters?.status ?? ""}
+              onChange={(e) => filter(e.target.value || undefined)}
+              className="w-full border rounded-md px-3 py-2 text-sm bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700"
+            >
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="completed">Completed</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
 
-          <Button
-            size="sm"
-            className="w-full sm:w-auto"
-            variant={filters?.status === "approved" ? "default" : "outline"}
-            onClick={() => filter("approved")}
-          >
-            Approved
-          </Button>
+          {/* ✅ DESKTOP: Buttons */}
+          <div className="hidden sm:flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={!filters?.status ? "default" : "outline"}
+              onClick={() => filter()}
+            >
+              All
+            </Button>
 
-          <Button
-            size="sm"
-            className="w-full sm:w-auto"
-            variant={filters?.status === "completed" ? "default" : "outline"}
-            onClick={() => filter("completed")}
-          >
-            Completed
-          </Button>
+            <Button
+              size="sm"
+              variant={filters?.status === "pending" ? "default" : "outline"}
+              onClick={() => filter("pending")}
+            >
+              Pending
+            </Button>
 
-          <Button
-            size="sm"
-            className="w-full sm:w-auto"
-            variant={filters?.status === "rejected" ? "default" : "outline"}
-            onClick={() => filter("rejected")}
-          >
-            Rejected
-          </Button>
+            <Button
+              size="sm"
+              variant={filters?.status === "approved" ? "default" : "outline"}
+              onClick={() => filter("approved")}
+            >
+              Approved
+            </Button>
+
+            <Button
+              size="sm"
+              variant={filters?.status === "completed" ? "default" : "outline"}
+              onClick={() => filter("completed")}
+            >
+              Completed
+            </Button>
+
+            <Button
+              size="sm"
+              variant={filters?.status === "rejected" ? "default" : "outline"}
+              onClick={() => filter("rejected")}
+            >
+              Rejected
+            </Button>
+          </div>
         </div>
 
         {/* LIST */}
         {appointments.length === 0 ? (
           <div className="text-neutral-500">
-            You have no appointments yet.
+            {filters?.status
+              ? `You have no ${filters.status} appointments yet.`
+              : "You have no appointments yet."}
           </div>
         ) : (
           <div className="space-y-3">

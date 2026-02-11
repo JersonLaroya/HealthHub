@@ -63,6 +63,10 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const [notifCount, setNotifCount] = useState(0);
     const [notifications, setNotifications] = useState<any[]>([]);
 
+    const [notifPage, setNotifPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     function getCookie(name: string): string {
     const match = document.cookie.match(
         new RegExp("(^| )" + name + "=([^;]+)")
@@ -88,11 +92,24 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         setNotifCount(data.count);
     }
 
-    async function loadNotifications() {
-        const res = await fetch("/notifications");
+    async function loadNotifications(pageNumber = 1) {
+        if (!hasMore && pageNumber !== 1) return;
+
+        setLoadingMore(true);
+
+        const res = await fetch(`/notifications?page=${pageNumber}`);
         const data = await res.json();
-        setNotifications(data);
-    }
+
+        if (pageNumber === 1) {
+            setNotifications(data.data);
+        } else {
+            setNotifications(prev => [...prev, ...data.data]);
+        }
+
+        setHasMore(data.has_more);
+        setNotifPage(pageNumber);
+        setLoadingMore(false);
+        }
 
     // async function markNotifRead(id: string, url?: string) {
     //     await fetch(`/notifications/${id}/read`, {
@@ -130,7 +147,9 @@ useEffect(() => {
 
   consultationsChannel.listen(".consultation.approved", () => {
     loadNotifCount();
-    loadNotifications();
+    setNotifPage(1);
+    setHasMore(true);
+    loadNotifications(1);
   });
 
   // ----------------------------
@@ -140,7 +159,9 @@ useEffect(() => {
 
   inquiriesChannel.listen(".inquiry.approved", () => {
     loadNotifCount();
-    loadNotifications();
+    setNotifPage(1);
+    setHasMore(true);
+    loadNotifications(1);
   });
 
   return () => {
@@ -149,35 +170,58 @@ useEffect(() => {
   };
 }, [auth?.user?.id]);
 
+async function markAllAsRead() {
+    if (notifCount === 0) return;
+
+    await csrfFetch("/notifications/mark-all-read", {
+        method: "POST",
+    });
+
+    setNotifCount(0);
+
+    setNotifications(prev =>
+        prev.map(n => ({
+            ...n,
+            read_at: n.read_at ?? new Date().toISOString()
+        }))
+    );
+}
+
 
     async function markNotifRead(id: string, url?: string) {
-        await csrfFetch(`/notifications/${id}/read`, {
-            method: "POST",
-        });
+    await csrfFetch(`/notifications/${id}/read`, {
+        method: "POST",
+    });
 
-        // refresh after marking read
-        loadNotifCount();
-        loadNotifications();
+    // Update count instantly
+    setNotifCount(prev => Math.max(prev - 1, 0));
 
-        // keep everything in sync
-        window.dispatchEvent(new Event("notifications-updated"));
+    // Update only that notification locally
+    setNotifications(prev =>
+        prev.map(n =>
+            n.id === id
+                ? { ...n, read_at: n.read_at ?? new Date().toISOString() }
+                : n
+        )
+    );
 
-        if (url) {
-            router.visit(url);
-        }
-        }
+    if (url) {
+        router.visit(url);
+    }
+}
+
 
     useEffect(() => {
         if (!auth?.user?.id) return;
-
         loadNotifCount();
-        loadNotifications();
     }, [auth?.user?.id]);
 
     useEffect(() => {
     const refresh = () => {
         loadNotifCount();
-        loadNotifications();
+        setNotifPage(1);
+        setHasMore(true);
+        loadNotifications(1);
     };
 
     window.addEventListener("notifications-updated", refresh);
@@ -215,7 +259,9 @@ useEffect(() => {
   channel.notification((notification: any) => {
     console.log("REALTIME NOTIFICATION RECEIVED:", notification);
     loadNotifCount();
-    loadNotifications();
+    setNotifPage(1);
+    setHasMore(true);
+    loadNotifications(1);
   });
 
   return () => {
@@ -616,7 +662,15 @@ const messagesHref =
                             </Link>
 
                             {/* Notifications */}
-                            <DropdownMenu>
+                            <DropdownMenu
+                                onOpenChange={(open) => {
+                                    if (open) {
+                                    setNotifPage(1);
+                                    setHasMore(true);
+                                    loadNotifications(1);
+                                    }
+                                }}
+                                >
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="relative h-9 w-9">
                                     <Bell className="h-5 w-5" />
@@ -631,35 +685,71 @@ const messagesHref =
                                     </Button>
                                 </DropdownMenuTrigger>
 
-                                <DropdownMenuContent 
-                                    align="end" 
-                                    className="w-80 max-h-[420px] overflow-y-auto"
-                                >
-                                    <div className="p-2 text-sm font-semibold border-b">Notifications</div>
-
-                                    {notifications.length === 0 && (
-                                    <div className="p-3 text-sm text-neutral-500">
-                                        No notifications
-                                    </div>
-                                    )}
-
-                                    {notifications.map((n) => (
+                                <DropdownMenuContent align="end" className="w-80 p-0">
                                     <div
-                                        key={n.id}
-                                        onClick={() => markNotifRead(n.id, n.url)}
-                                        className={`px-3 py-2 text-sm cursor-pointer border-b last:border-b-0
-                                        ${n.read_at ? "bg-transparent" : "bg-neutral-100 dark:bg-neutral-800"}`}
+                                        className="max-h-[420px] overflow-y-auto overscroll-contain"
+                                        onScroll={(e) => {
+                                        const el = e.currentTarget;
+
+                                        const distanceFromBottom =
+                                            el.scrollHeight - el.scrollTop - el.clientHeight;
+
+                                        if (distanceFromBottom < 50 && hasMore && !loadingMore) {
+                                            loadNotifications(notifPage + 1);
+                                        }
+                                        }}
                                     >
-                                        <div className="font-medium">{n.title}</div>
-                                        <div className="text-xs text-neutral-600 dark:text-neutral-400">
-                                        {n.message}
+
+                                        <div className="flex items-center justify-between p-2 text-sm font-semibold border-b">
+                                            <span>Notifications</span>
+
+                                            {notifCount > 0 && (
+                                                <button
+                                                    onClick={markAllAsRead}
+                                                    className="text-xs text-blue-600 hover:underline"
+                                                >
+                                                    Mark all as read
+                                                </button>
+                                            )}
                                         </div>
-                                        <div className="text-[10px] text-neutral-400 mt-1">
-                                        {n.created_at}
+
+                                        {notifications.length === 0 && (
+                                        <div className="p-3 text-sm text-neutral-500">
+                                            No notifications
                                         </div>
+                                        )}
+
+                                        {notifications.map((n) => (
+                                        <div
+                                            key={n.id}
+                                            onClick={() => markNotifRead(n.id, n.url)}
+                                            className={`px-3 py-2 text-sm cursor-pointer border-b last:border-b-0
+                                            ${n.read_at ? "bg-transparent" : "bg-neutral-100 dark:bg-neutral-800"}`}
+                                        >
+                                            <div className="font-medium">{n.title}</div>
+                                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                            {n.message}
+                                            </div>
+                                            <div className="text-[10px] text-neutral-400 mt-1">
+                                            {n.created_at}
+                                            </div>
+                                        </div>
+                                        ))}
+
+                                        {loadingMore && (
+                                        <div className="p-3 text-xs text-center text-neutral-400">
+                                            Loading more...
+                                        </div>
+                                        )}
+
+                                        {!hasMore && notifications.length > 0 && (
+                                        <div className="p-3 text-xs text-center text-neutral-400">
+                                            No more notifications
+                                        </div>
+                                        )}
+
                                     </div>
-                                    ))}
-                                </DropdownMenuContent>
+                                    </DropdownMenuContent>
                                 </DropdownMenu>
                         </div>
 

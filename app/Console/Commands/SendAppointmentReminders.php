@@ -13,21 +13,36 @@ class SendAppointmentReminders extends Command
 
     protected $description = 'Send email reminders for upcoming appointments';
 
-    public function handle()
-    {
-        $tomorrow = Carbon::tomorrow()->toDateString();
+public function handle()
+{
+    $nowManila = now()->timezone('Asia/Manila');
 
-        $appointments = Appointment::where('status', 'approved')
-            ->where('appointment_date', $tomorrow)
-            ->with('user')
-            ->get();
+    $this->info('Now Manila: ' . $nowManila);
 
-        foreach ($appointments as $appointment) {
+    $appointments = Appointment::where('status', 'approved')
+        ->with('user')
+        ->get();
+
+    foreach ($appointments as $appointment) {
+
+        $appointmentDateTime = \Carbon\Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $appointment->appointment_date . ' ' . $appointment->start_time,
+            'Asia/Manila'
+        );
+
+        $this->info('Checking appointment Manila: ' . $appointmentDateTime);
+
+        if ($appointmentDateTime->between(
+            $nowManila,
+            $nowManila->copy()->addHour()
+        )) {
+
             $appointment->user->notify(
                 new AppointmentReminder($appointment)
             );
         }
-
-        $this->info('Appointment reminders sent.');
     }
+}
+
 }
