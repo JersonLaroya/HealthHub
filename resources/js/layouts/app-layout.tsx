@@ -59,6 +59,7 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
   const presence = echo.join("chat");
 
   presence.here((users: any[]) => {
+    console.log("ONLINE USERS:", users);
     window.dispatchEvent(
       new CustomEvent("presence-update", {
         detail: users.map(u => u.id),

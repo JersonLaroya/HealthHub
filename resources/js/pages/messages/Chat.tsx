@@ -383,7 +383,7 @@ function FileIcon({ name }: { name?: string }) {
    return () => {
     window.Echo.leave(`chat.${authId}`);
   };
-  }, [authId]);
+  }, [authId, activeUser]);
 
 useEffect(() => {
   function handleUpdate(e: any) {
