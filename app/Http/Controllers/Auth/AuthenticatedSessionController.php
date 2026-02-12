@@ -34,7 +34,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         // return redirect()->intended(route('dashboard', absolute: false));
-        return redirect()->intended($this->redirectTo());
+        return redirect()->to($this->redirectTo());
     }
 
     /**
@@ -58,11 +58,11 @@ class AuthenticatedSessionController extends Controller
         }
 
         // Check if user profile is incomplete
-        if ((!$user->course_id && !$user->office_id) || ($user->course_id && !$user->year_level_id)) {
-            // Redirect to profile settings with a flash message
-            session()->flash('profile_incomplete', true);
-            return route('profile.settings');
-        }
+        // if ((!$user->course_id && !$user->office_id) || ($user->course_id && !$user->year_level_id)) {
+        //     // Redirect to profile settings with a flash message
+        //     session()->flash('profile_incomplete', true);
+        //     return route('profile.settings');
+        // }
 
         $userRoleName = $user->userRole->name;
 

@@ -29,6 +29,13 @@ Broadcast::channel('chat.{userId}', function ($user, $userId) {
     return (int) $user->id === (int) $userId;
 });
 
+Broadcast::channel('chat', function ($user) {
+    return [
+        'id' => $user->id,
+        'name' => $user->first_name,
+    ];
+});
+
 Broadcast::channel('admin-consultations', function ($user) {
     return in_array($user->userRole->name, ['Admin', 'Nurse']);
 });

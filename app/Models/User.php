@@ -52,6 +52,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'birthdate' => 'date',
+        'last_seen_at' => 'datetime',
     ];
 
     protected $appends = ['name'];

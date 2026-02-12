@@ -117,7 +117,11 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
     };
 
     try {
-      const pdfBytes = await fillPreEmploymentForm(allData, 'pre-employment-health-form');
+      const pdfBytes = await fillPreEmploymentForm(
+        allData,
+        'pre-employment-health-form',
+        'user'
+      );
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');

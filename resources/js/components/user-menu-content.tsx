@@ -14,8 +14,14 @@ interface UserMenuContentProps {
 export function UserMenuContent({ user }: UserMenuContentProps) {
     const cleanup = useMobileNavigation();
 
-    const handleLogout = () => {
+        const handleLogout = () => {
         cleanup();
+
+        const echo = (window as any).Echo;
+        if (echo) {
+            echo.leaveAllChannels();
+        }
+
         router.flushAll();
     };
 

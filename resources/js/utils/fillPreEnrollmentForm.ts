@@ -3,11 +3,15 @@ import { PDFDocument } from 'pdf-lib';
 /**
  * Generates a pre-enrollment PDF using the template from DB (services table)
  */
-export async function fillPreEnrollmentForm(allPagesData: any, slug: string) {
+export async function fillPreEnrollmentForm(
+  allPagesData: any,
+  slug: string,
+  prefix: string
+) {
   if (!slug) throw new Error('Service slug is required to fetch PDF template.');
 
   // Fetch PDF template
-  const pdfBytes = await fetch(`/user/files/${slug}/template`)
+  const pdfBytes = await fetch(`/${prefix}/files/${slug}/template`)
     .then(res => {
       if (!res.ok) throw new Error('Failed to fetch PDF template');
       return res.arrayBuffer();

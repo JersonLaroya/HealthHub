@@ -466,7 +466,8 @@ export default function Edit({ personalInfo, breadcrumbs }: PersonalInfoProps) {
                 value={data.home_province_code}
                 onChange={(e) => {
                   const selectedProvince = provinces.find(p => p.code === e.target.value);
-                  //setHomeProvinceName(selectedProvince?.code || "");
+                  setData("home_province_name", selectedProvince?.name || "");
+                  setData("home_province_code", selectedProvince?.code || "");
                   setHomeProvinceCode(selectedProvince?.code || "");
                   setHomeMunicipalityCode("");
 

@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
@@ -26,6 +26,15 @@ interface Props {
 
 export default function ShowForm({ service, patient }: Props) {
   const { records } = usePage().props;
+  const { props } = usePage();
+  const role = props.auth?.user?.user_role?.name?.toLowerCase();
+
+  const prefix =
+    role === "admin"
+      ? "admin"
+      : role === "nurse"
+      ? "nurse"
+      : "user";
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -51,13 +60,11 @@ export default function ShowForm({ service, patient }: Props) {
       let pdfBytes;
 
       if (serviceSlug === 'pre-enrollment-health-form') {
-        pdfBytes = await fillPreEnrollmentForm(responses, serviceSlug);
+        pdfBytes = await fillPreEnrollmentForm(responses, serviceSlug, prefix);
       } else if (serviceSlug === 'pre-employment-health-form') {
-        pdfBytes = await fillPreEmploymentForm(responses, serviceSlug);
+        pdfBytes = await fillPreEmploymentForm(responses, serviceSlug, prefix);
       } else if (serviceSlug === 'athlete-medical') {
-        pdfBytes = await fillAthleteMedicalForm(responses, serviceSlug);
-      } else if (serviceSlug === 'laboratory-request-form') {
-        pdfBytes = await fillLaboratoryRequests(responses, serviceSlug, patient);
+        pdfBytes = await fillAthleteMedicalForm(responses, serviceSlug, prefix);
       } else {
         alert('Unsupported form type');
         return;
@@ -186,14 +193,33 @@ export default function ShowForm({ service, patient }: Props) {
 
   const canResubmit = latestRecord?.status === "rejected";
 
+  const handleBack = () => {
+    router.get('/user/files', {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
+
   return (
     <AppLayout>
       <Head title={service.title} />
 
       <div className="p-6 space-y-6">
         {/* Title row with optional download button */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-          <h1 className="text-2xl font-semibold">{service.title}</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBack}
+            >
+              Back
+            </Button>
+
+            <h1 className="text-2xl font-semibold">
+              {service.title}
+            </h1>
+          </div>
           {isPreEnrollment && (
             <Button
               variant="default"

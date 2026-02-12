@@ -124,7 +124,11 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
     try {
       sessionStorage.setItem('athlete_page_6', JSON.stringify(form.data.responses.page6));
       sessionStorage.setItem('athlete_page_6_physical_exam', JSON.stringify(form.data.responses.physical_exam));
-      const pdfBytes = await fillAthleteMedicalForm(form.data.responses, 'athlete-medical');
+      const pdfBytes = await fillAthleteMedicalForm(
+        form.data.responses,
+        'athlete-medical',
+        'user'
+      );
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       window.open(URL.createObjectURL(blob), '_blank');
     } catch (err) {

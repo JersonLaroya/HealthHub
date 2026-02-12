@@ -94,11 +94,11 @@ export default function ShowFile({ patient, service, records }: Props) {
         let pdfBytes;
 
         if (svc.slug === "pre-enrollment-health-form") {
-        pdfBytes = await fillPreEnrollmentForm(responses, svc.slug);
+        pdfBytes = await fillPreEnrollmentForm(responses, svc.slug, prefix);
         } else if (svc.slug === "pre-employment-health-form") {
-        pdfBytes = await fillPreEmploymentForm(responses, svc.slug);
+        pdfBytes = await fillPreEmploymentForm(responses, svc.slug, prefix);
         } else if (svc.slug === "athlete-medical") {
-        pdfBytes = await fillAthleteMedicalForm(responses, svc.slug);
+        pdfBytes = await fillAthleteMedicalForm(responses, svc.slug, prefix);
         } else if (svc.slug === "laboratory-request-form") {
         pdfBytes = await fillLaboratoryRequests(responses, svc.slug, patient);
         } else {
@@ -198,8 +198,10 @@ export default function ShowFile({ patient, service, records }: Props) {
               </thead>
 
               <tbody>
-                {recordList.length > 0 ? (
-                  recordList.map((record) => (
+                {recordList.filter(r => r.status !== "rejected").length > 0 ? (
+                    recordList
+                        .filter(r => r.status !== "rejected")
+                        .map((record) => (
                     <tr
                       key={record.id}
                       className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
@@ -233,11 +235,31 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 <Button
                                     size="sm"
                                     variant="default"
+                                    // onClick={() => {
+                                    // const rec = recordList.find(r => r.id === record.id);
+                                    // setEditMode("approve");
+                                    // setEditingRecord(rec || null);
+                                    // setFormData(rec?.response_data || {});
+                                    // }}
                                     onClick={() => {
-                                    const rec = recordList.find(r => r.id === record.id);
-                                    setEditMode("approve");
-                                    setEditingRecord(rec || null);
-                                    setFormData(rec?.response_data || {});
+                                    if (service.slug === "pre-employment-health-form") {
+                                        // direct approve
+                                        router.post(`/${prefix}/forms/${record.id}/approve`, {}, {
+                                        onSuccess: () => {
+                                            toast.success("Form approved");
+                                            setRecordList(prev =>
+                                            prev.map(r =>
+                                                r.id === record.id ? { ...r, status: "approved" } : r
+                                            )
+                                            );
+                                        }
+                                        });
+                                    } else {
+                                        // open modal for athlete & pre-enrollment
+                                        const rec = recordList.find(r => r.id === record.id);
+                                        setEditingRecord(rec || null);
+                                        setFormData(rec?.response_data || {});
+                                    }
                                     }}
                                 >
                                     Approve
@@ -251,9 +273,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                                         onSuccess: () => {
                                         toast.error("Form rejected");
                                         setRecordList(prev =>
-                                            prev.map(r =>
-                                            r.id === record.id ? { ...r, status: "rejected" } : r
-                                            )
+                                        prev.filter(r => r.id !== record.id)
                                         );
                                         window.dispatchEvent(new Event("notifications-updated"));
                                         }

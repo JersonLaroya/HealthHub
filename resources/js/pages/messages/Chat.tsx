@@ -57,6 +57,7 @@ export default function Chat() {
   const [loadingConversation, setLoadingConversation] = useState(false);
   const isPrependingRef = useRef(false);
   const isNearBottomRef = useRef(true);
+  const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
 
 
 function getCookie(name: string): string {
@@ -308,6 +309,10 @@ function FileIcon({ name }: { name?: string }) {
   const filteredInbox = inbox.filter(m => matches(otherUser(m)));
   const filteredNewContacts = newContacts.filter(u => matches(u));
 
+  function isUserOnline(userId: number) {
+    return onlineUsers.includes(userId);
+  }
+
   /* ================================
       Realtime listener
   ================================= */
@@ -316,6 +321,9 @@ function FileIcon({ name }: { name?: string }) {
 
     loadInbox();
     loadContacts();
+
+    const echo = (window as any).Echo;
+    if (!echo) return;
 
     //const channel = window.Echo.private(`chat.${authId}`);
     const channelName = `chat.${authId}`;
@@ -375,7 +383,32 @@ function FileIcon({ name }: { name?: string }) {
    return () => {
     window.Echo.leave(`chat.${authId}`);
   };
-  }, [activeUser]);
+  }, [authId]);
+
+useEffect(() => {
+  function handleUpdate(e: any) {
+    setOnlineUsers(e.detail);
+  }
+
+  function handleJoin(e: any) {
+    setOnlineUsers(prev => [...prev, e.detail]);
+  }
+
+  function handleLeave(e: any) {
+    setOnlineUsers(prev => prev.filter(id => id !== e.detail));
+  }
+
+  window.addEventListener("presence-update", handleUpdate);
+  window.addEventListener("presence-join", handleJoin);
+  window.addEventListener("presence-leave", handleLeave);
+
+  return () => {
+    window.removeEventListener("presence-update", handleUpdate);
+    window.removeEventListener("presence-join", handleJoin);
+    window.removeEventListener("presence-leave", handleLeave);
+  };
+}, []);
+
 
   /* ================================
       Auto scroll
@@ -847,8 +880,17 @@ function FileIcon({ name }: { name?: string }) {
                     active ? "bg-gray-100 dark:bg-neutral-800" : ""
                   }`}
                 >
-                  <div className={`font-medium text-gray-900 dark:text-gray-100 ${isUnread ? "font-bold" : ""}`}>
-                    {other.first_name} {other.last_name}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        isUserOnline(other.id)
+                          ? "bg-green-500"
+                          : "bg-gray-400"
+                      }`}
+                    />
+                    <div className={`font-medium text-gray-900 dark:text-gray-100 ${isUnread ? "font-bold" : ""}`}>
+                      {other.first_name} {other.last_name}
+                    </div>
                   </div>
 
                   <div
@@ -927,7 +969,21 @@ function FileIcon({ name }: { name?: string }) {
                   >
                     ← Back
                   </button>
-                  {activeUser.first_name} {activeUser.last_name}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        isUserOnline(activeUser.id)
+                          ? "bg-green-500"
+                          : "bg-gray-400"
+                      }`}
+                    />
+                    <div>
+                      {activeUser.first_name} {activeUser.last_name}
+                      <div className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                        {isUserOnline(activeUser.id) ? "Online" : "Offline"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Messages */}

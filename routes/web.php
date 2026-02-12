@@ -468,6 +468,8 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
             Route::patch('/{appointment}/reschedule', [AppointmentManagementController::class, 'reschedule'])
                 ->name('reschedule');
         });
+
+        Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate']);
     });
 
     // Nurse
@@ -507,6 +509,8 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
             Route::patch('/{appointment}/reschedule', [AppointmentManagementController::class, 'reschedule'])
                 ->name('reschedule');
         });
+
+        Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate']);
     });
 });
 
@@ -601,7 +605,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/messages/contacts', [MessageController::class, 'contacts']);
     Route::post('/messages/conversation/{user}/seen', [MessageController::class, 'markConversationSeen']);
     Route::get('/messages/unread-count', [MessageController::class, 'unreadCount']);
+    // Update last_seen_at (heartbeat)
+    Route::post('/user/ping', function () {
+        auth()->user()->update([
+            'last_seen_at' => now(),
+        ]);
 
+        return response()->json(['success' => true]);
+    });
 });
 
 // Notifications

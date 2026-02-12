@@ -160,7 +160,11 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
     };
 
     try {
-      const pdfBytes = await fillPreEnrollmentForm(allData, 'pre-enrollment-health-form');
+      const pdfBytes = await fillPreEnrollmentForm(
+        allData,
+        'pre-enrollment-health-form',
+        'user'
+      );
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 

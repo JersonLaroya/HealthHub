@@ -219,64 +219,8 @@ export default function Index({
 
                         <td className="p-3 border-b">
                           <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
-                            {(isAdmin || isNurse) && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                disabled={record.status === "approved" || approvingId === record.id || rejectingId === record.id}
-                                onClick={() => {
-                                  setApprovingId(record.id);
 
-                                  router.post(`/admin/lab-results/${record.id}/approve`, {}, {
-                                    onSuccess: () => {
-                                      toast.success("Approved", { description: "Laboratory result approved." });
-
-                                      setLiveRecords(prev =>
-                                        prev.map(r =>
-                                          r.id === record.id ? { ...r, status: "approved" } : r
-                                        )
-                                      );
-                                    },
-                                    onFinish: () => setApprovingId(null),
-                                  });
-                                }}
-                              >
-                                {record.status === "approved"
-                                  ? "Approved"
-                                  : approvingId === record.id
-                                  ? "Approving..."
-                                  : "Approve"}
-                              </Button>
-                            )}
-
-                            {(isAdmin || isNurse) && record.status === "pending" && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                disabled={rejectingId === record.id || approvingId === record.id}
-                                onClick={() => {
-                                  setRejectingId(record.id);
-
-                                  router.post(`/admin/lab-results/${record.id}/reject`, {}, {
-                                    onSuccess: () => {
-                                      toast.error("Rejected", {
-                                        description: "Laboratory result was rejected.",
-                                      });
-
-                                      setLiveRecords(prev =>
-                                        prev.map(r =>
-                                          r.id === record.id ? { ...r, status: "rejected" } : r
-                                        )
-                                      );
-                                    },
-                                    onFinish: () => setRejectingId(null),
-                                  });
-                                }}
-                              >
-                                {rejectingId === record.id ? "Rejecting..." : "Reject"}
-                              </Button>
-                            )}
-
+                            {/* ALWAYS show View if submitted */}
                             {(status === "pending" || status === "approved" || status === "rejected") && alreadySubmitted && (
                               <Button
                                 size="sm"
@@ -290,7 +234,8 @@ export default function Index({
                               </Button>
                             )}
 
-                            {isAdmin && (
+                            {/* IF APPROVED → View + Delete only */}
+                            {status === "approved" && isAdmin && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -303,12 +248,71 @@ export default function Index({
                               </Button>
                             )}
 
+                            {/* IF NOT APPROVED → View + Approve + Reject */}
+                            {(status !== "approved") && (isAdmin || isNurse) && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  disabled={approvingId === record.id}
+                                  onClick={() => {
+                                    setApprovingId(record.id);
+
+                                    router.post(`/admin/lab-results/${record.id}/approve`, {}, {
+                                      onSuccess: () => {
+                                        toast.success("Approved", {
+                                          description: "Laboratory result approved.",
+                                        });
+
+                                        setLiveRecords(prev =>
+                                          prev.map(r =>
+                                            r.id === record.id ? { ...r, status: "approved" } : r
+                                          )
+                                        );
+                                      },
+                                      onFinish: () => setApprovingId(null),
+                                    });
+                                  }}
+                                >
+                                  {approvingId === record.id ? "Approving..." : "Approve"}
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={rejectingId === record.id}
+                                  onClick={() => {
+                                    setRejectingId(record.id);
+
+                                    router.post(`/admin/lab-results/${record.id}/reject`, {}, {
+                                      onSuccess: () => {
+                                        toast.error("Rejected", {
+                                          description: "Laboratory result was rejected.",
+                                        });
+
+                                        setLiveRecords(prev =>
+                                          prev.map(r =>
+                                            r.id === record.id ? { ...r, status: "rejected" } : r
+                                          )
+                                        );
+                                      },
+                                      onFinish: () => setRejectingId(null),
+                                    });
+                                  }}
+                                >
+                                  {rejectingId === record.id ? "Rejecting..." : "Reject"}
+                                </Button>
+                              </>
+                            )}
+
+                            {/* Missing */}
                             {status === "missing" && (
                               <span className="text-gray-400 text-sm">
                                 No submission yet
                               </span>
                             )}
-                           </div>
+
+                        </div>
                         </td>
                       </tr>
                     );

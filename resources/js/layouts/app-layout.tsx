@@ -17,6 +17,78 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
   const [showModal, setShowModal] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
+  useEffect(() => {
+    if (!auth?.user?.id) return;
+
+    function getCookie(name: string): string {
+      const match = document.cookie.match(
+        new RegExp("(^| )" + name + "=([^;]+)")
+      );
+      return match ? decodeURIComponent(match[2]) : "";
+    }
+
+    function csrfFetch(url: string, options: RequestInit = {}) {
+      return fetch(url, {
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          ...options.headers,
+          "X-XSRF-TOKEN": getCookie("XSRF-TOKEN"),
+        },
+        ...options,
+      });
+    }
+
+    // ping immediately
+    csrfFetch("/user/ping", { method: "POST" });
+
+    const interval = setInterval(() => {
+      csrfFetch("/user/ping", { method: "POST" });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [auth?.user?.id]);
+
+
+  useEffect(() => {
+  if (!auth?.user?.id) return;
+
+  const echo = (window as any).Echo;
+  if (!echo) return;
+
+  const presence = echo.join("chat");
+
+  presence.here((users: any[]) => {
+    window.dispatchEvent(
+      new CustomEvent("presence-update", {
+        detail: users.map(u => u.id),
+      })
+    );
+  });
+
+  presence.joining((user: any) => {
+    window.dispatchEvent(
+      new CustomEvent("presence-join", {
+        detail: user.id,
+      })
+    );
+  });
+
+  presence.leaving((user: any) => {
+    window.dispatchEvent(
+      new CustomEvent("presence-leave", {
+        detail: user.id,
+      })
+    );
+  });
+
+  return () => {
+    echo.leave("chat");
+  };
+
+}, [auth?.user?.id]);
+
+
 // useEffect(() => {
 //   const onProfilePage = window.location.pathname.includes('/profile');
 

@@ -18,6 +18,7 @@ class RedirectIfAuthenticated
             $userRole = Auth::user()->userRole->name;
 
             $routeName = match ($userRole) {
+                'Admin' => 'superadmin.dashboard',
                 'Admin' => 'admin.dashboard',
                 'Nurse' => 'nurse.dashboard',
                 //'Student', 'Faculty', 'Staff' => 'user.dashboard',
