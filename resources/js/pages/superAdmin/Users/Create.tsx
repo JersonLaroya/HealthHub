@@ -27,10 +27,10 @@ export default function Create({ roles, yearLevels, courses, offices }: Props) {
 
   const [showPassword, setShowPassword] = useState(false);
 
-  useEffect(() => {
-    if (flash?.success) toast.success(flash.success);
-    if (flash?.error) toast.error(flash.error);
-  }, [flash]);
+  // useEffect(() => {
+  //   if (flash?.success) toast.success(flash.success);
+  //   if (flash?.error) toast.error(flash.error);
+  // }, [flash]);
 
   const { data, setData, post, processing, errors, reset } = useForm({
     first_name: "",

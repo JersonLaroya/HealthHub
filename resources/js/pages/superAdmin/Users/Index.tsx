@@ -161,7 +161,6 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
 
         router.delete(`/superadmin/users/${deletingUser.id}`, {
             onSuccess: () => {
-            toast.success("User deleted successfully");
             setDeleteOpen(false);
             setDeletingUser(null);
             },

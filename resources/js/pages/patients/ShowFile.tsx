@@ -18,6 +18,7 @@ interface Record {
   id: number;
   created_at: string;
   status: "pending" | "approved" | "rejected";
+  isDeleting?: boolean;
 }
 
 interface Props {
@@ -576,39 +577,40 @@ export default function ShowFile({ patient, service, records }: Props) {
 
                 <Button
                     variant="default"
-                    onClick={async () => {
-                    try {
-                        // 1️⃣ Save updated responses
-                        await router.put(
+                    onClick={() => {
+                        router.put(
                         `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
-                        { responses: formData }
+                        { responses: formData },
+                        {
+                            onSuccess: () => {
+                            router.post(
+                                `/${prefix}/forms/${editingRecord.id}/approve`,
+                                {},
+                                {
+                                onSuccess: () => {
+                                    toast.success("Form approved");
+
+                                    setRecordList(prev =>
+                                    prev.map(r =>
+                                        r.id === editingRecord.id
+                                        ? { ...r, status: "approved" }
+                                        : r
+                                    )
+                                    );
+
+                                    setEditingRecord(null);
+                                    window.dispatchEvent(new Event("notifications-updated"));
+                                },
+                                onError: () => {
+                                    toast.error("Failed to approve form");
+                                },
+                                }
+                            );
+                            },
+                        }
                         );
-
-                        // 2️⃣ Approve the record
-                        await router.post(
-                        `/${prefix}/forms/${editingRecord.id}/approve`
-                        );
-
-                        toast.success("Form approved");
-
-                        // 3️⃣ Update local state immediately
-                        setRecordList(prev =>
-                        prev.map(r =>
-                            r.id === editingRecord.id
-                            ? { ...r, status: "approved" }
-                            : r
-                        )
-                        );
-
-                        // 4️⃣ Close modal
-                        setEditingRecord(null);
-
-                        window.dispatchEvent(new Event("notifications-updated"));
-                    } catch {
-                        toast.error("Failed to approve form");
-                    }
                     }}
-                >
+                    >
                     Approve
                 </Button>
                 </div>
@@ -633,19 +635,17 @@ export default function ShowFile({ patient, service, records }: Props) {
             </Button>
             <Button
             variant="destructive"
-            onClick={async () => {
+            onClick={() => {
                 if (!deletingRecord) return;
 
-                // Set a loading flag on the deletingRecord
                 setDeletingRecord({ ...deletingRecord, isDeleting: true });
 
-                try {
-                await router.delete(
+                router.delete(
                     `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${deletingRecord.id}`,
                     {
                     onSuccess: () => {
-                        setRecordList((prev) =>
-                        prev.filter((r) => r.id !== deletingRecord.id)
+                        setRecordList(prev =>
+                        prev.filter(r => r.id !== deletingRecord.id)
                         );
                         toast.success("Record deleted", {
                         description: `Record #${deletingRecord.id} removed successfully.`,
@@ -654,19 +654,12 @@ export default function ShowFile({ patient, service, records }: Props) {
                         setDeletingRecord(null);
                     },
                     onError: () => {
-                        toast.error("Delete failed", {
-                        description: "Please try again.",
-                        });
+                        toast.error("Delete failed");
                         setDeletingRecord({ ...deletingRecord, isDeleting: false });
                     },
                     }
                 );
-                } catch (err) {
-                console.error(err);
-                toast.error("An unexpected error occurred");
-                setDeletingRecord({ ...deletingRecord, isDeleting: false });
-                }
-            }}
+                }}
             >
             {deletingRecord.isDeleting ? "Deleting…" : "Delete"}
             </Button>
@@ -728,37 +721,38 @@ export default function ShowFile({ patient, service, records }: Props) {
 
                 <Button
                     variant="default"
-                    onClick={async () => {
-                        try {
-                        // 1️⃣ Save updated responses
-                        await router.put(
-                            `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
-                            { responses: formData }
-                        );
+                    onClick={() => {
+                        router.put(
+                        `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
+                        { responses: formData },
+                        {
+                            onSuccess: () => {
+                            router.post(
+                                `/${prefix}/forms/${editingRecord.id}/approve`,
+                                {},
+                                {
+                                onSuccess: () => {
+                                    toast.success("Form approved");
 
-                        // 2️⃣ Approve record
-                        await router.post(
-                            `/${prefix}/forms/${editingRecord.id}/approve`
-                        );
+                                    setRecordList(prev =>
+                                    prev.map(r =>
+                                        r.id === editingRecord.id
+                                        ? { ...r, status: "approved" }
+                                        : r
+                                    )
+                                    );
 
-                        toast.success("Form approved");
-
-                        // 3️⃣ Update table state
-                        setRecordList(prev =>
-                            prev.map(r =>
-                            r.id === editingRecord.id
-                                ? { ...r, status: "approved" }
-                                : r
-                            )
-                        );
-
-                        // 4️⃣ Close modal
-                        setEditingRecord(null);
-
-                        window.dispatchEvent(new Event("notifications-updated"));
-                        } catch {
-                        toast.error("Failed to approve form");
+                                    setEditingRecord(null);
+                                    window.dispatchEvent(new Event("notifications-updated"));
+                                },
+                                onError: () => {
+                                    toast.error("Failed to approve form");
+                                },
+                                }
+                            );
+                            },
                         }
+                        );
                     }}
                     >
                     Approve

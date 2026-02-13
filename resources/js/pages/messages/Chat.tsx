@@ -63,6 +63,10 @@ export default function Chat() {
   const isNearBottomRef = useRef(true);
   const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
   const [conversationCache, setConversationCache] = useState<Record<number, Message[]>>({});
+  const [contactsPage, setContactsPage] = useState(1);
+  const [contactsHasMore, setContactsHasMore] = useState(true);
+  const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
+  const contactsRef = useRef<HTMLDivElement>(null);
 
   const groupedMessages = useMemo(() => {
     return groupMessages(messages);
@@ -112,10 +116,34 @@ function FileIcon({ name }: { name?: string }) {
 }
 
 
-  async function loadContacts() {
-    const res = await fetch("/messages/contacts", { credentials: "same-origin" });
+  async function loadContacts(page = 1, searchText = "") {
+    if (loadingMoreContacts) return;
+
+    setLoadingMoreContacts(true);
+
+    const res = await fetch(
+      `/messages/contacts?page=${page}&search=${encodeURIComponent(searchText)}`
+    );
+
     const data = await res.json();
-    setContacts(data);
+
+    if (page === 1) {
+      setContacts(data.data);
+    } else {
+      setContacts(prev => {
+        const merged = [...prev, ...data.data];
+
+        // remove duplicates
+        return merged.filter(
+          (v, i, arr) => arr.findIndex(x => x.id === v.id) === i
+        );
+      });
+    }
+
+    setContactsPage(data.current_page);
+    setContactsHasMore(data.current_page < data.last_page);
+
+    setLoadingMoreContacts(false);
   }
 
   function openViewer(src: string) {
@@ -231,15 +259,12 @@ async function openConversation(user: User) {
   setShowInbox(false);
   setHasMore(true);
 
-  // ⭐ mark conversation seen immediately
   csrfFetch(`/messages/conversation/${user.id}/seen`, {
     method: "POST",
   });
 
-  // tell header to refresh badge
   window.dispatchEvent(new Event("messages-seen"));
 
-  // ⭐ update inbox locally (instant UI feedback)
   setInbox(prev =>
     prev.map(m =>
       otherUser(m).id === user.id
@@ -248,13 +273,13 @@ async function openConversation(user: User) {
     )
   );
 
-  // USE CACHE FIRST
+  // ⭐ SHOW CACHE INSTANTLY
   if (conversationCache[user.id]) {
     setMessages(conversationCache[user.id]);
-    return;
+  } else {
+    setMessages([]); // only clear if no cache
   }
 
-  setMessages([]);
   setLoadingConversation(true);
 
   const res = await fetch(`/messages/conversation/${user.id}`);
@@ -312,17 +337,13 @@ async function openConversation(user: User) {
   const newContacts = contacts.filter(
     u => !inboxUserIds.includes(u.id)
   );
-
-  function matches(user: User) {
+  const filteredNewContacts = newContacts.filter(u => {
     const q = search.toLowerCase();
     return (
-      user.first_name.toLowerCase().includes(q) ||
-      user.last_name.toLowerCase().includes(q)
+      u.first_name.toLowerCase().includes(q) ||
+      u.last_name.toLowerCase().includes(q)
     );
-  }
-
-  const filteredInbox = inbox.filter(m => matches(otherUser(m)));
-  const filteredNewContacts = newContacts.filter(u => matches(u));
+  });
 
   function isUserOnline(userId: number) {
     return onlineUsers.includes(userId);
@@ -357,7 +378,11 @@ useEffect(() => {
     }
 
     const isActiveChat =
-      activeUser && msg.sender.id === activeUser.id;
+      activeUser &&
+      (
+        (msg.sender.id === activeUser.id && msg.receiver.id === authId) || // incoming
+        (msg.sender.id === authId && msg.receiver.id === activeUser.id)   // outgoing
+      );
 
     // Receiver has chat open → mark seen
     if (isActiveChat && msg.receiver.id === authId) {
@@ -379,6 +404,22 @@ useEffect(() => {
         return [...prev, msg];
       });
     }
+
+    setConversationCache(prev => {
+      const partnerId =
+        msg.sender.id === authId
+          ? msg.receiver.id
+          : msg.sender.id;
+
+      const list = prev[partnerId] || [];
+
+      if (list.some(m => m.id === msg.id)) return prev;
+
+      return {
+        ...prev,
+        [partnerId]: [...list, msg],
+      };
+    });
 
     setInbox(prev => {
       const filtered = prev.filter(
@@ -518,6 +559,16 @@ useEffect(() => {
     }
   }, [messages])
 
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      setContactsPage(1);
+      setContactsHasMore(true);
+      loadContacts(1, search);
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [search]);
+
   async function sendImage(file: File, batchId: string) {
     if (!activeUser ) return;
 
@@ -625,7 +676,19 @@ useEffect(() => {
   };
 
   setMessages(prev => [...prev, optimisticMsg]);
-  setInbox(prev => [optimisticMsg, ...prev]);
+  setInbox(prev => {
+    const filtered = prev.filter(
+      m =>
+        !(
+          (m.sender.id === optimisticMsg.sender.id &&
+            m.receiver.id === optimisticMsg.receiver.id) ||
+          (m.sender.id === optimisticMsg.receiver.id &&
+            m.receiver.id === optimisticMsg.sender.id)
+        )
+    );
+
+    return [optimisticMsg, ...filtered];
+  });
 
   try {
     const formData = new FormData();
@@ -905,6 +968,16 @@ useEffect(() => {
     );
   }
 
+  const filteredInbox = inbox.filter(m => {
+    const u = otherUser(m);
+    const q = search.toLowerCase();
+
+    return (
+      u.first_name.toLowerCase().includes(q) ||
+      u.last_name.toLowerCase().includes(q)
+    );
+  });
+
   /* ================================
       UI
   ================================= */
@@ -922,9 +995,9 @@ useEffect(() => {
 
           {/* ================= Inbox ================= */}
           <div
-            className={`border-r overflow-y-auto w-full md:w-80 dark:border-neutral-700 dark:bg-neutral-900 ${
-              showInbox ? "block" : "hidden md:block"
-            }`}
+            className={`border-r w-full md:w-80 flex flex-col
+                        dark:border-neutral-700 dark:bg-neutral-900
+                        ${showInbox ? "flex" : "hidden md:flex"}`}
           >
             <div className="p-3 border-b dark:border-neutral-700">
               <input
@@ -936,6 +1009,22 @@ useEffect(() => {
                           dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
               />
             </div>
+
+             {/* ⭐ SINGLE SCROLL AREA */}
+            <div
+              className="flex-1 overflow-y-auto"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+
+                if (
+                  el.scrollHeight - el.scrollTop - el.clientHeight < 80 &&
+                  contactsHasMore &&
+                  !loadingMoreContacts
+                ) {
+                  loadContacts(contactsPage + 1, search);
+                }
+              }}
+            >
 
             {loadingInbox && (
               <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
@@ -1004,16 +1093,13 @@ useEffect(() => {
                   New Message
                 </div>
 
-                {filteredNewContacts.map(user => {
-                  const active = activeUser?.id === user.id;
-
-                  return (
+                {/* 👇 SCROLLABLE CONTACTS AREA */}
+                <div>
+                  {filteredNewContacts.map(user => (
                     <button
                       key={user.id}
                       onClick={() => openConversation(user)}
-                      className={`w-full text-left p-3 border-b dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800 ${
-                        active ? "bg-gray-100 dark:bg-neutral-800" : ""
-                      }`}
+                      className="w-full text-left p-3 border-b dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800"
                     >
                       <div className="font-medium text-gray-900 dark:text-gray-100">
                         {user.first_name} {user.last_name}
@@ -1022,10 +1108,17 @@ useEffect(() => {
                         Start new conversation
                       </div>
                     </button>
-                  );
-                })}
+                  ))}
+
+                  {loadingMoreContacts && (
+                    <div className="p-3 text-xs text-center text-gray-400">
+                      Loading more people...
+                    </div>
+                  )}
+                </div>
               </div>
             )}
+            </div>
           </div>
 
           {/* ================= Chat ================= */}

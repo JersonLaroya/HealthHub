@@ -150,6 +150,13 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
               Approved
             </Button>
             <Button
+              variant={filters?.status === "completed" ? "default" : "outline"}
+              size="sm"
+              onClick={() => filter("completed")}
+            >
+              Completed
+            </Button>
+            <Button
               variant={filters?.status === "rejected" ? "default" : "outline"}
               size="sm"
               onClick={() => filter("rejected")}
