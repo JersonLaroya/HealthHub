@@ -166,18 +166,33 @@ class MessageController extends Controller
     {
         $auth = Auth::user();
 
-        $users = User::with('userRole')
-            ->where('id', '!=', $auth->id)
-            ->get()
-            ->filter(fn ($u) => ChatService::canMessage($auth, $u))
-            ->values()
-            ->map(fn ($u) => [
-                'id' => $u->id,
-                'first_name' => $u->first_name,
-                'last_name' => $u->last_name,
-            ]);
+        $senderRole       = strtolower($auth->userRole->name ?? '');
+        $senderCategory   = strtolower($auth->userRole->category ?? '');
 
-        return response()->json($users);
+        $query = User::where('id', '!=', $auth->id)
+            ->select('id', 'first_name', 'last_name')
+            ->whereHas('userRole', function ($q) use ($senderRole, $senderCategory) {
+
+                if ($senderRole === 'super admin') {
+                    $q->whereIn(DB::raw('LOWER(name)'), ['admin', 'nurse']);
+                }
+
+                elseif ($senderRole === 'admin') {
+                    $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
+                    ->orWhereIn(DB::raw('LOWER(category)'), ['user', 'rcy']);
+                }
+
+                elseif ($senderRole === 'nurse') {
+                    $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
+                    ->orWhereIn(DB::raw('LOWER(category)'), ['user', 'rcy']);
+                }
+
+                elseif (in_array($senderCategory, ['user', 'rcy'])) {
+                    $q->whereIn(DB::raw('LOWER(name)'), ['admin', 'nurse']);
+                }
+            });
+
+        return response()->json($query->orderBy('first_name')->get());
     }
 
     /**

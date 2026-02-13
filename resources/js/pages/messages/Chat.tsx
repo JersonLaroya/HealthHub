@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { Image as ImageIcon, Paperclip, Plus, Download, X } from "lucide-react";
 import { toast } from "sonner";
+import { useMemo } from "react";
 import {
   FileText,
   FileSpreadsheet,
@@ -33,6 +34,9 @@ interface Message {
   is_seen?: boolean;
   has_unread?: boolean;
   optimistic?: boolean;
+
+  loadingImage?: boolean;
+  image_batch_id?: string;
 }
 
 export default function Chat() {
@@ -58,6 +62,11 @@ export default function Chat() {
   const isPrependingRef = useRef(false);
   const isNearBottomRef = useRef(true);
   const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
+  const [conversationCache, setConversationCache] = useState<Record<number, Message[]>>({});
+
+  const groupedMessages = useMemo(() => {
+    return groupMessages(messages);
+  }, [messages]);
 
 
 function getCookie(name: string): string {
@@ -215,46 +224,52 @@ function FileIcon({ name }: { name?: string }) {
   /* ================================
       Fetch conversation
   ================================= */
-  async function openConversation(user: User) {
-    firstLoadRef.current = true;
+async function openConversation(user: User) {
+  firstLoadRef.current = true;
 
-    setActiveUser(user);
-    setShowInbox(false);
-    setHasMore(true);
-    setLoadingConversation(true);
+  setActiveUser(user);
+  setShowInbox(false);
+  setHasMore(true);
 
-    const res = await fetch(`/messages/conversation/${user.id}`, {
-  credentials: "same-origin",
-});
-    const data = await res.json();
+  // ⭐ mark conversation seen immediately
+  csrfFetch(`/messages/conversation/${user.id}/seen`, {
+    method: "POST",
+  });
 
-    imageLoadedMap.current = {};
+  // tell header to refresh badge
+  window.dispatchEvent(new Event("messages-seen"));
 
-    setMessages(
-      data.map((m: Message) =>
-        m.image_path
-          ? { ...m, loadingImage: true }
-          : m
-      )
-    );
-    setLoadingConversation(false);
+  // ⭐ update inbox locally (instant UI feedback)
+  setInbox(prev =>
+    prev.map(m =>
+      otherUser(m).id === user.id
+        ? { ...m, has_unread: false }
+        : m
+    )
+  );
 
-    // MARK AS SEEN IN DATABASE
-    await csrfFetch(`/messages/conversation/${user.id}/seen`, {
-  method: "POST",
-});
-
-    window.dispatchEvent(new Event("messages-seen"));
-
-    // UI update (optional, for instant feedback)
-    setInbox(prev =>
-      prev.map(m =>
-        otherUser(m).id === user.id
-          ? { ...m, is_seen: true }
-          : m
-      )
-    );
+  // USE CACHE FIRST
+  if (conversationCache[user.id]) {
+    setMessages(conversationCache[user.id]);
+    return;
   }
+
+  setMessages([]);
+  setLoadingConversation(true);
+
+  const res = await fetch(`/messages/conversation/${user.id}`);
+  const data = await res.json();
+
+  setMessages(data);
+
+  setConversationCache(prev => ({
+    ...prev,
+    [user.id]: data,
+  }));
+
+  setLoadingConversation(false);
+}
+
 
   async function loadOlderMessages() {
     if (!activeUser || loadingOlder || !hasMore || messages.length === 0) return;
@@ -316,74 +331,144 @@ function FileIcon({ name }: { name?: string }) {
   /* ================================
       Realtime listener
   ================================= */
-  useEffect(() => {
-    if (!authId) return;
+useEffect(() => {
+  if (!authId) return;
 
-    loadInbox();
-    loadContacts();
+  loadInbox();
+  loadContacts();
+}, [authId]);
+useEffect(() => {
+  if (!authId) return;
 
-    const echo = (window as any).Echo;
-    if (!echo) return;
+  const echo = (window as any).Echo;
+  if (!echo) return;
 
-    //const channel = window.Echo.private(`chat.${authId}`);
-    const channelName = `chat.${authId}`;
-    console.log("Subscribing to:", channelName);
+  const channel = echo.private(`chat.${authId}`);
 
-    const channel = window.Echo.private(channelName);
+  channel.listen(".MessageSent", (e: any) => {
 
+    window.dispatchEvent(new Event("new-message"));
 
-    channel.listen(".MessageSent", (e: any) => {
-  let msg: Message = e.message;
+    let msg: Message = e.message;
 
-  // FIX #3: sender must NEVER trust "seen" from their own broadcast
-  if (msg.sender.id === authId) {
-    msg = { ...msg, is_seen: false };
-  }
+    // sender should not trust seen from broadcast
+    if (msg.sender.id === authId) {
+      msg = { ...msg, is_seen: false };
+    }
 
-  const isActiveChat =
-    activeUser && msg.sender.id === activeUser.id;
+    const isActiveChat =
+      activeUser && msg.sender.id === activeUser.id;
 
-  // Receiver has chat open → mark seen
-  if (isActiveChat && msg.receiver.id === authId) {
-    msg = { ...msg, is_seen: true, has_unread: false };
+    // Receiver has chat open → mark seen
+    if (isActiveChat && msg.receiver.id === authId) {
+      msg = { ...msg, is_seen: true, has_unread: false };
 
-    csrfFetch(`/messages/${msg.id}/seen`, {
-      method: "POST",
+      csrfFetch(`/messages/${msg.id}/seen`, {
+        method: "POST",
+      });
+    }
+
+    // Receiver but chat NOT open → unread
+    if (!isActiveChat && msg.receiver.id === authId) {
+      msg = { ...msg, has_unread: true };
+    }
+
+    if (isActiveChat) {
+      setMessages(prev => {
+        if (prev.some(p => p.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    }
+
+    setInbox(prev => {
+      const filtered = prev.filter(
+        m =>
+          !(
+            (m.sender.id === msg.sender.id &&
+              m.receiver.id === msg.receiver.id) ||
+            (m.sender.id === msg.receiver.id &&
+              m.receiver.id === msg.sender.id)
+          )
+      );
+
+      return [msg, ...filtered];
     });
-  }
-
-  // Receiver but chat NOT open → unread
-  if (!isActiveChat && msg.receiver.id === authId) {
-    msg = { ...msg, has_unread: true };
-  }
-
-  if (isActiveChat) {
-    setMessages(prev => {
-      if (prev.some(p => p.id === msg.id)) return prev;
-      return [...prev, msg];
-    });
-  }
-
-  setInbox(prev => {
-    const filtered = prev.filter(
-      m =>
-        !(
-          (m.sender.id === msg.sender.id &&
-            m.receiver.id === msg.receiver.id) ||
-          (m.sender.id === msg.receiver.id &&
-            m.receiver.id === msg.sender.id)
-        )
-    );
-
-    return [msg, ...filtered];
   });
-});
 
-
-   return () => {
-    window.Echo.leave(`chat.${authId}`);
+  return () => {
+    echo.leave(`chat.${authId}`);
   };
-  }, [authId, activeUser]);
+}, [authId, activeUser]);
+
+
+//   useEffect(() => {
+//     if (!authId) return;
+
+//     loadInbox();
+//     loadContacts();
+
+//     const echo = (window as any).Echo;
+//     if (!echo) return;
+
+//     //const channel = window.Echo.private(`chat.${authId}`);
+//     const channelName = `chat.${authId}`;
+//     console.log("Subscribing to:", channelName);
+
+//     const channel = window.Echo.private(channelName);
+
+
+//     channel.listen(".MessageSent", (e: any) => {
+//   let msg: Message = e.message;
+
+//   // FIX #3: sender must NEVER trust "seen" from their own broadcast
+//   if (msg.sender.id === authId) {
+//     msg = { ...msg, is_seen: false };
+//   }
+
+//   const isActiveChat =
+//     activeUser && msg.sender.id === activeUser.id;
+
+//   // Receiver has chat open → mark seen
+//   if (isActiveChat && msg.receiver.id === authId) {
+//     msg = { ...msg, is_seen: true, has_unread: false };
+
+//     csrfFetch(`/messages/${msg.id}/seen`, {
+//       method: "POST",
+//     });
+//   }
+
+//   // Receiver but chat NOT open → unread
+//   if (!isActiveChat && msg.receiver.id === authId) {
+//     msg = { ...msg, has_unread: true };
+//   }
+
+//   if (isActiveChat) {
+//     setMessages(prev => {
+//       if (prev.some(p => p.id === msg.id)) return prev;
+//       return [...prev, msg];
+//     });
+//   }
+
+//   setInbox(prev => {
+//     const filtered = prev.filter(
+//       m =>
+//         !(
+//           (m.sender.id === msg.sender.id &&
+//             m.receiver.id === msg.receiver.id) ||
+//           (m.sender.id === msg.receiver.id &&
+//             m.receiver.id === msg.sender.id)
+//         )
+//     );
+
+//     return [msg, ...filtered];
+//   });
+// });
+
+
+//    return () => {
+//     window.Echo.leave(`chat.${authId}`);
+//   };
+//   }, [authId, activeUser]);
 
 useEffect(() => {
   function handleUpdate(e: any) {
@@ -1004,7 +1089,7 @@ useEffect(() => {
                   }}
                   className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 space-y-3 bg-gray-50 dark:bg-neutral-800"
                 >
-                  {loadingConversation && (
+                  {loadingConversation && messages.length === 0 && (
                     <div className="flex flex-1 items-center justify-center text-sm text-gray-400 py-6">
                       Loading conversation...
                     </div>
@@ -1020,7 +1105,7 @@ useEffect(() => {
                       No more messages
                     </div>
                   )}
-                  {!loadingConversation && groupMessages(messages).map((group, i, arr) => {
+                  {groupedMessages.map((group, i, arr) => {
 
                     const current =
                       group.type === "single" ? group.message : group.items[0];

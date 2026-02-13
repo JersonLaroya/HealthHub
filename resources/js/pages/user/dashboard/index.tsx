@@ -234,7 +234,7 @@ export default function Dashboard() {
                   <img
                     src={`/storage/${selectedEvent.image}`}
                     alt={selectedEvent.title}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 </div>
               )}

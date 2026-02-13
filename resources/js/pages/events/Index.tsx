@@ -172,6 +172,19 @@ const nowDateTimeLocal = () => {
   return now.toISOString().slice(0, 16);
 };
 
+const formatDateTime = (date: string | null) => {
+  if (!date) return "—";
+
+  return new Date(date).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -295,10 +308,10 @@ const nowDateTimeLocal = () => {
                         <EventDescription text={event.description || ""} />
                       </td>
                       <td className="p-2 border-b">
-                        {new Date(event.start_at).toLocaleString()}
+                        {formatDateTime(event.start_at)}
                       </td>
                       <td className="p-2 border-b">
-                        {event.end_at ? new Date(event.end_at).toLocaleString() : "—"}
+                        {formatDateTime(event.end_at)}
                       </td>
                       <td className="p-2 border-b">
                         {event.creator?.first_name} {event.creator?.last_name}

@@ -98,14 +98,23 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     );
   }
 
+  function formatDate(date: string) {
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  }
+
   function formatTime(time: string) {
     const [hours, minutes] = time.split(":").map(Number);
     const date = new Date();
     date.setHours(hours, minutes);
 
-    return date.toLocaleTimeString(undefined, {
-      hour: "numeric",
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
   }
 
@@ -231,8 +240,8 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
                             </td>
 
                             <td className="p-3 text-neutral-600">
-                            {a.appointment_date} <br />
-                            {a.start_time} – {a.end_time}
+                              {formatDate(a.appointment_date)} <br />
+                              {formatTime(a.start_time)} – {formatTime(a.end_time)}
                             </td>
 
                             <td className="p-3">{a.purpose}</td>
