@@ -231,6 +231,7 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
                         <th className="text-left p-3">Requester</th>
                         <th className="text-left p-3">Schedule</th>
                         <th className="text-left p-3">Purpose</th>
+                        <th className="text-left p-3">Approved By</th>
                         <th className="text-left p-3">Status</th>
                         <th className="text-right p-3">Actions</th>
                         </tr>
@@ -252,6 +253,12 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
                             </td>
 
                             <td className="p-3">{a.purpose}</td>
+
+                            <td className="p-3 text-neutral-600">
+                              {a.approver
+                                ? `${a.approver.first_name} ${a.approver.last_name}`
+                                : "—"}
+                            </td>
 
                             <td className="p-3">
                             <span
@@ -402,6 +409,13 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
                     <span className="capitalize">
                         {selectedAppointment.status}
                     </span>
+                    </div>
+
+                    <div>
+                      <strong>Approved By:</strong>{" "}
+                      {selectedAppointment.approver
+                        ? `${selectedAppointment.approver.first_name} ${selectedAppointment.approver.last_name}`
+                        : "—"}
                     </div>
 
                     {selectedAppointment.status === "rejected" &&

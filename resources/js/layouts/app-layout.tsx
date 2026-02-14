@@ -13,7 +13,7 @@ interface AppLayoutProps {
 }
 
 export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
-  const { auth, url } = usePage().props;
+  const { auth, url, system } = usePage().props as any;
   const [showModal, setShowModal] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
@@ -120,6 +120,13 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
   return (
     <AppLayoutTemplate breadcrumbs={breadcrumbs} {...props}>
       {children}
+
+      {/* ===== GLOBAL FOOTER ===== */}
+      <footer className="border-t bg-background mt-6">
+        <div className="mx-auto max-w-7xl px-4 py-4 text-center text-sm text-muted-foreground">
+          © {new Date().getFullYear()} {system?.app_name || "HealthHub"}. All rights reserved.
+        </div>
+      </footer>
 
       <Toaster
         position="top-right"

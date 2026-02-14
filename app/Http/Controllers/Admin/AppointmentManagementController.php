@@ -19,7 +19,7 @@ class AppointmentManagementController extends Controller
 
         $appointments = Appointment::with([
                 'user:id,first_name,last_name',
-                'handler:id,first_name,last_name',
+                'approver:id,first_name,last_name',
             ])
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderByRaw("
@@ -36,7 +36,10 @@ class AppointmentManagementController extends Controller
             ->paginate(10)
             ->withQueryString();
         
-        $calendarAppointments = Appointment::with('user:id,first_name,last_name')
+        $calendarAppointments = Appointment::with([
+            'user:id,first_name,last_name',
+            'approver:id,first_name,last_name',
+        ])
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('appointment_date')
             ->orderBy('start_time')
@@ -78,7 +81,7 @@ class AppointmentManagementController extends Controller
         -------------------------------- */
         $appointment->update([
             'status' => 'approved',
-            'assigned_to' => Auth::id(),
+            'approved_by' => Auth::id(),
         ]);
 
         /* --------------------------------
@@ -116,7 +119,7 @@ class AppointmentManagementController extends Controller
         $appointment->update([
             'status' => 'rejected',
             'rejection_reason' => $data['rejection_reason'],
-            'assigned_to' => Auth::id(),
+            'approved_by' => Auth::id(),
         ]);
 
         /* --------------------------------

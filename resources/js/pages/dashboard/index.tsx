@@ -83,20 +83,21 @@ export default function Dashboard() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
 
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 bg-muted/20 min-h-screen">
 
                 {/* ================= SUMMARY CARDS ================= */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <SummaryCard label="Consultations (This Month)" value={totalConsultations} />
                     <SummaryCard label="Patients Seen" value={patientsSeen} />
-                    <Card className="p-5">
-                        <p className="text-sm text-gray-500">Pending Records</p>
+
+                    <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
+                        <p className="text-sm text-muted-foreground">Pending Records</p>
                         <p className="mt-2 text-3xl font-bold text-yellow-600">
                             {pendingRecords}
                         </p>
 
                         {pendingBreakdown && Object.keys(pendingBreakdown).length > 0 && (
-                            <div className="mt-3 space-y-1 text-xs text-gray-600">
+                            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                                 {Object.entries(pendingBreakdown).map(([service, count]) => (
                                     <div key={service} className="flex justify-between">
                                         <span>{service}</span>
@@ -106,6 +107,7 @@ export default function Dashboard() {
                             </div>
                         )}
                     </Card>
+
                     <SummaryCard label="Today's Consultations" value={todayConsultations} />
                 </div>
 
@@ -113,14 +115,14 @@ export default function Dashboard() {
                 <div className="grid gap-6 lg:grid-cols-2">
 
                     {/* EVENTS */}
-                    <Card className="p-5">
+                    <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
                         <h2 className="font-semibold mb-4">
                             Ongoing & Upcoming Events
                         </h2>
 
                         {events?.length ? (
                             <div className="space-y-2">
-                                {events.map((event: any, index: number) => {
+                                {events.map((event: any) => {
                                     const happeningToday = isTodayEvent(event);
 
                                     return (
@@ -133,21 +135,19 @@ export default function Dashboard() {
                                             className={`cursor-pointer rounded-lg px-3 py-2 transition border text-sm
                                                 ${
                                                     happeningToday
-                                                        ? "bg-blue-50 border-blue-300 dark:bg-blue-500/10 dark:border-blue-400/40"
+                                                        ? "bg-blue-50/50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-400/30"
                                                         : "bg-background hover:bg-muted/40"
                                                 }
                                             `}
                                         >
                                             <div className="flex items-center justify-between gap-3">
-                                                {/* LEFT: Title */}
                                                 <p className="font-medium truncate">
                                                     {event.title}
                                                 </p>
 
-                                                {/* RIGHT: Date + Today Badge */}
                                                 <div className="flex items-center gap-2 shrink-0">
                                                     {happeningToday ? (
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
                                                             Today
                                                         </span>
                                                     ) : (
@@ -162,14 +162,14 @@ export default function Dashboard() {
                                 })}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-muted-foreground">
                                 No ongoing or upcoming events.
                             </p>
                         )}
                     </Card>
 
                     {/* APPOINTMENTS */}
-                    <Card className="p-5">
+                    <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
                         <h2 className="font-semibold mb-4">
                             Upcoming Appointments
                         </h2>
@@ -186,12 +186,10 @@ export default function Dashboard() {
                                         className="cursor-pointer rounded-lg px-3 py-2 transition border bg-background hover:bg-muted/40 text-sm"
                                     >
                                         <div className="flex items-center justify-between gap-3">
-                                            {/* LEFT: Name */}
                                             <p className="font-medium truncate">
                                                 {appt.user?.name ?? 'Patient'}
                                             </p>
 
-                                            {/* RIGHT: Date + Time */}
                                             <span className="text-xs text-muted-foreground whitespace-nowrap">
                                                 {formatDate(appt.appointment_date)} • {formatTime(appt.start_time)}
                                             </span>
@@ -200,7 +198,7 @@ export default function Dashboard() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-muted-foreground">
                                 No upcoming appointments.
                             </p>
                         )}
@@ -208,7 +206,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* ================= DAILY CONSULTATIONS ================= */}
-                <Card className="p-5">
+                <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
                     <h2 className="font-semibold mb-4">
                         Daily Consultations (This Month)
                     </h2>
@@ -216,7 +214,10 @@ export default function Dashboard() {
                     {chartData?.length ? (
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData}>
+                                <BarChart
+                                    data={chartData}
+                                    margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+                                >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis
                                         dataKey="date"
@@ -237,19 +238,23 @@ export default function Dashboard() {
                                     <Bar
                                         dataKey="student_total"
                                         name="Students"
-                                        fill="#2563eb"
+                                        fill="#60a5fa"
+                                        radius={[6, 6, 0, 0]}
+                                        maxBarSize={22}
                                     />
 
                                     <Bar
                                         dataKey="employee_total"
                                         name="Employees"
-                                        fill="#16a34a"
+                                        fill="#4ade80"
+                                        radius={[6, 6, 0, 0]}
+                                        maxBarSize={22}
                                     />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     ) : (
-                        <div className="h-80 flex items-center justify-center text-sm text-gray-500">
+                        <div className="h-80 flex items-center justify-center text-sm text-muted-foreground">
                             No consultation data for this month.
                         </div>
                     )}
@@ -258,17 +263,22 @@ export default function Dashboard() {
 
             {/* ===== EVENT MODAL ===== */}
             <Dialog open={openEvent} onOpenChange={setOpenEvent}>
-                <DialogContent className="w-[95vw] sm:w-[90vw] max-w-5xl max-h-[90vh] overflow-hidden p-0">
+                <DialogContent className="w-[95vw] sm:w-[90vw] max-w-5xl max-h-[90vh] overflow-hidden p-0 rounded-xl">
 
                     {selectedEvent && (
                         <>
-                            {/* Optional Image Banner */}
                             {selectedEvent.image && (
-                                <div className="h-48 sm:h-72 md:h-96 w-full overflow-hidden bg-muted">
+                                <div className="w-full h-auto max-h-[65vh] object-contain cursor-zoom-in transition-transform hover:scale-[1.01]">
                                     <img
                                         src={`/storage/${selectedEvent.image}`}
                                         alt={selectedEvent.title}
-                                        className="h-full w-full object-contain"
+                                        className="
+                                            w-full
+                                            h-auto
+                                            max-h-[65vh]
+                                            object-contain
+                                            rounded-t-xl
+                                        "
                                     />
                                 </div>
                             )}
@@ -280,15 +290,13 @@ export default function Dashboard() {
                                         {selectedEvent.title}
                                     </DialogTitle>
                                     {isTodayEvent(selectedEvent) && (
-                                        <div className="inline-block text-xs px-3 py-1 rounded-full bg-blue-600 text-white">
+                                        <div className="inline-block text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
                                             Happening Today
                                         </div>
                                     )}
                                 </DialogHeader>
 
-                                {/* Date Info Grid */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-
                                     <div className="flex items-start gap-2">
                                         <CalendarDays className="w-4 h-4 mt-0.5" />
                                         <div>
@@ -304,10 +312,8 @@ export default function Dashboard() {
                                             <p>{formatDateTime(selectedEvent.end_at)}</p>
                                         </div>
                                     </div>
-
                                 </div>
 
-                                {/* Description */}
                                 {selectedEvent.description && (
                                     <p className="text-sm leading-relaxed whitespace-pre-line">
                                         {selectedEvent.description}
@@ -322,7 +328,7 @@ export default function Dashboard() {
 
             {/* ===== APPOINTMENT MODAL ===== */}
             <Dialog open={openAppointment} onOpenChange={setOpenAppointment}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg rounded-xl">
                     {selectedAppointment && (
                         <>
                             <DialogHeader>
@@ -378,13 +384,13 @@ function SummaryCard({
     highlight?: 'warning';
 }) {
     return (
-        <Card className="p-5">
-            <p className="text-sm text-gray-500">{label}</p>
+        <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
+            <p className="text-sm text-muted-foreground">{label}</p>
             <p
                 className={`mt-2 text-3xl font-bold ${
                     highlight === 'warning'
                         ? 'text-yellow-600'
-                        : 'text-gray-900'
+                        : 'text-foreground'
                 }`}
             >
                 {value}

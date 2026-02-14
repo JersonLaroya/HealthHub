@@ -147,7 +147,7 @@ export default function Dashboard() {
               {appointments?.map((appointment: any) => (
                 <div
                   key={appointment.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3 bg-background/70 hover:bg-muted/40 transition"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3 bg-background/70 hover:bg-black/5 dark:bg-black/30/40 transition"
                 >
                   <div>
                     <p className="font-medium text-sm sm:text-base">
@@ -230,11 +230,20 @@ export default function Dashboard() {
           {selectedEvent && (
             <>
               {selectedEvent.image && (
-                <div className="h-48 sm:h-72 md:h-96 w-full overflow-hidden bg-muted">
+                <div className="w-full bg-muted flex items-center justify-center max-h-[65vh] overflow-hidden">
                   <img
                     src={`/storage/${selectedEvent.image}`}
                     alt={selectedEvent.title}
-                    className="h-full w-full object-contain"
+                    className="
+                      w-full
+                      h-auto
+                      max-h-[65vh]
+                      object-contain
+                      rounded-t-xl
+                      cursor-zoom-in
+                      transition-transform
+                      hover:scale-[1.01]
+                    "
                   />
                 </div>
               )}

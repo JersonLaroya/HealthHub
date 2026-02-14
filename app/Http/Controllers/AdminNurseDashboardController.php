@@ -102,16 +102,19 @@ class AdminNurseDashboardController extends Controller
         }
 
         /* =========================
-           EVENTS (ONGOING + UPCOMING)
+        EVENTS (ONGOING + UPCOMING ONLY)
         ========================= */
 
-        $events = Event::where('end_at', '>=', now())
+        $now = now('Asia/Manila');
+
+        $events = Event::query()
+            ->where('end_at', '>=', $now)
             ->orderByRaw("
                 CASE 
-                    WHEN start_at <= NOW() AND end_at >= NOW() THEN 0
+                    WHEN start_at <= ? AND end_at >= ? THEN 0
                     ELSE 1
                 END
-            ") // today events first
+            ", [$now, $now])
             ->orderBy('start_at')
             ->limit(5)
             ->get();
