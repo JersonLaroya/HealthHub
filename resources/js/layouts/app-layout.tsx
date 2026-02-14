@@ -122,7 +122,7 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
       {children}
 
       {/* ===== GLOBAL FOOTER ===== */}
-      <footer className="border-t bg-background mt-6">
+      <footer className="border-t mt-6">
         <div className="mx-auto max-w-7xl px-4 py-4 text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} {system?.app_name || "HealthHub"}. All rights reserved.
         </div>

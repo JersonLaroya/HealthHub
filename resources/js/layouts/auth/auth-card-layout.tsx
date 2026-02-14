@@ -14,7 +14,7 @@ export default function AuthCardLayout({
     description?: string;
 }>) {
     return (
-        <div className="flex min-h-svh flex-col bg-muted">
+        <div className="flex min-h-svh flex-col bg-gradient-to-b from-blue-50/40 to-white">
             {/* Navbar on top */}
             <GuestNavbar />
 
@@ -30,7 +30,9 @@ export default function AuthCardLayout({
                     <div className="flex flex-col gap-6">
                         <Card className="rounded-xl">
                             <CardHeader className="px-10 pt-8 pb-0 text-center">
-                                <CardTitle className="text-xl">{title}</CardTitle>
+                                <CardTitle className="text-xl text-blue-800">
+                                {title}
+                                </CardTitle>
                                 <CardDescription>{description}</CardDescription>
                             </CardHeader>
                             <CardContent className="px-10 py-8">{children}</CardContent>

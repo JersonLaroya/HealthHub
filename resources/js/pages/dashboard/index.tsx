@@ -83,7 +83,7 @@ export default function Dashboard() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
 
-            <div className="p-6 space-y-6 bg-muted/20 min-h-screen">
+            <div className="p-6 space-y-6 min-h-screen">
 
                 {/* ================= SUMMARY CARDS ================= */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -17,9 +17,19 @@ export default function GuestNavbar() {
         {/* Brand */}
         <Link
           href={home()}
-          className="text-lg font-semibold text-blue-800 hover:text-blue-800 transition-colors"
+          className="flex items-center gap-2 text-blue-800 hover:text-blue-800 transition-colors"
         >
-          {system?.app_name || "HealthHub"}
+          {system?.clinic_logo && (
+            <img
+              src={`/storage/${system.clinic_logo}`}
+              alt="Clinic Logo"
+              className="h-8 w-8 object-contain rounded-md"
+            />
+          )}
+
+          <span className="text-lg font-semibold">
+            {system?.app_name || "HealthHub"}
+          </span>
         </Link>
 
         {/* Links */}

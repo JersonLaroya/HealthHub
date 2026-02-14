@@ -80,7 +80,18 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 )}
                             </div> */}
 
-                            <Button type="submit" className="mt-4 w-full" disabled={processing}>
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="
+                                    mt-4 w-full
+                                    bg-blue-800 hover:bg-blue-700
+                                    text-white
+                                    shadow-sm
+                                    transition-all duration-200
+                                    disabled:opacity-70
+                                "
+                                >
                                 {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                                 Log in
                             </Button>
