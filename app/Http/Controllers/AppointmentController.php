@@ -42,7 +42,17 @@ class AppointmentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'appointment_date' => ['required', 'date'],
+            'appointment_date' => [
+                'required',
+                'date',
+                function ($attribute, $value, $fail) {
+                    $day = \Carbon\Carbon::parse($value)->dayOfWeek;
+
+                    if (in_array($day, [0, 6])) {
+                        $fail('Appointments cannot be scheduled on Saturdays or Sundays.');
+                    }
+                },
+            ],
             'start_time' => ['required'],
             'end_time' => ['required', 'after:start_time'],
             'purpose' => ['required', 'string', 'max:255'],
@@ -96,7 +106,17 @@ class AppointmentController extends Controller
         );
 
         $data = $request->validate([
-            'appointment_date' => ['required', 'date'],
+            'appointment_date' => [
+                'required',
+                'date',
+                function ($attribute, $value, $fail) {
+                    $day = \Carbon\Carbon::parse($value)->dayOfWeek;
+
+                    if (in_array($day, [0, 6])) {
+                        $fail('Appointments cannot be scheduled on Saturdays or Sundays.');
+                    }
+                },
+            ],
             'start_time' => ['required'],
             'end_time' => ['required', 'after:start_time'],
         ]);

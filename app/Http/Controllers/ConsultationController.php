@@ -6,6 +6,7 @@ use App\Http\Requests\Admin\UpdateConsultationRequest;
 use App\Http\Requests\StoreConsultationRequest;
 use App\Models\Record;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Consultation;
 use App\Models\RcyMember;
@@ -60,6 +61,8 @@ class ConsultationController extends Controller
             $consultation->treatments()->sync($request->treatment_ids);
         }
 
+        $schoolYear = str_replace('–', '-', Setting::value('school_year'));
+
         // --- NEW: Create record for this consultation form ---
         $service = Service::where('slug', 'clinic-consultation-record-form')->first();
         if ($service) {
@@ -67,7 +70,8 @@ class ConsultationController extends Controller
                 'user_id' => $patient->id,
                 'consultation_id' => $consultation->id,
                 'service_id' => $service->id,
-                'response_data' => json_encode([]), // empty response initially
+                'school_year' => $schoolYear,
+                'response_data' => [],
                 'status' => Record::STATUS_APPROVED,
             ]);
         }
@@ -171,12 +175,12 @@ class ConsultationController extends Controller
         //     return back()->with('info', 'Consultation is already approved.');
         // }
 
-        $record = Record::where('consultation_id', $consultation->id)
-            ->whereHas('service', fn ($q) =>
-                $q->where('slug', 'clinic-consultation-record-form')
-            )
-            ->latest()
-            ->first();
+        // $record = Record::where('consultation_id', $consultation->id)
+        //     ->whereHas('service', fn ($q) =>
+        //         $q->where('slug', 'clinic-consultation-record-form')
+        //     )
+        //     ->latest()
+        //     ->first();
 
         if (!$record) {
             abort(404, 'Consultation record not found.');

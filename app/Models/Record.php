@@ -29,6 +29,7 @@ class Record extends Model
         'consultation_id',
         'service_id',
         'lab_result_id',
+        'school_year', 
         'response_data',
         'status',
     ];

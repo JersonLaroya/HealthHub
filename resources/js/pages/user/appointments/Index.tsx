@@ -85,6 +85,11 @@ export default function UserAppointments({
     });
     }
 
+    function isWeekend(dateString: string) {
+    const day = new Date(dateString).getDay();
+    return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+  }
+
   return (
     <AppLayout>
       <Head title="Appointments" />
@@ -244,9 +249,16 @@ export default function UserAppointments({
                   type="date"
                   min={today}
                   value={data.appointment_date}
-                  onChange={(e) =>
-                    setData("appointment_date", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    if (isWeekend(value)) {
+                      toast.error("Appointments are not available on weekends.");
+                      return;
+                    }
+
+                    setData("appointment_date", value);
+                  }}
                 />
                 {errors.appointment_date && (
                   <div className="text-xs text-red-500">
@@ -363,9 +375,16 @@ export default function UserAppointments({
               type="date"
               min={today}
               value={data.appointment_date}
-              onChange={(e) =>
-                setData("appointment_date", e.target.value)
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (isWeekend(value)) {
+                  toast.error("Appointments are not available on weekends.");
+                  return;
+                }
+
+                setData("appointment_date", value);
+              }}
             />
 
             <Input

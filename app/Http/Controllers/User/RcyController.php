@@ -10,6 +10,7 @@ use App\Models\Disease;
 use App\Models\Inquiry;
 use App\Models\ListOfInquiry;
 use App\Models\Record;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\VitalSign;
 use App\Notifications\RcyInquirySubmitted;
@@ -20,7 +21,6 @@ use App\Events\RcyConsultationCreated;
 
 class RcyController extends Controller
 {
-    // Show form to add RCY DTR
     public function create()
     {
         $user = auth()->user();
@@ -72,12 +72,14 @@ class RcyController extends Controller
         }
 
         $service = \App\Models\Service::where('slug', 'clinic-consultation-record-form')->first();
+        $schoolYear = str_replace('–', '-', Setting::value('school_year'));
 
         if ($service) {
             Record::create([
                 'user_id' => $patient->id,
                 'consultation_id' => $consultation->id,
                 'service_id' => $service->id,
+                'school_year' => $schoolYear,
                 'response_data' => [],
                 'status' => Record::STATUS_PENDING,
             ]);

@@ -59,7 +59,7 @@ class MedicalNotificationService
                 ->delete();
         }
 
-                $currentSY = Setting::value('school_year');
+                $currentSY = str_replace('–', '-', Setting::value('school_year'));
                 if (! $currentSY) return;
 
                 $role = $user->userRole?->name;
@@ -79,7 +79,7 @@ class MedicalNotificationService
                 ->whereHas('service', fn ($q) =>
                     $q->where('slug', 'pre-enrollment-health-form')
                 )
-                ->where('response_data->school_year', $currentSY)
+                ->where('school_year', $currentSY)
                 ->exists();
 
             if (! $exists) {
@@ -106,7 +106,7 @@ class MedicalNotificationService
                 ->whereHas('service', fn ($q) =>
                     $q->where('slug', 'pre-employment-health-form')
                 )
-                ->where('response_data->school_year', $currentSY)
+                ->where('school_year', $currentSY)
                 ->exists();
 
             if (! $exists) {

@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { Clock } from "lucide-react";
 
+function TodayBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 px-2 py-0.5 text-[10px] font-semibold ml-2">
+      TODAY
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const { user, totalConsultations, events, appointments, schoolYear } =
   usePage().props as any;
@@ -44,6 +52,31 @@ export default function Dashboard() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+
+  function isToday(dateString: string) {
+    const today = new Date();
+    const date = new Date(dateString);
+
+    return (
+      date.getFullYear() === today.getFullYear() &&
+      date.getMonth() === today.getMonth() &&
+      date.getDate() === today.getDate()
+    );
+  }
+
+  // For events (range check)
+  function isEventToday(start: string, end: string) {
+    const today = new Date();
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    // normalize time
+    today.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    return today >= startDate && today <= endDate;
   }
 
   return (
@@ -150,8 +183,9 @@ export default function Dashboard() {
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3 bg-background/70 hover:bg-black/5 dark:bg-black/30/40 transition"
                 >
                   <div>
-                    <p className="font-medium text-sm sm:text-base">
+                    <p className="font-medium text-sm sm:text-base flex items-center">
                       {appointment.purpose || "Clinic Appointment"}
+                      {isToday(appointment.appointment_date) && <TodayBadge />}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(
@@ -203,8 +237,9 @@ export default function Dashboard() {
                     }`}
                 >
                   <div>
-                    <p className="font-medium text-sm sm:text-base">
+                    <p className="font-medium text-sm sm:text-base flex items-center">
                       {event.title}
+                      {isEventToday(event.start_at, event.end_at) && <TodayBadge />}
                     </p>
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       {event.description}

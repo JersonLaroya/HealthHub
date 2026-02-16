@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Record;
 use Illuminate\Http\Request;
@@ -22,6 +23,11 @@ class LaboratoryRequestController extends Controller
             'courses' => Course::select('id', 'code')->get(),
             'offices' => Office::select('id', 'name')->get(),
         ]);
+    }
+
+    private function currentSchoolYear(): ?string
+    {
+        return str_replace('–', '-', Setting::value('school_year'));
     }
 
     public function store(Request $request)
@@ -57,10 +63,13 @@ class LaboratoryRequestController extends Controller
             ]);
         }
 
+        $schoolYear = $this->currentSchoolYear();
+
         foreach ($users as $user) {
             Record::create([
                 'user_id'       => $user->id,
                 'service_id'    => $request->service_id,
+                'school_year'   => $schoolYear,
                 'response_data' => $request->response_data, // matches model & DB
             ]);
         }

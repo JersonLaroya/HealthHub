@@ -20,6 +20,11 @@ use App\Notifications\FormSubmitted;
 
 class FileController extends Controller
 {
+    private function currentSchoolYear(): ?string
+    {
+        return str_replace('–', '-', Setting::value('school_year'));
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -87,10 +92,10 @@ class FileController extends Controller
         // Only filter by current school year for pre-employment and athlete forms
         if (in_array($slug, ['pre-employment-health-form', 'athlete-medical'])) {
             $currentSchoolYear = Setting::first()?->school_year;
-            $recordsQuery->whereJsonContains('response_data->school_year', $currentSchoolYear);
+            $recordsQuery->where('school_year', $currentSchoolYear);
         }
 
-        $records = $records = $recordsQuery->get(['id', 'service_id', 'created_at', 'status'])
+        $records = $recordsQuery->get(['id', 'service_id', 'created_at', 'status'])
             ->map(function ($record) {
                 return [
                     'id'         => $record->id,
@@ -214,7 +219,7 @@ class FileController extends Controller
         $alreadySubmitted = $latest && in_array($latest->status, ['pending', 'approved']);
         
         if ($alreadySubmitted) {
-            return redirect()->route('user.files.show', 'athlete-medical');
+            return redirect()->route('user.files.show', 'pre-enrollment-health-form');
         }
 
         return Inertia::render('user/files/preEnrollment/Page7', [
@@ -256,18 +261,18 @@ class FileController extends Controller
         $user = auth()->user();
         $service = Service::where('slug', 'pre-employment-health-form')->first();
         $settings = Setting::first();
-        $currentSchoolYear = $settings?->school_year;
+        $currentSchoolYear = $this->currentSchoolYear();
 
         $latest = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
-            ->whereJsonContains('response_data->school_year', $currentSchoolYear)
+            ->where('school_year', $currentSchoolYear)
             ->latest()
             ->first();
 
         $alreadySubmitted = $latest && in_array($latest->status, ['pending', 'approved']);
 
         if ($alreadySubmitted) {
-            return redirect()->route('user.files.show', 'athlete-medical');
+            return redirect()->route('user.files.show', 'pre-employment-health-form');
         }
 
         return Inertia::render('user/files/preEmployment/Page5', [
@@ -292,11 +297,11 @@ class FileController extends Controller
         $user = auth()->user();
         $service = Service::where('slug', 'athlete-medical')->first();
         $settings = Setting::first();
-        $currentSchoolYear = $settings?->school_year;
+        $currentSchoolYear = $this->currentSchoolYear();
 
         $latest = Record::where('user_id', $user->id)
             ->where('service_id', $service->id)
-            ->whereJsonContains('response_data->school_year', $currentSchoolYear)
+            ->where('school_year', $currentSchoolYear)
             ->latest()
             ->first();
 
@@ -448,12 +453,12 @@ private function mapPage4DiseaseToDbName(string $name): ?string
 
         $service = Service::where('slug', $formType)->firstOrFail();
 
-        $currentSchoolYear = $settings?->school_year;
+        $currentSchoolYear = $this->currentSchoolYear();
 
         $rejectedRecord = Record::where('user_id', Auth::id())
             ->where('service_id', $service->id)
             ->where('status', Record::STATUS_REJECTED)
-            ->whereJsonContains('response_data->school_year', $currentSchoolYear)
+            ->where('school_year', $currentSchoolYear)
             ->latest()
             ->first();
 
@@ -461,6 +466,7 @@ private function mapPage4DiseaseToDbName(string $name): ?string
             // UPDATE rejected record
             $rejectedRecord->update([
                 'response_data' => $responses,
+                'school_year'   => $currentSchoolYear,
                 'status'        => Record::STATUS_PENDING,
             ]);
 
@@ -472,6 +478,7 @@ private function mapPage4DiseaseToDbName(string $name): ?string
                 'service_id'      => $service->id,
                 'consultation_id' => null,
                 'lab_result_id'   => null,
+                'school_year'     => $currentSchoolYear,
                 'response_data'   => $responses,
                 'status'          => Record::STATUS_PENDING,
             ]);
@@ -558,6 +565,7 @@ private function mapPage4DiseaseToDbName(string $name): ?string
                 'user_id'         => Auth::id(),
                 'service_id'      => $consultationServiceId,
                 'consultation_id' => $consultation->id,
+                'school_year' => $currentSchoolYear,
                 'status'          => Record::STATUS_PENDING,
             ]);
 
