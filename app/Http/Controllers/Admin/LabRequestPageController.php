@@ -138,10 +138,9 @@ class LabRequestPageController extends Controller
 
     public function searchUsers(Request $request)
     {
-        $search = strtolower(trim($request->input('q', '')));
+        $search = trim($request->input('q', ''));
         $page = max((int) $request->input('page', 1), 1);
         $perPage = 10;
-        $offset = ($page - 1) * $perPage;
 
         if (strlen($search) < 2) {
             return response()->json([
@@ -151,33 +150,55 @@ class LabRequestPageController extends Controller
             ]);
         }
 
-        $baseQuery = User::with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
-            ->whereHas('userRole', function ($q) {
-                $q->where('category', '!=', 'system');
-            })
-            ->where(function ($q) use ($search) {
-                $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$search}%"])
-                ->orWhereRaw("LOWER(CONCAT(first_name,' ',last_name)) LIKE ?", ["%{$search}%"])
-                ->orWhereRaw("LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?", ["%{$search}%"])
-                ->orWhereRaw('LOWER(email) LIKE ?', ["%{$search}%"]);
-            });
+        $searchLower = strtolower($search);
 
-        $usersQuery = $baseQuery
+        $users = User::query()
+            ->with(['course:id,code', 'yearLevel:id,level', 'office:id,name'])
+
+            // exclude system accounts
+            ->whereHas('userRole', fn ($q) =>
+                $q->where('category', '!=', 'system')
+            )
+
+            // SEARCH CONDITIONS
+            ->where(function ($q) use ($searchLower) {
+                $q->whereRaw('LOWER(first_name) LIKE ?', ["%{$searchLower}%"])
+                ->orWhereRaw('LOWER(middle_name) LIKE ?', ["%{$searchLower}%"])
+                ->orWhereRaw('LOWER(last_name) LIKE ?', ["%{$searchLower}%"])
+                ->orWhereRaw(
+                    "LOWER(CONCAT(first_name,' ',last_name)) LIKE ?",
+                    ["%{$searchLower}%"]
+                )
+                ->orWhereRaw(
+                    "LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) LIKE ?",
+                    ["%{$searchLower}%"]
+                )
+                ->orWhereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"])
+                ->orWhereRaw('LOWER(ismis_id) LIKE ?', ["%{$searchLower}%"]);
+            })
+
+            // SMART PRIORITY SORTING
             ->orderByRaw("
                 CASE
-                    WHEN LOWER(CONCAT(first_name,' ',last_name)) = ? THEN 0
-                    WHEN LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) = ? THEN 1
-                    WHEN LOWER(first_name) = ? THEN 2
-                    WHEN LOWER(last_name) = ? THEN 3
-                    ELSE 4
+                    WHEN LOWER(ismis_id) = ? THEN 0
+                    WHEN LOWER(CONCAT(first_name,' ',last_name)) = ? THEN 1
+                    WHEN LOWER(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) = ? THEN 2
+                    WHEN LOWER(first_name) = ? THEN 3
+                    WHEN LOWER(last_name) = ? THEN 4
+                    ELSE 5
                 END
-            ", [$search, $search, $search, $search])
-            ->orderBy('id');
+            ", [
+                $searchLower,
+                $searchLower,
+                $searchLower,
+                $searchLower,
+                $searchLower
+            ])
 
-        $users = $usersQuery
-            ->offset($offset)
+            ->orderBy('id')
+
+            // pagination (manual)
+            ->offset(($page - 1) * $perPage)
             ->limit($perPage + 1)
             ->get();
 
@@ -185,6 +206,7 @@ class LabRequestPageController extends Controller
 
         $users = $users->take($perPage)->map(fn ($u) => [
             'id' => $u->id,
+            'ismis_id' => $u->ismis_id,
             'first_name' => $u->first_name,
             'middle_name' => $u->middle_name,
             'last_name' => $u->last_name,

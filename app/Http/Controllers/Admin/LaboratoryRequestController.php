@@ -85,9 +85,13 @@ class LaboratoryRequestController extends Controller
             return response()->json([]);
         }
 
-        $users = User::where('name', 'like', "%{$q}%")
+        $users = User::where(function ($query) use ($q) {
+                $query->where('name', 'like', "%{$q}%")
+                    ->orWhere('ismis_id', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%"); // optional
+            })
             ->limit(10)
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email', 'ismis_id']);
 
         return response()->json($users);
     }

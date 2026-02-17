@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\RcyMember;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\Setting;
+use App\Models\Event;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -63,6 +63,23 @@ class HandleInertiaRequests extends Middleware
                 'clinic_logo' => $settings?->clinic_logo,
                 'school_year' => $settings?->school_year,
             ],
+
+            'featuredEvent' => fn () => Event::where(function ($query) {
+                $now = now();
+
+                // ongoing
+                $query->where('start_at', '<=', $now)
+                    ->where('end_at', '>=', $now);
+            })
+            ->orWhere('start_at', '>', now()) // upcoming
+            ->orderByRaw("
+                CASE
+                    WHEN start_at <= ? AND end_at >= ? THEN 0
+                    ELSE 1
+                END
+            ", [now(), now()])
+            ->orderBy('start_at')
+            ->first(),
 
             'auth' => [
                 'user' => $user,

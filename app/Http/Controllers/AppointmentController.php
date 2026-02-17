@@ -53,8 +53,26 @@ class AppointmentController extends Controller
                     }
                 },
             ],
-            'start_time' => ['required'],
-            'end_time' => ['required', 'after:start_time'],
+            'start_time' => [
+                'required',
+                'date_format:H:i',
+                function ($attribute, $value, $fail) {
+                    if ($value < '08:00') {
+                        $fail('Appointments can only start at or after 8:00 AM.');
+                    }
+                },
+            ],
+
+            'end_time' => [
+                'required',
+                'date_format:H:i',
+                'after:start_time',
+                function ($attribute, $value, $fail) {
+                    if ($value > '17:00') {
+                        $fail('Appointments must end on or before 5:00 PM.');
+                    }
+                },
+            ],
             'purpose' => ['required', 'string', 'max:255'],
         ]);
 
@@ -117,8 +135,26 @@ class AppointmentController extends Controller
                     }
                 },
             ],
-            'start_time' => ['required'],
-            'end_time' => ['required', 'after:start_time'],
+            'start_time' => [
+                'required',
+                'date_format:H:i',
+                function ($attribute, $value, $fail) {
+                    if ($value < '08:00') {
+                        $fail('Appointments can only start at or after 8:00 AM.');
+                    }
+                },
+            ],
+
+            'end_time' => [
+                'required',
+                'date_format:H:i',
+                'after:start_time',
+                function ($attribute, $value, $fail) {
+                    if ($value > '17:00') {
+                        $fail('Appointments must end on or before 5:00 PM.');
+                    }
+                },
+            ],
         ]);
 
         // Check for overlapping appointments (exclude this appointment)
