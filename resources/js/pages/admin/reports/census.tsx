@@ -243,21 +243,6 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
           </div>
         </Card>
 
-        {/* WELL CENSUS */}
-        {loading ? (
-          <LoadingCard />
-        ) : (
-          <div ref={wellChartRef}>
-            <CensusChart
-              title="Well Census"
-              description="All inquiry types"
-              meta={`${groupLabel} • ${dateLabel}`}
-              data={wellCensus}
-              color="#0ea5e9"
-            />
-          </div>
-        )}
-
         {/* SICK CENSUS */}
         {loading ? (
           <LoadingCard />
@@ -269,6 +254,21 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
               meta={`${groupLabel} • ${dateLabel}`}
               data={sickCensus}
               color="#ef4444"
+            />
+          </div>
+        )}
+
+        {/* WELL CENSUS */}
+        {loading ? (
+          <LoadingCard />
+        ) : (
+          <div ref={wellChartRef}>
+            <CensusChart
+              title="Well Census"
+              description="All inquiry types"
+              meta={`${groupLabel} • ${dateLabel}`}
+              data={wellCensus}
+              color="#0ea5e9"
             />
           </div>
         )}

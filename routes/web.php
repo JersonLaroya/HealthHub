@@ -97,6 +97,15 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
         ])->name('reschedule');
     });
 
+    // Inquiry
+    // User can view their own inquiries + create pending inquiry
+    Route::get('/inquiries', [InquiryController::class, 'userIndex'])
+    ->name('user.inquiries.index');
+
+    Route::post('/inquiries', [InquiryController::class, 'userStore'])
+        ->name('user.inquiries.store');
+
+
     // Personal Information page (view & update)
     Route::get('/personal-info', [PersonalInfoController::class, 'edit'])
         ->name('personal-info.edit');
@@ -307,10 +316,10 @@ Route::middleware(['role:Admin'])
         });
 
         // Inquiries
-        Route::get('/inquiries', [ListOfInquiryController::class, 'index']);
-        Route::post('/inquiries', [ListOfInquiryController::class, 'store']);
-        Route::put('/inquiries/{listOfInquiry}', [ListOfInquiryController::class, 'update']);
-        Route::delete('/inquiries/{listOfInquiry}', [ListOfInquiryController::class, 'destroy']);
+        Route::get('/inquiry-types', [ListOfInquiryController::class, 'index']);
+        Route::post('/inquiry-types', [ListOfInquiryController::class, 'store']);
+        Route::put('/inquiry-types/{listOfInquiry}', [ListOfInquiryController::class, 'update']);
+        Route::delete('/inquiry-types/{listOfInquiry}', [ListOfInquiryController::class, 'destroy']);
         
         // Disease Categories
         Route::get('/disease-categories', [DiseaseCategoryController::class, 'index']);

@@ -390,8 +390,8 @@ const mainNavItems: NavItem[] =
         },
 
         {
-        title: "Inquiries",
-        href: "/admin/inquiries",
+        title: "Inquiry Types",
+        href: "/admin/inquiry-types",
         icon: MessageCircle,
         },
 
@@ -445,6 +445,7 @@ const mainNavItems: NavItem[] =
         { title: "Personal Information", href: "/user/personal-info", icon: UserCircle },
         { title: "Appointments", href: "/user/appointments", icon: CalendarDays },
         { title: "Files", href: "/user/files", icon: Folder },
+        { title: "Inquiries", href: "/user/inquiries", icon: MessageCircle },
         { title: "Records", href: "/user/records", icon: Archive },
 
         ...(isRcyMember

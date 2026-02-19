@@ -22,7 +22,7 @@ export default function Inquiries({ inquiries, filters }) {
   const [inquiryToDelete, setInquiryToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const baseUrl = "/admin/inquiries";
+  const baseUrl = "/admin/inquiry-types";
 
   const { data, setData, post, put, reset, errors, processing } = useForm({
     name: "",

@@ -73,8 +73,17 @@ export default function Index({ events, filters, breadcrumbs, currentRole}) {
 
   const formatDateTimeLocal = (date: string | null) => {
   if (!date) return "";
-    return new Date(date).toISOString().slice(0, 16);
-  };
+
+  const d = new Date(date);
+
+  // convert to local datetime-local string
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+};
+
 
   // Edit modal
   const handleEdit = (event: any) => {
@@ -167,9 +176,14 @@ function EventDescription({ text }: { text: string }) {
 }
 
 const nowDateTimeLocal = () => {
-  const now = new Date();
-  now.setSeconds(0, 0); // remove seconds/ms
-  return now.toISOString().slice(0, 16);
+  const d = new Date();
+  d.setSeconds(0, 0);
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
 };
 
 const formatDateTime = (date: string | null) => {

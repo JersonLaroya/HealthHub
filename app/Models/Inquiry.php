@@ -14,6 +14,7 @@ class Inquiry extends Model
         'created_by',
         'updated_by',
         'description',
+        'response',
         'status',
     ];
 

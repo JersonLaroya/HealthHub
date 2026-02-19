@@ -281,7 +281,7 @@ export default function RcyInquiries({ inquiryTypes = [] }: any) {
 
                 {/* Description */}
                 <div>
-                  <Label>Description (optional)</Label>
+                  <Label>Description</Label>
                   <Textarea
                     rows={3}
                     value={data.description}

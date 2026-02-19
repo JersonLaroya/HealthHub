@@ -134,7 +134,7 @@ class RcyController extends Controller
         $data = $request->validate([
             'inquiry_type_ids' => 'required|array|min:1',
             'inquiry_type_ids.*' => 'exists:list_of_inquiries,id',
-            'description' => 'nullable|string',
+            'description' => 'required|string',
         ]);
 
         $authUser = $request->user();

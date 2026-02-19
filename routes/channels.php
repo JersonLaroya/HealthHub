@@ -55,3 +55,7 @@ Broadcast::channel('admin-inquiries', function ($user) {
 Broadcast::channel('admin-appointments', function ($user) {
     return in_array($user->userRole->name, ['Admin', 'Nurse']);
 });
+
+Broadcast::channel('admin-inquiries', function ($user) {
+    return in_array($user->userRole?->name, ['Admin', 'Nurse']);
+});
