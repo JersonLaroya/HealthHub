@@ -21,6 +21,11 @@ class NotificationController extends Controller
                 'title' => $n->data['title'] ?? 'Notification',
                 'message' => $n->data['message'] ?? '',
                 'url' => $n->data['url'] ?? null,
+
+                // ✅ ADD THESE (for reschedule notifications)
+                'previous_schedule' => $n->data['previous_schedule'] ?? null,
+                'new_schedule' => $n->data['new_schedule'] ?? null,
+
                 'read_at' => $n->read_at,
                 'created_at' => $n->created_at->diffForHumans(),
             ]),

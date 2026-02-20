@@ -187,6 +187,25 @@ async function markAllAsRead() {
     );
 }
 
+function fmtNotifDate(dateStr: string) {
+  // handles "2026-02-20" or "Feb 20, 2026"
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" });
+  }
+  return dateStr; // already formatted
+}
+
+function fmtNotifTime(t: string) {
+  // handles "16:00", "16:00:00", or "4:00 PM"
+  if (t.includes("AM") || t.includes("PM")) return t; // already formatted
+  const hhmm = String(t).slice(0, 5);
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
 
     async function markNotifRead(id: string, url?: string) {
     await csrfFetch(`/notifications/${id}/read`, {
@@ -733,6 +752,22 @@ const messagesHref =
                                             <div className="text-xs text-neutral-600 dark:text-neutral-400">
                                             {n.message}
                                             </div>
+
+                                            {/* ✅ Show schedule details for reschedule notifications */}
+                                            {n.previous_schedule && n.new_schedule && (
+                                            <div className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 space-y-0.5">
+                                                <div>
+                                                <span className="font-medium">From:</span>{" "}
+                                                {fmtNotifDate(n.previous_schedule.date)} |{" "}
+                                                {fmtNotifTime(n.previous_schedule.start_time)} - {fmtNotifTime(n.previous_schedule.end_time)}
+                                                </div>
+                                                <div>
+                                                <span className="font-medium">To:</span>{" "}
+                                                {fmtNotifDate(n.new_schedule.date)} |{" "}
+                                                {fmtNotifTime(n.new_schedule.start_time)} - {fmtNotifTime(n.new_schedule.end_time)}
+                                                </div>
+                                            </div>
+                                            )}
                                             <div className="text-[10px] text-neutral-400 mt-1">
                                             {n.created_at}
                                             </div>

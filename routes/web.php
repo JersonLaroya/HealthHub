@@ -88,6 +88,12 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
         Route::post('/', [AppointmentController::class, 'store'])
             ->name('store'); // request appointment
 
+        Route::get('/availability', [AppointmentController::class, 'availability'])
+        ->name('availability');
+
+        Route::get('/availability/month', [AppointmentController::class, 'availabilityMonth'])
+        ->name('availability.month');
+
         Route::patch('/{appointment}/cancel', [AppointmentController::class, 'cancel'])
             ->name('cancel');
 
@@ -476,6 +482,15 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
 
             Route::patch('/{appointment}/reschedule', [AppointmentManagementController::class, 'reschedule'])
                 ->name('reschedule');
+
+            Route::get('/availability', [AppointmentManagementController::class, 'availability'])
+                ->name('availability');
+
+            Route::get('/availability/month', [AppointmentManagementController::class, 'monthAvailability'])->name('availability.month');
+
+            Route::patch('/{appointment}/schedule', [AppointmentManagementController::class, 'updateSchedule'])
+                ->name('schedule');
+
         });
 
         Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate']);
@@ -517,6 +532,15 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
 
             Route::patch('/{appointment}/reschedule', [AppointmentManagementController::class, 'reschedule'])
                 ->name('reschedule');
+
+            Route::get('/availability', [AppointmentManagementController::class, 'availability'])
+                ->name('availability');
+            
+            Route::get('/availability/month', [AppointmentManagementController::class, 'monthAvailability'])->name('availability.month');
+
+            Route::patch('/{appointment}/schedule', [AppointmentManagementController::class, 'updateSchedule'])
+                ->name('schedule');
+
         });
 
         Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate']);

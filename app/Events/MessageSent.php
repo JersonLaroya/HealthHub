@@ -14,12 +14,14 @@ class MessageSent implements ShouldBroadcastNow
     public Message $message;
 
     public function __construct(Message $message)
-    {
-        $this->message = $message->load([
-            'sender:id,first_name,last_name',
-            'receiver:id,first_name,last_name'
-        ]);
-    }
+{
+    $this->message = $message->load([
+        'sender:id,first_name,last_name,user_role_id',
+        'sender.userRole:id,name,category',
+        'receiver:id,first_name,last_name,user_role_id',
+        'receiver.userRole:id,name,category',
+    ]);
+}
 
     public function broadcastOn()
     {
@@ -29,5 +31,13 @@ class MessageSent implements ShouldBroadcastNow
     public function broadcastAs()
     {
         return 'MessageSent';
+    }
+
+    // Optional but recommended to guarantee structure:
+    public function broadcastWith()
+    {
+        return [
+            'message' => $this->message->toArray(),
+        ];
     }
 }

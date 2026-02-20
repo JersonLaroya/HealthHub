@@ -3,6 +3,9 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { router } from '@inertiajs/react';
+import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
 import {
     ResponsiveContainer,
     BarChart,
@@ -49,6 +52,47 @@ export default function Dashboard() {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: `/${roleSlug}/dashboard` },
     ];
+
+        // ===== DATE FILTERS (default: this month) =====
+    const defaultFrom = useMemo(() => {
+        const d = new Date();
+        const first = new Date(d.getFullYear(), d.getMonth(), 1);
+        return first.toISOString().slice(0, 10); // YYYY-MM-DD
+    }, []);
+
+    const defaultTo = useMemo(() => {
+        const d = new Date();
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        return last.toISOString().slice(0, 10);
+    }, []);
+
+    // If backend sends filters back, use them; else fallback to this month.
+    const serverFilters = (usePage().props as any)?.filters;
+
+    const [fromDate, setFromDate] = useState<string>(serverFilters?.from ?? defaultFrom);
+    const [toDate, setToDate] = useState<string>(serverFilters?.to ?? defaultTo);
+
+    function applyDateFilter() {
+        // guard: if one is empty, don’t send half-baked
+        if (!fromDate || !toDate) return;
+
+        router.get(
+            `/${roleSlug}/dashboard`,
+            { from: fromDate, to: toDate },
+            { preserveState: true, preserveScroll: true, replace: true }
+        );
+    }
+
+    function resetToThisMonth() {
+        setFromDate(defaultFrom);
+        setToDate(defaultTo);
+
+        router.get(
+            `/${roleSlug}/dashboard`,
+            { from: defaultFrom, to: defaultTo },
+            { preserveState: true, preserveScroll: true, replace: true }
+        );
+    }
 
     function formatDateTime(dateStr: string) {
         const date = new Date(dateStr);
@@ -207,9 +251,63 @@ export default function Dashboard() {
 
                 {/* ================= DAILY CONSULTATIONS ================= */}
                 <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
-                    <h2 className="font-semibold mb-4">
-                        Daily Consultations (This Month)
-                    </h2>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="font-semibold">Daily Consultations</h2>
+                            <p className="text-xs text-muted-foreground">
+                                {fromDate} to {toDate}
+                            </p>
+                        </div>
+
+                        {/* Filters */}
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                            <div className="flex gap-2">
+                                <div className="flex flex-col">
+                                    <label className="text-xs text-muted-foreground">From</label>
+                                    <input
+                                        type="date"
+                                        value={fromDate}
+                                        onChange={(e) => setFromDate(e.target.value)}
+                                        className="h-9 rounded-md border border-muted bg-background px-3 text-sm"
+                                        max={toDate || undefined}
+                                    />
+                                </div>
+
+                                <div className="flex flex-col">
+                                    <label className="text-xs text-muted-foreground">To</label>
+                                    <input
+                                        type="date"
+                                        value={toDate}
+                                        onChange={(e) => setToDate(e.target.value)}
+                                        className="h-9 rounded-md border border-muted bg-background px-3 text-sm"
+                                        min={fromDate || undefined}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    className="h-9"
+                                    onClick={applyDateFilter}
+                                    disabled={!fromDate || !toDate}
+                                >
+                                    Apply
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-9"
+                                    onClick={resetToThisMonth}
+                                >
+                                    This Month
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator className="my-4" />
 
                     {chartData?.length ? (
                         <div className="h-80">
@@ -255,7 +353,7 @@ export default function Dashboard() {
                         </div>
                     ) : (
                         <div className="h-80 flex items-center justify-center text-sm text-muted-foreground">
-                            No consultation data for this month.
+                            No consultation data for this range.
                         </div>
                     )}
                 </Card>

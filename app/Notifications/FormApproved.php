@@ -38,11 +38,13 @@ class FormApproved extends Notification implements ShouldBroadcast, ShouldQueue
     public function toDatabase($notifiable)
     {
         return [
-            'title'   => 'Medical Form Approved',
-            'message' => 'Your medical form has been approved. You may message clinic staff for more information.',
-            'service' => $this->serviceName,
-            'url'     => "/user/files/{$this->serviceSlug}",
-        ];
+            'slug'         => 'form-approved',
+            'service_slug' => $this->serviceSlug,
+            'title'        => 'Medical Form Approved',
+            'message'      => 'Your medical form has been approved. You may message clinic staff for more information.',
+            'service'      => $this->serviceName,
+            'url'          => "/user/files/{$this->serviceSlug}",
+            ];
     }
 
     public function toBroadcast($notifiable)

@@ -5,7 +5,7 @@ import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
 import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
 import { fillAthleteMedicalForm } from "@/utils/fillAthleteMedicalForm";
 import { fillLaboratoryRequests } from "@/utils/fillLaboratoryRequests";
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface Props {
   service: {
@@ -25,9 +25,8 @@ interface Props {
 }
 
 export default function ShowForm({ service, patient }: Props) {
-  const { records } = usePage().props;
-  const { props } = usePage();
-  const role = props.auth?.user?.user_role?.name?.toLowerCase();
+  const { auth, records } = usePage().props as any;
+  const role = auth?.user?.user_role?.name?.toLowerCase();
 
   const prefix =
     role === "admin"
@@ -35,6 +34,35 @@ export default function ShowForm({ service, patient }: Props) {
       : role === "nurse"
       ? "nurse"
       : "user";
+
+const authUserId = auth?.user?.id;
+
+  useEffect(() => {
+    const echo = (window as any).Echo;
+
+    if (!echo || !authUserId) return;
+
+    const channelName = `App.Models.User.${authUserId}`;
+    const channel = echo.private(channelName);
+
+    channel.notification((notification: any) => {
+      const data = notification?.data ?? notification; // ✅ handles both shapes
+
+      const slug = data?.slug;
+      const serviceSlug = data?.service_slug;
+
+      const isFormDecision = slug === "form-approved" || slug === "form-rejected";
+      const isThisService = !serviceSlug || serviceSlug === service.slug;
+
+      if (!isFormDecision || !isThisService) return;
+
+      router.reload({ only: ["records"] });
+    });
+
+    return () => {
+      echo.leave(`private-${channelName}`);
+    };
+  }, [authUserId, service.slug]);
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);

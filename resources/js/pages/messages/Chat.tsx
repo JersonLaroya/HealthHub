@@ -5,6 +5,7 @@ import { usePage } from "@inertiajs/react";
 import { Image as ImageIcon, Paperclip, Plus, Download, X } from "lucide-react";
 import { toast } from "sonner";
 import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
 import {
   FileText,
   FileSpreadsheet,
@@ -68,6 +69,57 @@ export default function Chat() {
   const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
+  function normalizeRoleName(v: any) {
+  return String(v ?? "").toLowerCase().trim();
+}
+
+function getAuthRoleName(auth: any) {
+  const ur =
+    auth?.user?.userRole ??
+    auth?.user?.user_role ??
+    auth?.user?.role;
+
+  // if userRole is mistakenly an array: []
+  if (Array.isArray(ur)) {
+    return normalizeRoleName(ur[0]?.name ?? ur[0] ?? auth?.user?.user_role_name);
+  }
+
+  // if it's an object { name: "Admin" }
+  if (ur && typeof ur === "object") {
+    return normalizeRoleName(ur.name ?? auth?.user?.user_role_name);
+  }
+
+  // fallback string fields
+  return normalizeRoleName(
+    auth?.user?.user_role_name ??
+    auth?.user?.role_name ??
+    auth?.user?.role
+  );
+}
+
+const authRoleName = getAuthRoleName(auth);
+const isAdminOrNurse = authRoleName === "admin" || authRoleName === "nurse";
+
+console.log("Raw userRole:", auth?.user?.userRole);
+console.log("Resolved roleName:", authRoleName);
+  console.log("User role: ", authRoleName);
+
+  type ContactRoleFilter = "all" | "student" | "employee" | "sa";
+const [contactRoleFilter, setContactRoleFilter] = useState<ContactRoleFilter>("all");
+
+function matchesRoleFilter(user: any, filter: ContactRoleFilter) {
+  if (filter === "all") return true;
+
+  const roleName = String(user.user_role_name ?? "").toLowerCase().trim();
+  const roleCategory = String(user.user_role_category ?? "").toLowerCase().trim();
+
+  if (filter === "student") return roleName === "student" || roleCategory === "rcy";
+  if (filter === "employee") return roleName === "staff" || roleName === "faculty";
+  if (filter === "sa") return roleName === "super admin";
+
+  return true;
+}
+
   const groupedMessages = useMemo(() => {
     return groupMessages(messages);
   }, [messages]);
@@ -115,36 +167,36 @@ function FileIcon({ name }: { name?: string }) {
   return <File className="w-4 h-4" />;
 }
 
+useEffect(() => {
+  // reset list when filter changes
+  setContactsPage(1);
+  setContactsHasMore(true);
+  loadContacts(1, search, contactRoleFilter);
+}, [contactRoleFilter]);
 
-  async function loadContacts(page = 1, searchText = "") {
-    if (loadingMoreContacts) return;
+async function loadContacts(page = 1, searchText = "", roleFilter: ContactRoleFilter = contactRoleFilter) {
+  if (loadingMoreContacts) return;
 
-    setLoadingMoreContacts(true);
+  setLoadingMoreContacts(true);
 
-    const res = await fetch(
-      `/messages/contacts?page=${page}&search=${encodeURIComponent(searchText)}`
-    );
+  const res = await fetch(
+    `/messages/contacts?page=${page}&search=${encodeURIComponent(searchText)}&role_filter=${roleFilter}`
+  );
 
-    const data = await res.json();
+  const data = await res.json();
 
-    if (page === 1) {
-      setContacts(data.data);
-    } else {
-      setContacts(prev => {
-        const merged = [...prev, ...data.data];
-
-        // remove duplicates
-        return merged.filter(
-          (v, i, arr) => arr.findIndex(x => x.id === v.id) === i
-        );
-      });
-    }
-
-    setContactsPage(data.current_page);
-    setContactsHasMore(data.current_page < data.last_page);
-
-    setLoadingMoreContacts(false);
+  if (page === 1) setContacts(data.data);
+  else {
+    setContacts(prev => {
+      const merged = [...prev, ...data.data];
+      return merged.filter((v, i, arr) => arr.findIndex(x => x.id === v.id) === i);
+    });
   }
+
+  setContactsPage(data.current_page);
+  setContactsHasMore(data.current_page < data.last_page);
+  setLoadingMoreContacts(false);
+}
 
   function openViewer(src: string) {
     setViewerSrc(src);
@@ -295,6 +347,19 @@ async function openConversation(user: User) {
   setLoadingConversation(false);
 }
 
+function otherUserWithRole(m: any) {
+  const u = otherUser(m) as any;
+
+  // Laravel usually serializes relations to snake_case
+  const role = u.userRole ?? u.user_role ?? null;
+
+  return {
+    ...u,
+    user_role_name: (u.user_role_name ?? role?.name ?? "").toString().toLowerCase().trim(),
+    user_role_category: (u.user_role_category ?? role?.category ?? "").toString().toLowerCase().trim(),
+  };
+}
+
 
   async function loadOlderMessages() {
     if (!activeUser || loadingOlder || !hasMore || messages.length === 0) return;
@@ -338,13 +403,15 @@ async function openConversation(user: User) {
     u => !inboxUserIds.includes(u.id)
   );
   const filteredNewContacts = newContacts.filter(u => {
-    const q = search.toLowerCase();
-    return (
-      u.first_name.toLowerCase().includes(q) ||
-      u.last_name.toLowerCase().includes(q)
-    );
-  });
+  const q = search.toLowerCase();
+  const matchesSearch =
+    u.first_name.toLowerCase().includes(q) ||
+    u.last_name.toLowerCase().includes(q);
 
+  const matchesRole = matchesRoleFilter(u, contactRoleFilter);
+
+  return matchesSearch && matchesRole;
+});
   function isUserOnline(userId: number) {
     return onlineUsers.includes(userId);
   }
@@ -559,15 +626,15 @@ useEffect(() => {
     }
   }, [messages])
 
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      setContactsPage(1);
-      setContactsHasMore(true);
-      loadContacts(1, search);
-    }, 300);
+useEffect(() => {
+  const delay = setTimeout(() => {
+    setContactsPage(1);
+    setContactsHasMore(true);
+    loadContacts(1, search, contactRoleFilter);
+  }, 300);
 
-    return () => clearTimeout(delay);
-  }, [search]);
+  return () => clearTimeout(delay);
+}, [search, contactRoleFilter]);
 
   async function sendImage(file: File, batchId: string) {
     if (!activeUser ) return;
@@ -968,15 +1035,18 @@ useEffect(() => {
     );
   }
 
-  const filteredInbox = inbox.filter(m => {
-    const u = otherUser(m);
-    const q = search.toLowerCase();
+const filteredInbox = inbox.filter(m => {
+  const u = otherUserWithRole(m);
+  const q = search.toLowerCase();
 
-    return (
-      u.first_name.toLowerCase().includes(q) ||
-      u.last_name.toLowerCase().includes(q)
-    );
-  });
+  const matchesSearch =
+    u.first_name.toLowerCase().includes(q) ||
+    u.last_name.toLowerCase().includes(q);
+
+  const matchesRole = matchesRoleFilter(u, contactRoleFilter);
+
+  return matchesSearch && matchesRole;
+});
 
   /* ================================
       UI
@@ -1008,6 +1078,45 @@ useEffect(() => {
                           focus:outline-none focus:ring 
                           dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
               />
+              {isAdminOrNurse && (
+  <div className="mt-2 flex flex-wrap gap-2">
+    <Button
+      type="button"
+      variant={contactRoleFilter === "all" ? "default" : "outline"}
+      className="h-7 px-3 text-xs"
+      onClick={() => setContactRoleFilter("all")}
+    >
+      All
+    </Button>
+
+    <Button
+      type="button"
+      variant={contactRoleFilter === "student" ? "default" : "outline"}
+      className="h-7 px-3 text-xs"
+      onClick={() => setContactRoleFilter("student")}
+    >
+      Student
+    </Button>
+
+    <Button
+      type="button"
+      variant={contactRoleFilter === "employee" ? "default" : "outline"}
+      className="h-7 px-3 text-xs"
+      onClick={() => setContactRoleFilter("employee")}
+    >
+      Employee
+    </Button>
+
+    <Button
+      type="button"
+      variant={contactRoleFilter === "sa" ? "default" : "outline"}
+      className="h-7 px-3 text-xs"
+      onClick={() => setContactRoleFilter("sa")}
+    >
+      SA
+    </Button>
+  </div>
+)}
             </div>
 
              {/* ⭐ SINGLE SCROLL AREA */}
@@ -1021,7 +1130,7 @@ useEffect(() => {
                   contactsHasMore &&
                   !loadingMoreContacts
                 ) {
-                  loadContacts(contactsPage + 1, search);
+                  loadContacts(contactsPage + 1, search, contactRoleFilter);
                 }
               }}
             >
@@ -1041,7 +1150,7 @@ useEffect(() => {
             {!loadingInbox && filteredInbox.map((m, i) => {
               if (!m.sender || !m.receiver) return null;
 
-              const other = otherUser(m);
+              const other = otherUserWithRole(m);
               const active = activeUser?.id === other.id;
 
               const isUnread = m.has_unread === true;

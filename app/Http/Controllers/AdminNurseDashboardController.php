@@ -9,29 +9,52 @@ use App\Models\Appointment;
 use Carbon\CarbonPeriod;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 
 class AdminNurseDashboardController extends Controller
 {
-    public function index()
+        public function index(Request $request)
     {
         $today = now()->toDateString();
-        $monthStart = now()->startOfMonth();
-        $monthEnd   = now()->endOfMonth();
+
+        // Default = this month
+        $defaultStart = now()->startOfMonth();
+        $defaultEnd   = now()->endOfMonth();
+
+        // Read query params
+        $from = $request->query('from');
+        $to   = $request->query('to');
+
+        // Parse safely
+        try {
+            $rangeStart = $from ? \Carbon\Carbon::parse($from)->startOfDay() : $defaultStart->copy()->startOfDay();
+        } catch (\Exception $e) {
+            $rangeStart = $defaultStart->copy()->startOfDay();
+        }
+
+        try {
+            $rangeEnd = $to ? \Carbon\Carbon::parse($to)->endOfDay() : $defaultEnd->copy()->endOfDay();
+        } catch (\Exception $e) {
+            $rangeEnd = $defaultEnd->copy()->endOfDay();
+        }
+
+        // Ensure start <= end
+        if ($rangeStart->gt($rangeEnd)) {
+            [$rangeStart, $rangeEnd] = [$rangeEnd->copy()->startOfDay(), $rangeStart->copy()->endOfDay()];
+        }
 
         // Consultation service
-        $consultationServiceId = Service::where(
-            'slug',
-            'clinic-consultation-record-form'
-        )->value('id');
+        $consultationServiceId = Service::where('slug', 'clinic-consultation-record-form')->value('id');
 
         /* =========================
            SUMMARY CARDS
         ========================= */
 
+        // OPTION A (recommended): make summary cards match selected range
         $totalConsultations = Record::where('records.status', Record::STATUS_APPROVED)
             ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
-            ->whereBetween('consultations.date', [$monthStart, $monthEnd])
+            ->whereBetween('consultations.date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->count();
 
         $pendingRecords = Record::pending()->count();
@@ -46,7 +69,7 @@ class AdminNurseDashboardController extends Controller
         $patientsSeen = Record::where('records.status', Record::STATUS_APPROVED)
             ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
-            ->whereBetween('consultations.date', [$monthStart, $monthEnd])
+            ->whereBetween('consultations.date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->distinct('consultations.patient_id')
             ->count('consultations.patient_id');
 
@@ -57,17 +80,17 @@ class AdminNurseDashboardController extends Controller
             ->count();
 
         /* =========================
-        STUDENT vs EMPLOYEE DAILY
+           STUDENT vs EMPLOYEE DAILY
         ========================= */
 
-        $dates = CarbonPeriod::create($monthStart, $monthEnd);
+        $dates = CarbonPeriod::create($rangeStart->copy()->startOfDay(), $rangeEnd->copy()->startOfDay());
 
         $rawData = Record::where('records.status', Record::STATUS_APPROVED)
             ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
             ->join('users', 'users.id', '=', 'consultations.patient_id')
             ->join('user_roles', 'user_roles.id', '=', 'users.user_role_id')
-            ->whereBetween('consultations.date', [$monthStart, $monthEnd])
+            ->whereBetween('consultations.date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->selectRaw("
                 consultations.date as date,
                 SUM(
@@ -89,7 +112,6 @@ class AdminNurseDashboardController extends Controller
             ->keyBy('date');
 
         $chartData = [];
-
         foreach ($dates as $date) {
             $formatted = $date->toDateString();
             $row = $rawData[$formatted] ?? null;
@@ -102,7 +124,7 @@ class AdminNurseDashboardController extends Controller
         }
 
         /* =========================
-        EVENTS (ONGOING + UPCOMING ONLY)
+           EVENTS + APPOINTMENTS (unchanged)
         ========================= */
 
         $now = now('Asia/Manila');
@@ -118,10 +140,6 @@ class AdminNurseDashboardController extends Controller
             ->orderBy('start_at')
             ->limit(5)
             ->get();
-
-        /* =========================
-           UPCOMING APPOINTMENTS
-        ========================= */
 
         $upcomingAppointments = Appointment::with('user')
             ->where('appointment_date', '>=', now()->toDateString())
@@ -146,6 +164,12 @@ class AdminNurseDashboardController extends Controller
             'chartData'            => $chartData,
             'events'               => $events,
             'upcomingAppointments' => $upcomingAppointments,
+
+            // Send filters back so React can keep the inputs filled after reload
+            'filters' => [
+                'from' => $rangeStart->toDateString(),
+                'to'   => $rangeEnd->toDateString(),
+            ],
         ]);
     }
 }

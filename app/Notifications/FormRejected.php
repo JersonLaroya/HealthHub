@@ -38,10 +38,12 @@ class FormRejected extends Notification implements ShouldBroadcast, ShouldQueue
     public function toDatabase($notifiable)
     {
         return [
-            'title'   => 'Medical Form Rejected',
-            'message' => 'Your medical form was rejected. Please correct your submission or message clinic staff for more information.',
-            'service' => $this->serviceName,
-            'url'     => "/user/files/{$this->serviceSlug}",
+        'slug'         => 'form-rejected',
+        'service_slug' => $this->serviceSlug,
+        'title'        => 'Medical Form Rejected',
+        'message'      => 'Your medical form was rejected. Please review your submission or message clinic staff for more information.',
+        'service'      => $this->serviceName,
+        'url'          => "/user/files/{$this->serviceSlug}",
         ];
     }
 

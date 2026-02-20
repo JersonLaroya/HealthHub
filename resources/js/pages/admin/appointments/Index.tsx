@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Check } from "lucide-react";
 
 /* ✅ Calendar imports (added only) */
 import FullCalendar from "@fullcalendar/react";
@@ -19,12 +20,102 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
+type Slot = {
+  start: string;
+  end: string;
+  booked: number;
+  available: number;
+  is_full: boolean;
+};
+
+type AvailabilityResponse = {
+  date: string;
+  slot_minutes: number;
+  capacity: number;
+  slots: Slot[];
+  message?: string;
+};
+
+type MonthDay = {
+  date: string; // YYYY-MM-DD
+  status: "closed" | "full" | "available";
+  available_total: number;
+  capacity_total: number;
+};
+
+type MonthAvailabilityResponse = {
+  month: string; // YYYY-MM
+  days: MonthDay[];
+};
+
+function toYYYYMM(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+}
+
+function isWeekendJS(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay(); // 0 Sun, 6 Sat
+  return day === 0 || day === 6;
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+function toYYYYMMDD(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function endOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+function addMonths(d: Date, delta: number) {
+  return new Date(d.getFullYear(), d.getMonth() + delta, 1);
+}
+function isPastDate(dateStr: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  return d < today;
+}
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function isPastSlot(dateStr: string, startHHMM: string, slotMinutes = 30) {
+  const now = new Date();
+  const start = new Date(dateStr);
+  const [h, m] = startHHMM.split(":").map(Number);
+  start.setHours(h, m, 0, 0);
+
+  const end = new Date(start.getTime() + slotMinutes * 60 * 1000);
+
+  return isSameDay(start, now) && end.getTime() <= now.getTime();
+}
+
 export default function AdminAppointments({ appointments, calendarAppointments, filters }: any) {
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [view, setView] = useState<"table" | "calendar">("table");
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+
+  const [editing, setEditing] = useState<any | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editStart, setEditStart] = useState("");
+  const [editSlots, setEditSlots] = useState<any[]>([]);
+
+  const [editAvailability, setEditAvailability] = useState<AvailabilityResponse | null>(null);
+  const [editLoadingSlots, setEditLoadingSlots] = useState(false);
+
+  const [monthCursor, setMonthCursor] = useState<Date>(() => startOfMonth(new Date()));
+
+  const [overrideFull, setOverrideFull] = useState(false);
+  const [overridePast, setOverridePast] = useState(false); // ✅ add
+
+  const [monthLoading, setMonthLoading] = useState(false);
+  const [monthDays, setMonthDays] = useState<Record<string, MonthDay>>({});
 
   /* ✅ realtime updates — unchanged */
   useEffect(() => {
@@ -34,6 +125,10 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     const channel = echo.private("admin-appointments");
 
     channel.listen(".appointment.created", () => {
+      router.reload({ only: ["appointments"] });
+    });
+
+    channel.listen(".appointment.rescheduled", () => {
       router.reload({ only: ["appointments"] });
     });
 
@@ -117,6 +212,309 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
       hour12: true,
     });
   }
+
+  async function loadEditAvailability(date: string) {
+    if (!date) {
+      setEditAvailability(null);
+      return;
+    }
+
+    
+
+    setEditLoadingSlots(true);
+    try {
+      const res = await fetch(
+        `/admin/appointments/availability?date=${encodeURIComponent(date)}`,
+        { headers: { Accept: "application/json" } }
+      );
+      if (!res.ok) throw new Error("Failed to fetch availability");
+      const json = (await res.json()) as AvailabilityResponse;
+      setEditAvailability(json);
+
+      // If current selected time became invalid (full + no override, or past), clear
+      if (editStart) {
+        const match = json.slots?.find((s) => s.start === editStart);
+        const past = editDate ? isPastSlot(editDate, editStart) : false;
+
+        const invalid =
+          !match ||
+          (match.is_full && !overrideFull) ||
+          (past && !overridePast);
+
+        if (invalid) setEditStart("");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load available slots.");
+      setEditAvailability(null);
+    } finally {
+      setEditLoadingSlots(false);
+    }
+  }
+
+  async function loadAdminMonthAvailability(month: string) {
+    setMonthLoading(true);
+    try {
+      const res = await fetch(
+        `/admin/appointments/availability/month?month=${encodeURIComponent(month)}`,
+        { headers: { Accept: "application/json" } }
+      );
+      if (!res.ok) throw new Error("Failed to fetch month availability");
+      const json = (await res.json()) as MonthAvailabilityResponse;
+
+      const map: Record<string, MonthDay> = {};
+      for (const d of json.days) map[d.date] = d;
+      setMonthDays(map);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load calendar availability.");
+      setMonthDays({});
+    } finally {
+      setMonthLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!editing) return;
+    loadAdminMonthAvailability(toYYYYMM(monthCursor));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, monthCursor]);
+
+  function openEditSchedule(appt: any) {
+    setEditing(appt);
+    setEditDate(appt.appointment_date);
+    setEditStart(appt.start_time);
+    setOverrideFull(false);
+    setOverridePast(false); // ✅ reset
+    setMonthCursor(startOfMonth(new Date(appt.appointment_date)));
+    setEditAvailability(null);
+  }
+
+  function closeEditSchedule() {
+    setEditing(null);
+    setEditDate("");
+    setEditStart("");
+    setEditSlots([]);
+    setOverrideFull(false);
+    setOverridePast(false); // ✅ reset
+  }
+
+useEffect(() => {
+  if (!editing) return;
+  if (!editDate) return;
+  loadEditAvailability(editDate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [editDate, editing, overrideFull, overridePast]);
+
+function EditCalendarGrid() {
+  const monthStart = startOfMonth(monthCursor);
+  const monthEnd = endOfMonth(monthCursor);
+
+  const startWeekday = monthStart.getDay();
+  const daysInMonth = monthEnd.getDate();
+
+  const cells: Array<{ kind: "empty" } | { kind: "day"; dateStr: string; dayNum: number }> = [];
+  for (let i = 0; i < startWeekday; i++) cells.push({ kind: "empty" });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateObj = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), d);
+    const dateStr = toYYYYMMDD(dateObj);
+    cells.push({ kind: "day", dateStr, dayNum: d });
+  }
+
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          className="text-sm px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          onClick={() => setMonthCursor(addMonths(monthCursor, -1))}
+        >
+          ←
+        </button>
+
+        <div className="text-sm font-medium">
+          {monthCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+        </div>
+
+        <button
+          type="button"
+          className="text-sm px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          onClick={() => setMonthCursor(addMonths(monthCursor, 1))}
+        >
+          →
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-xs text-neutral-500">
+        {weekdayLabels.map((w) => (
+          <div key={w} className="text-center py-1">{w}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((c, idx) => {
+          if (c.kind === "empty") return <div key={`e-${idx}`} className="h-10" />;
+
+          const info = monthDays[c.dateStr];
+          const isSelected = editDate === c.dateStr;
+
+          const weekend = isWeekendJS(c.dateStr);
+          const past = isPastDate(c.dateStr);
+
+          // status from API (closed/full/available), fallback:
+          const status = info?.status ?? (weekend ? "closed" : "available");
+
+          const isClosed = status === "closed" || weekend || past;
+          const isFull = status === "full";
+
+          // ✅ weekend should not be selectable + full should not be selectable
+          const disabled = isClosed || (isFull && !overrideFull);
+
+          const availableTotal = info?.available_total ?? null;
+
+          const dotClass =
+            status === "available"
+              ? "bg-green-500"
+              : status === "full"
+              ? "bg-red-500"
+              : "bg-neutral-300";
+
+          return (
+            <button
+              key={c.dateStr}
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                setEditDate(c.dateStr);
+                setEditStart("");
+              }}
+              className={[
+                "h-10 rounded-md border text-sm relative transition",
+                "flex items-center justify-center",
+                disabled
+                  ? "opacity-50 cursor-not-allowed bg-neutral-50 dark:bg-neutral-900"
+                  : "hover:bg-neutral-50 dark:hover:bg-neutral-900",
+                isSelected
+                  ? "border-neutral-900 dark:border-neutral-100 ring-2 ring-neutral-400"
+                  : "border-neutral-200 dark:border-neutral-700",
+              ].join(" ")}
+              title={
+                status === "available"
+                  ? `${availableTotal ?? ""} slots available`
+                  : status === "full"
+                  ? "Fully booked"
+                  : "Closed"
+              }
+            >
+              <span>{c.dayNum}</span>
+
+              {/* ✅ dot indicator like user */}
+              <span className={`absolute bottom-1 left-1 h-2 w-2 rounded-full ${dotClass}`} />
+            </button>
+          );
+        })}
+      </div>
+
+      {monthLoading && <div className="text-xs text-neutral-500">Loading calendar…</div>}
+    </div>
+  );
+}
+
+function EditSlotPicker() {
+  if (!editDate) return <div className="text-sm text-neutral-500">Pick a date on the calendar.</div>;
+  if (editLoadingSlots) return <div className="text-sm text-neutral-500">Loading slots…</div>;
+  if (!editAvailability) return <div className="text-sm text-neutral-500">No slot data.</div>;
+  if (editAvailability.slots.length === 0) {
+    return <div className="text-sm text-neutral-500">{editAvailability.message ?? "No slots for this date."}</div>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {editAvailability.slots.map((s) => {
+        const isSelected = editStart === s.start;
+        const past = isPastSlot(editDate, s.start);
+
+        // ✅ this is the rule you asked about:
+        // full slot is blocked unless overrideFull is checked
+        const isDisabled = (past && !overridePast) || (s.is_full && !overrideFull);
+
+        const rightLabel = past ? "Passed" : s.is_full ? "Full" : `${s.available} left`;
+
+        const rowClass = [
+          "w-full py-2.5 px-2 text-sm border-b",
+          "flex items-center justify-between gap-2",
+          isDisabled ? "opacity-60 cursor-not-allowed" : "hover:bg-neutral-50 dark:hover:bg-neutral-900",
+          isSelected ? "bg-neutral-100 dark:bg-neutral-800" : "",
+          s.is_full ? "bg-red-50 dark:bg-red-950/30" : "",
+        ].join(" ");
+
+        const labelClass = ["text-xs", s.is_full ? "text-red-600" : "text-neutral-500"].join(" ");
+
+        return (
+          <button
+            key={s.start}
+            type="button"
+            disabled={isDisabled}
+            onClick={() => setEditStart(s.start)}
+            className={rowClass}
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <span
+                className={[
+                  "inline-flex h-5 w-5 items-center justify-center rounded-full border",
+                  isSelected
+                    ? "bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 dark:border-neutral-100"
+                    : "bg-transparent text-transparent border-neutral-300 dark:border-neutral-700",
+                ].join(" ")}
+                aria-hidden
+              >
+                <Check className="h-3.5 w-3.5" />
+              </span>
+
+              <span className="truncate">
+                {formatTime(s.start)} – {formatTime(s.end)}
+              </span>
+            </span>
+
+            <span className={labelClass}>{rightLabel}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function submitEditSchedule() {
+  if (!editing) return;
+  if (!editDate) return toast.error("Select a date.");
+  if (!editStart) return toast.error("Select a time.");
+
+  setProcessingId(editing.id);
+
+  router.patch(
+    `/admin/appointments/${editing.id}/schedule`,
+    {
+      appointment_date: editDate,
+      start_time: editStart,
+      override_full: overrideFull,
+      override_past: overridePast,
+    },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success("Schedule updated");
+        closeEditSchedule();
+        setSelectedAppointment(null); // optional: close details too
+        router.reload({ only: ["appointments", "calendarAppointments"] });
+      },
+      onError: () => toast.error("Failed to update schedule"),
+      onFinish: () => setProcessingId(null),
+    }
+  );
+}
+
 
   return (
     <AppLayout>
@@ -277,35 +675,58 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
                             </td>
 
                             <td className="p-3 text-right">
-                            {a.status === "pending" ? (
+                              {a.status === "pending" ? (
                                 <div className="flex justify-end gap-2">
-                                <Button
-                                size="sm"
-                                disabled={processingId === a.id}
-                                onClick={() => approve(a.id)}
-                                >
-                                {processingId === a.id ? "Approving..." : "Approve"}
-                                </Button>
-                                <Button
-                                size="sm"
-                                variant="destructive"
-                                disabled={processingId === a.id}
-                                onClick={() => setRejectingId(a.id)}
-                                >
-                                Reject
-                                </Button>
+                                  <Button
+                                    size="sm"
+                                    disabled={processingId === a.id}
+                                    onClick={() => approve(a.id)}
+                                  >
+                                    {processingId === a.id ? "Approving..." : "Approve"}
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openEditSchedule(a)}
+                                    disabled={processingId === a.id}
+                                  >
+                                    Edit
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={processingId === a.id}
+                                    onClick={() => setRejectingId(a.id)}
+                                  >
+                                    Reject
+                                  </Button>
                                 </div>
-                            ) : (
-                                <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                    router.delete(`/admin/appointments/${a.id}`)
-                                }
-                                >
-                                Delete
-                                </Button>
-                            )}
+                              ) : (
+                                <div className="flex justify-end gap-2">
+                                  {/* Allow edit for approved too (block completed/rejected) */}
+                                  {a.status === "approved" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => openEditSchedule(a)}
+                                      disabled={processingId === a.id}
+                                    >
+                                      Edit
+                                    </Button>
+                                  )}
+
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => router.delete(`/admin/appointments/${a.id}`, { preserveScroll: true })}
+                                    disabled={processingId === a.id}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              )}
                             </td>
                         </tr>
                         ))}
@@ -343,6 +764,70 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
             </div>
           </Card>
         )}
+
+        {/* Edit Modal */}
+        <Dialog open={!!editing} onOpenChange={(v) => (!v ? closeEditSchedule() : null)}>
+          <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[85vh] overflow-y-auto p-4 sm:p-6">
+            <DialogHeader>
+              <DialogTitle>Edit Appointment Schedule</DialogTitle>
+            </DialogHeader>
+
+            {editing && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 rounded-md border bg-white dark:bg-neutral-900">
+                    <EditCalendarGrid />
+                  </div>
+
+                  <div className="p-3 rounded-md border bg-white dark:bg-neutral-900 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">
+                        {editDate ? formatDate(editDate) : "Select a date"}
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={overrideFull}
+                            onChange={(e) => setOverrideFull(e.target.checked)}
+                          />
+                          Override full
+                        </label>
+
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={overridePast}
+                            onChange={(e) => setOverridePast(e.target.checked)}
+                          />
+                          Override passed
+                        </label>
+                      </div>
+                    </div>
+
+                    {(overrideFull || overridePast) && (
+                      <div className="text-xs text-amber-600">
+                        Warning: Overrides may exceed limits or allow passed slots. Use only for walk-ins.
+                      </div>
+                    )}
+
+                    <EditSlotPicker />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeEditSchedule}>
+                Cancel
+              </Button>
+              <Button onClick={submitEditSchedule} disabled={!editing || processingId === editing?.id}>
+                {processingId === editing?.id ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* REJECT MODAL */}
         <Dialog open={!!rejectingId} onOpenChange={() => setRejectingId(null)}>

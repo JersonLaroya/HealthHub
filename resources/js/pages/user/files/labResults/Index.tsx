@@ -12,6 +12,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePage } from "@inertiajs/react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
+import { router } from "@inertiajs/react";
 
 type RecordStatus = "missing" | "pending" | "approved" | "rejected";
 
@@ -38,7 +39,8 @@ export default function Index({ records }: { records: RecordItem[] }) {
   const [fullImage, setFullImage] = useState<string | null>(null);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
-  const { flash } = usePage().props as any;
+  const { auth, flash } = usePage().props as any;
+  const userId = auth?.user?.id;
 
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const [previewScrollTop, setPreviewScrollTop] = useState(0);
@@ -57,6 +59,28 @@ export default function Index({ records }: { records: RecordItem[] }) {
         return { label: "Unknown", className: "bg-gray-200 text-gray-600" };
     }
   }
+
+  useEffect(() => {
+  const echo = (window as any).Echo;
+  if (!echo || !userId) return;
+
+  const channelName = `App.Models.User.${userId}`;
+  const channel = echo.private(channelName);
+
+  channel.notification((notification: any) => {
+    const data = notification?.data ?? notification; // ✅ handle both shapes
+    const slug = data?.slug;
+
+    const isLabDecision = slug === "lab-approved" || slug === "lab-rejected";
+    if (!isLabDecision) return;
+
+    router.reload({ only: ["records"] });
+  });
+
+  return () => {
+    echo.leave(channelName); // ✅ correct cleanup
+  };
+}, [userId]);
 
   useEffect(() => {
     if (flash?.success) {

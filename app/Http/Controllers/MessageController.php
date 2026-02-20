@@ -18,44 +18,52 @@ class MessageController extends Controller
      * Get inbox (latest message per conversation)
      */
     public function index()
-    {
-        $userId = Auth::id();
+{
+    $userId = Auth::id();
 
-        // latest message per conversation
-        $latestMessages = Message::selectRaw('MAX(id) as id')
-            ->where(function ($q) use ($userId) {
-                $q->where('sender_id', $userId)
-                ->orWhere('receiver_id', $userId);
-            })
-            ->groupBy('conversation_key');
+    $latestMessages = Message::selectRaw('MAX(id) as id')
+        ->where(function ($q) use ($userId) {
+            $q->where('sender_id', $userId)
+              ->orWhere('receiver_id', $userId);
+        })
+        ->groupBy('conversation_key');
 
-        $messages = Message::whereIn('id', $latestMessages)
-            ->select(
+    $messages = Message::whereIn('id', $latestMessages)
+        ->select(
             'id',
-                'sender_id',
-                'receiver_id',
-                'conversation_key',
-                'body',
-                'image_path',
-                'image_batch_id',
-                'file_path',
-                'file_name',
-                'file_size',
-                'is_seen',
-                'created_at'
-            )
-            ->with(['sender:id,first_name,last_name', 'receiver:id,first_name,last_name'])
-            ->withExists([
-                'conversation as has_unread' => function ($q) use ($userId) {
-                    $q->where('receiver_id', $userId)
-                    ->whereRaw('is_seen = false');
-                }
-            ])
-            ->orderByDesc('created_at')
-            ->get();
+            'sender_id',
+            'receiver_id',
+            'conversation_key',
+            'body',
+            'image_path',
+            'image_batch_id',
+            'file_path',
+            'file_name',
+            'file_size',
+            'is_seen',
+            'created_at'
+        )
+        ->with([
+            'sender' => function ($q) {
+                $q->select('id', 'first_name', 'last_name', 'user_role_id')
+                  ->with('userRole:id,name,category');
+            },
+            'receiver' => function ($q) {
+                $q->select('id', 'first_name', 'last_name', 'user_role_id')
+                  ->with('userRole:id,name,category');
+            },
+        ])
+        ->withExists([
+            'conversation as has_unread' => function ($q) use ($userId) {
+                $q->where('receiver_id', $userId)
+                  ->whereRaw('is_seen = false');
+            }
+        ])
+        ->orderByDesc('created_at')
+        ->get();
 
-        return response()->json($messages);
-    }
+    return response()->json($messages);
+}
 
     /**
      * Fetch full conversation with a user
@@ -82,9 +90,11 @@ class MessageController extends Controller
                 'created_at'
             )
             ->with([
-                'sender:id,first_name,last_name',
-                'receiver:id,first_name,last_name'
-            ]);
+  'sender:id,first_name,last_name,user_role_id',
+  'sender.userRole:id,name,category',
+  'receiver:id,first_name,last_name,user_role_id',
+  'receiver.userRole:id,name,category',
+]);
 
         if ($request->filled('before')) {
             $query->where('id', '<', $request->before);
@@ -155,11 +165,17 @@ class MessageController extends Controller
         // broadcast(new MessageSent($message))->toOthers();
 
         return response()->json(
-            $message->load([
-                'sender:id,first_name,last_name',
-                'receiver:id,first_name,last_name'
-            ])
-        );
+    $message->load([
+        'sender' => function ($q) {
+            $q->select('id', 'first_name', 'last_name', 'user_role_id')
+              ->with('userRole:id,name,category');
+        },
+        'receiver' => function ($q) {
+            $q->select('id', 'first_name', 'last_name', 'user_role_id')
+              ->with('userRole:id,name,category');
+        },
+    ])
+);
     }
 
     public function contacts(Request $request)
@@ -170,16 +186,17 @@ class MessageController extends Controller
 
         $senderRole     = strtolower($auth->userRole->name ?? '');
         $senderCategory = strtolower($auth->userRole->category ?? '');
+        $roleFilter = strtolower($request->query('role_filter', 'all'));
 
-        $query = User::where('id', '!=', $auth->id)
-            ->select('id','first_name','last_name')
-
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($x) use ($search) {
-                    $x->where('first_name', 'ilike', "%{$search}%")
-                    ->orWhere('last_name', 'ilike', "%{$search}%");
-                });
-            })
+        $query = User::where('users.id', '!=', $auth->id)
+    ->leftJoin('user_roles', 'user_roles.id', '=', 'users.user_role_id')
+    ->select(
+        'users.id',
+        'users.first_name',
+        'users.last_name',
+        DB::raw("user_roles.name as user_role_name"),
+        DB::raw("user_roles.category as user_role_category")
+    )
 
             ->whereHas('userRole', function ($q) use ($senderRole, $senderCategory) {
 
@@ -194,7 +211,24 @@ class MessageController extends Controller
                 } elseif (in_array($senderCategory, ['user','rcy'])) {
                     $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
                 }
-            });
+            })
+            ->when($roleFilter !== 'all', function ($q) use ($roleFilter) {
+    $q->where(function ($x) use ($roleFilter) {
+
+        if ($roleFilter === 'student') {
+            $x->whereRaw("LOWER(user_roles.name) = 'student'")
+              ->orWhereRaw("LOWER(user_roles.category) = 'rcy'");
+        }
+
+        if ($roleFilter === 'employee') {
+            $x->whereRaw("LOWER(user_roles.name) IN ('staff','faculty')");
+        }
+
+        if ($roleFilter === 'sa') {
+            $x->whereRaw("LOWER(user_roles.name) = 'super admin'");
+        }
+    });
+});
 
         return response()->json(
             $query->orderBy('first_name')->paginate(20)

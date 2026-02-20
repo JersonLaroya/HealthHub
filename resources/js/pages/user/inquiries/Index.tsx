@@ -1,10 +1,11 @@
-import { Head, useForm, usePage } from "@inertiajs/react";
+import { Head, useForm, usePage, router } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useEffect } from "react";
 
 export default function UserInquiriesIndex({
   inquiries = [],
@@ -26,6 +27,34 @@ export default function UserInquiriesIndex({
 
   const [viewResponseOpen, setViewResponseOpen] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+
+  useEffect(() => {
+  const echo = (window as any).Echo;
+  const userId = auth?.user?.id;
+
+  if (!echo || !userId) return;
+
+  const channelName = `App.Models.User.${userId}`;
+  const channel = echo.private(channelName);
+
+  channel.notification((notification: any) => {
+      const slug = notification?.slug;
+      const type = notification?.type;
+
+      const isInquiryApproved =
+        slug === "inquiry-approved" ||
+        type === "App\\Notifications\\InquiryApprovedNotification";
+
+      if (!isInquiryApproved) return;
+
+      // ✅ reload only inquiries (fast, no full refresh)
+      router.reload({ only: ["inquiries"] });
+    });
+
+    return () => {
+      echo.leave(`private-${channelName}`);
+    };
+  }, [auth?.user?.id]);
 
   function TruncatedText({
     text,
