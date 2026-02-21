@@ -2,10 +2,17 @@ import AppLayout from "@/layouts/app-layout";
 import { Card } from "@/components/ui/card";
 import { Link, router, usePage } from "@inertiajs/react";
 import { FileText, BarChart3 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+type YearFilter = number | "all";
 
-export default function ReportsIndex({ clusters }) {
+export default function ReportsIndex({
+  clusters,
+  year,
+}: {
+  clusters: any[];
+  year: YearFilter;
+}) {
 
   const { flash } = usePage().props as {
     flash?: {
@@ -16,6 +23,24 @@ export default function ReportsIndex({ clusters }) {
 
   const [openCluster, setOpenCluster] = useState<number | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<any | null>(null);
+
+  const [selectedYear, setSelectedYear] = useState<YearFilter>(year ?? "all");
+
+  // keep dropdown synced if server changes year (after generate + redirect)
+  useEffect(() => {
+    setSelectedYear(year ?? "all");
+  }, [year]);
+
+  const years = useMemo<YearFilter[]>(() => {
+    const current = new Date().getFullYear();
+    return ["all", ...Array.from({ length: 5 }, (_, i) => current - i)];
+  }, []);
+
+  function generateClusters() {
+    router.post("/admin/disease-clusters/generate", {
+      year: selectedYear,
+    });
+  }
 
   return (
     <AppLayout>
@@ -37,10 +62,12 @@ export default function ReportsIndex({ clusters }) {
         <div className="space-y-4">
           <h2 className="font-semibold text-lg">Generate Reports</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-4xl">
+          {/* CHANGE: remove max-w-4xl, add responsive cols */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
 
-            <Link href="/admin/reports/dtr">
-              <Card className="p-6 hover:shadow-xl transition cursor-pointer border bg-gradient-to-br from-sky-500/10 to-sky-600/20">
+            {/* DTR */}
+            <Link href="/admin/reports/dtr" className="h-full">
+              <Card className="h-full p-6 hover:shadow-xl transition cursor-pointer border bg-gradient-to-br from-sky-500/10 to-sky-600/20">
                 <div className="flex items-center gap-3 mb-2">
                   <FileText className="w-7 h-7 text-sky-600" />
                   <p className="font-semibold text-lg">Daily Treatment Record</p>
@@ -51,8 +78,9 @@ export default function ReportsIndex({ clusters }) {
               </Card>
             </Link>
 
-            <Link href="/admin/reports/census">
-              <Card className="p-6 hover:shadow-xl transition cursor-pointer border bg-gradient-to-br from-pink-500/10 to-pink-600/20">
+            {/* Census */}
+            <Link href="/admin/reports/census" className="h-full">
+              <Card className="h-full p-6 hover:shadow-xl transition cursor-pointer border bg-gradient-to-br from-pink-500/10 to-pink-600/20">
                 <div className="flex items-center gap-3 mb-2">
                   <BarChart3 className="w-7 h-7 text-pink-600" />
                   <p className="font-semibold text-lg">Census Report</p>
@@ -63,13 +91,46 @@ export default function ReportsIndex({ clusters }) {
               </Card>
             </Link>
 
-            <button
-              onClick={() => router.post('/admin/disease-clusters/generate')}
-              className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow hover:opacity-90"
-            >
-              Generate Disease Pattern (AI)
-            </button>
+            {/* AI CONTROLS */}
+            <Card className="p-5 border bg-white md:col-span-2 xl:col-span-1">
+              <div className="flex flex-col gap-4 h-full">
+                <div>
+                  <p className="text-sm font-semibold">Disease Pattern (AI)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose a year to generate clusters from consultation records.
+                  </p>
+                </div>
 
+                {/* controls row */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-auto">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Year</span>
+
+                    <select
+                      value={String(selectedYear)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedYear(v === "all" ? "all" : Number(v));
+                      }}
+                      className="h-10 w-full sm:w-40 rounded-md border px-3 text-sm bg-white"
+                    >
+                      {years.map((y) => (
+                        <option key={String(y)} value={String(y)}>
+                          {y === "all" ? "All years" : y}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={generateClusters}
+                    className="h-10 w-full sm:w-auto px-6 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow hover:opacity-90 whitespace-nowrap"
+                  >
+                    Generate
+                  </button>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
 

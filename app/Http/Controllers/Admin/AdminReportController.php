@@ -22,11 +22,22 @@ class AdminReportController extends Controller
     {
 
         // Clustering
-        $clusters = ConsultationCluster::with([
+        $year = request('year', now()->year); // can be "all" or a year number
+        $isAllYears = ($year === 'all');
+
+        $clustersQuery = ConsultationCluster::query()
+            ->join('consultations', 'consultation_clusters.consultation_id', '=', 'consultations.id')
+            ->with([
                 'consultation.diseases',
-                'consultation.patient.userRole'
-            ])->get()
-            ->groupBy('cluster');
+                'consultation.patient.userRole',
+            ])
+            ->select('consultation_clusters.*');
+
+        if (!$isAllYears) {
+            $clustersQuery->whereYear('consultations.date', (int) $year);
+        }
+
+        $clusters = $clustersQuery->get()->groupBy('cluster');
 
         $clusterReports = [];
 
@@ -123,35 +134,26 @@ class AdminReportController extends Controller
             ];
         }
 
-        $clusterChart = ConsultationCluster::select(
-            'cluster',
-            DB::raw('COUNT(*) as total')
-        )
-        ->groupBy('cluster')
-        ->orderBy('cluster')
-        ->get()
-        ->map(function ($row) {
-            return [
-                'name' => 'Cluster ' . ($row->cluster + 1),
-                'value' => $row->total,
-            ];
-        });
-
-        $year = request('year') ?? now()->year;
-
-        $monthlyPatternTrends = ConsultationCluster::select(
-                DB::raw("EXTRACT(MONTH FROM consultations.date) as month"),
+        $clusterChartQuery = ConsultationCluster::select(
                 'consultation_clusters.cluster',
-                DB::raw("COUNT(*) as total")
+                DB::raw('COUNT(*) as total')
             )
-            ->join('consultations', 'consultation_clusters.consultation_id', '=', 'consultations.id')
-            ->whereYear('consultations.date', $year)
-            ->groupBy(
-                DB::raw("EXTRACT(MONTH FROM consultations.date)"),
-                'consultation_clusters.cluster'
-            )
-            ->orderBy(DB::raw("EXTRACT(MONTH FROM consultations.date)"))
-            ->get();
+            ->join('consultations', 'consultation_clusters.consultation_id', '=', 'consultations.id');
+
+        if (!$isAllYears) {
+            $clusterChartQuery->whereYear('consultations.date', (int) $year);
+        }
+
+        $clusterChart = $clusterChartQuery
+            ->groupBy('consultation_clusters.cluster')
+            ->orderBy('consultation_clusters.cluster')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'name' => 'Cluster ' . ($row->cluster + 1),
+                    'value' => $row->total,
+                ];
+            });
 
         /*
         Format to:
@@ -161,20 +163,37 @@ class AdminReportController extends Controller
         ]
         */
 
+        $patternTrendData = [];
+
+        if (!$isAllYears) {
+            $monthlyPatternTrends = ConsultationCluster::select(
+                    DB::raw("EXTRACT(MONTH FROM consultations.date) as month"),
+                    'consultation_clusters.cluster',
+                    DB::raw("COUNT(*) as total")
+                )
+                ->join('consultations', 'consultation_clusters.consultation_id', '=', 'consultations.id')
+                ->whereYear('consultations.date', (int) $year)
+                ->groupBy(
+                    DB::raw("EXTRACT(MONTH FROM consultations.date)"),
+                    'consultation_clusters.cluster'
+                )
+                ->orderBy(DB::raw("EXTRACT(MONTH FROM consultations.date)"))
+                ->get();
+
         $patternTrendData = collect(range(1, 12))->map(function ($m) use ($monthlyPatternTrends) {
+                $row = [
+                    'month' => date('M', mktime(0, 0, 0, $m, 1))
+                ];
 
-            $row = [
-                'month' => date('M', mktime(0, 0, 0, $m, 1))
-            ];
-
-            foreach ($monthlyPatternTrends as $trend) {
-                if ((int)$trend->month === $m) {
-                    $row['Pattern ' . ($trend->cluster + 1)] = $trend->total;
+                foreach ($monthlyPatternTrends as $trend) {
+                    if ((int) $trend->month === $m) {
+                        $row['Pattern ' . ($trend->cluster + 1)] = $trend->total;
+                    }
                 }
-            }
 
-            return $row;
-        });
+                return $row;
+            });
+        }
 
         return Inertia::render('admin/reports/index', [
             'year' => $year,

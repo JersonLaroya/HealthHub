@@ -10,14 +10,24 @@ use Phpml\Clustering\KMeans;
 
 class DiseaseClusteringService
 {
-    public function cluster(int $k = 3)
+    /**
+     * @param int $k
+     * @param int|string $year  "all" or 2026, 2025, etc.
+     */
+    public function cluster(int $k = 3, $year = 'all')
     {
         $diseases = Disease::orderBy('id')->get();
 
-        $consultations = Consultation::whereHas('diseases')
+        $consultationsQuery = Consultation::whereHas('diseases')
             ->whereHas('record', fn ($q) => $q->where('status', 'approved'))
-            ->with(['diseases', 'patient.userRole'])
-            ->get();
+            ->with(['diseases', 'patient.userRole']);
+
+        // ✅ Apply year filter only when not "all"
+        if ($year !== 'all') {
+            $consultationsQuery->whereYear('date', (int) $year);
+        }
+
+        $consultations = $consultationsQuery->get();
 
         $samples = [];
         $consultationMap = [];
@@ -26,7 +36,8 @@ class DiseaseClusteringService
 
             $patient = $consultation->patient;
 
-            if (!$patient || !$consultation->date) {
+            // ✅ add birthdate check to avoid Carbon parse error
+            if (!$patient || !$patient->birthdate || !$consultation->date) {
                 continue;
             }
 
@@ -77,9 +88,8 @@ class DiseaseClusteringService
         $kmeans = new KMeans($k);
         $clusters = $kmeans->cluster($samples);
 
-        ConsultationCluster::truncate();
+        ConsultationCluster::truncate(); // note: clears all years too
 
-        // SAFE mapping
         $usedIndexes = [];
 
         foreach ($clusters as $clusterIndex => $clusterSamples) {
@@ -106,17 +116,13 @@ class DiseaseClusteringService
         ];
     }
 
-    // -------------------
-    // HELPERS
-    // -------------------
-
     private function getAgeGroup(int $age): int
     {
-        if ($age <= 17) return 0;        // Under 18
-        if ($age <= 22) return 1;        // College age
-        if ($age <= 30) return 2;        // Young adult
-        if ($age <= 45) return 3;        // Adult
-        return 4;                        // Older adult
+        if ($age <= 17) return 0;
+        if ($age <= 22) return 1;
+        if ($age <= 30) return 2;
+        if ($age <= 45) return 3;
+        return 4;
     }
 
     private function getRoleCode(?string $roleName, ?string $category): int
