@@ -118,7 +118,7 @@ const handleSubmit = (e) => {
                 <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700">
                     <th className="p-2 border-b font-medium text-center w-1/3">Inquiry</th>
-                    <th className="p-2 border-b font-medium text-center w-1/3">Created At</th>
+                    <th className="p-2 border-b font-medium text-center w-1/3">Created at</th>
                     <th className="p-2 border-b font-medium text-center w-1/3">Actions</th>
                 </tr>
                 </thead>

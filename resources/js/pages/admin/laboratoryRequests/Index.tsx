@@ -493,7 +493,7 @@ const form = useForm({
 
         {/* ================= Lab form ================= */}
         <div className="border rounded p-4 space-y-4">
-          <h2 className="font-semibold">Lab Request Details</h2>
+          <h2 className="font-semibold">Lab Request Details and Other Requirements</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>

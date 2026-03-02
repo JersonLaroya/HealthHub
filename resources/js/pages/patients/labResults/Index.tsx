@@ -15,6 +15,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { createPortal } from "react-dom";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 /* ================= TYPES ================= */
 
@@ -70,6 +72,11 @@ export default function Index({
   const [recordToDelete, setRecordToDelete] = useState<RecordItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<RecordItem | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [isRejecting, setIsRejecting] = useState(false);
 
   useEffect(() => {
     const echo = (window as any).Echo;
@@ -198,7 +205,7 @@ export default function Index({
                           {status === "pending" && (
                             <span className="px-2 py-1 text-xs font-semibold rounded-full 
                               bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                              Pending review
+                              Pending
                             </span>
                           )}
 
@@ -280,37 +287,24 @@ export default function Index({
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  disabled={rejectingId === record.id}
                                   onClick={() => {
-                                    setRejectingId(record.id);
-
-                                    router.post(`/admin/lab-results/${record.id}/reject`, {}, {
-                                      onSuccess: () => {
-                                        toast.error("Rejected", {
-                                          description: "Laboratory result was rejected.",
-                                        });
-
-                                        setLiveRecords(prev =>
-                                          prev.map(r =>
-                                            r.id === record.id ? { ...r, status: "rejected" } : r
-                                          )
-                                        );
-                                      },
-                                      onFinish: () => setRejectingId(null),
-                                    });
+                                    setRejectTarget(record);
+                                    setRejectReason("");
+                                    setIsRejecting(false);
+                                    setRejectModalOpen(true);
                                   }}
                                 >
-                                  {rejectingId === record.id ? "Rejecting..." : "Reject"}
+                                  Reject
                                 </Button>
                               </>
                             )}
 
                             {/* Missing */}
-                            {status === "missing" && (
+                            {/* {status === "missing" && (
                               <span className="text-gray-400 text-sm">
                                 No submission yet
                               </span>
-                            )}
+                            )} */}
 
                         </div>
                         </td>
@@ -468,6 +462,112 @@ export default function Index({
             </DialogFooter>
         </DialogContent>
        </Dialog>
+
+       <Dialog
+          open={rejectModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRejectModalOpen(false);
+              setRejectTarget(null);
+              setRejectReason("");
+              setIsRejecting(false);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reject Laboratory Result</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label htmlFor="lab_reject_reason">Reason for rejection</Label>
+              <Textarea
+                id="lab_reject_reason"
+                placeholder="Type the reason (required)..."
+                value={rejectReason}
+                disabled={isRejecting}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="min-h-[110px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                This message will be sent to the user via notification and email.
+              </p>
+            </div>
+
+            {/* ✅ spacing between Cancel and Reject + shows Rejecting… */}
+            <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isRejecting}
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setRejectTarget(null);
+                  setRejectReason("");
+                  setIsRejecting(false);
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isRejecting}
+                onClick={() => {
+                  const reason = rejectReason.trim();
+
+                  if (!reason) {
+                    toast.error("Rejection reason is required.");
+                    return;
+                  }
+                  if (!rejectTarget) return;
+
+                  setIsRejecting(true);
+
+                  // helps the UI render "Rejecting…" instantly before request starts
+                  requestAnimationFrame(() => {
+                    router.post(
+                      `/${prefix}/lab-results/${rejectTarget.id}/reject`,
+                      { rejection_reason: reason },
+                      {
+                        preserveScroll: true,
+                        onSuccess: () => {
+                          toast.error("Rejected", {
+                            description: "Laboratory result was rejected.",
+                          });
+
+                          setLiveRecords((prev) =>
+                            prev.map((r) =>
+                              r.id === rejectTarget.id ? { ...r, status: "rejected" } : r
+                            )
+                          );
+
+                          window.dispatchEvent(new Event("notifications-updated"));
+
+                          setRejectModalOpen(false);
+                          setRejectTarget(null);
+                          setRejectReason("");
+                          setIsRejecting(false);
+                        },
+                        onError: () => {
+                          toast.error("Reject failed");
+                          setIsRejecting(false);
+                        },
+                        onFinish: () => {
+                          // safety reset
+                          setIsRejecting(false);
+                        },
+                      }
+                    );
+                  });
+                }}
+              >
+                {isRejecting ? "Rejecting…" : "Reject Result"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </AppLayout>
   );
 }

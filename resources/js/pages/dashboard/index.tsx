@@ -132,7 +132,7 @@ export default function Dashboard() {
                 {/* ================= SUMMARY CARDS ================= */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <SummaryCard label="Consultations (This Month)" value={totalConsultations} />
-                    <SummaryCard label="Patients Seen" value={patientsSeen} />
+                    <SummaryCard label="Patients Seen (This Month)" value={patientsSeen} />
 
                     <Card className="p-5 rounded-xl border-muted/60 shadow-sm">
                         <p className="text-sm text-muted-foreground">Pending Records</p>
@@ -184,20 +184,20 @@ export default function Dashboard() {
                                                 }
                                             `}
                                         >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <p className="font-medium truncate">
+                                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                                <p className="font-medium break-words sm:truncate">
                                                     {event.title}
                                                 </p>
 
-                                                <div className="flex items-center gap-2 shrink-0">
+                                                <div className="flex items-center gap-2 sm:shrink-0">
                                                     {happeningToday ? (
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
-                                                            Today
-                                                        </span>
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+                                                        Today
+                                                    </span>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                                            {formatDate(event.start_at)}
-                                                        </span>
+                                                    <span className="text-xs text-muted-foreground sm:whitespace-nowrap">
+                                                        {formatDate(event.start_at)}
+                                                    </span>
                                                     )}
                                                 </div>
                                             </div>
@@ -229,12 +229,12 @@ export default function Dashboard() {
                                         }}
                                         className="cursor-pointer rounded-lg px-3 py-2 transition border bg-background hover:bg-muted/40 text-sm"
                                     >
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="font-medium truncate">
-                                                {appt.user?.name ?? 'Patient'}
+                                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                            <p className="font-medium break-words sm:truncate">
+                                                {appt.user?.name ?? "Patient"}
                                             </p>
 
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                            <span className="text-xs text-muted-foreground sm:whitespace-nowrap">
                                                 {formatDate(appt.appointment_date)} • {formatTime(appt.start_time)}
                                             </span>
                                         </div>

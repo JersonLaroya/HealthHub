@@ -97,7 +97,7 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
                   />
                   <SortableHeader
                     column="created_at"
-                    label="Created At"
+                    label="Created at"
                     sortBy={sort}
                     sortDirection={direction}
                     onSort={handleSort}
@@ -121,7 +121,7 @@ export default function Index({ rcys, positions, filters, breadcrumbs }) {
                       {/* Position */}
                       <td className="p-2 border-b">{user.user_role?.name ?? "—"}</td>
 
-                      {/* Created At */}
+                      {/* Created at */}
                       <td className="p-2 border-b">
                         {new Date(user.created_at).toLocaleDateString("en-US", {
                           year: "numeric",

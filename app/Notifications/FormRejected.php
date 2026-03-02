@@ -15,43 +15,43 @@ class FormRejected extends Notification implements ShouldBroadcast, ShouldQueue
 
     public function __construct(
         public string $serviceName,
-        public string $serviceSlug
+        public string $serviceSlug,
+        public string $reason
     ) {}
 
     public function via($notifiable)
     {
-        // database + broadcast = instant
-        // mail = delayed
         return ['database', 'broadcast', 'mail'];
     }
 
-    /**
-     * Delay only the email notification
-     */
     public function withDelay($notifiable)
     {
         return [
-            'mail' => now()->addSeconds(10), // ⏱ email after 10 seconds
+            'mail' => now()->addSeconds(10),
         ];
     }
 
     public function toDatabase($notifiable)
     {
+        $reasonText = trim($this->reason);
+
         return [
-        'slug'         => 'form-rejected',
-        'service_slug' => $this->serviceSlug,
-        'title'        => 'Medical Form Rejected',
-        'message'      => 'Your medical form was rejected. Please review your submission or message clinic staff for more information.',
-        'service'      => $this->serviceName,
-        'url'          => "/user/files/{$this->serviceSlug}",
+            'slug'         => 'form-rejected',
+            'service_slug' => $this->serviceSlug,
+            'title'        => 'Medical Form Rejected',
+            // include the reason inside the message for the UI
+            'message'      => $reasonText
+                ? "Reason: {$reasonText}"
+                : 'Your medical form was rejected. Please review your submission or message clinic staff for more information.',
+            'reason'       => $reasonText ?: null, // keep raw reason too (useful later)
+            'service'      => $this->serviceName,
+            'url'          => "/user/files/{$this->serviceSlug}",
         ];
     }
 
     public function toBroadcast($notifiable)
     {
-        return new BroadcastMessage(
-            $this->toDatabase($notifiable)
-        );
+        return new BroadcastMessage($this->toDatabase($notifiable));
     }
 
     public function toMail($notifiable)
@@ -61,7 +61,8 @@ class FormRejected extends Notification implements ShouldBroadcast, ShouldQueue
             ->greeting('Hello ' . $notifiable->first_name . ',')
             ->line('Your medical form was rejected.')
             ->line('Form: ' . $this->serviceName)
-            ->line('Please review your submission or message clinic staff for more information.')
+            // show reason in email too
+            ->line('Reason: ' . $this->reason)
             ->action('Review Form', url("/user/files/{$this->serviceSlug}"))
             ->line('Thank you.');
     }

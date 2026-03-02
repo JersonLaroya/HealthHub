@@ -172,7 +172,7 @@ export default function UserInquiriesIndex({
                   <th className="p-2 border-b">Inquiry Type</th>
                   <th className="p-2 border-b">Description</th>
                   <th className="p-2 border-b">Response</th>
-                  <th className="p-2 border-b">Created At</th>
+                  <th className="p-2 border-b">Created at</th>
                   <th className="p-2 border-b">Status</th>
                 </tr>
               </thead>

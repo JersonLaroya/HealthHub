@@ -135,7 +135,7 @@ export default function DiseaseCategories({ categories, filters }) {
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700">
                   <th className="p-2 border-b font-medium w-1/3 text-center">Name</th>
-                  <th className="p-2 border-b font-medium w-1/3 text-center">Created At</th>
+                  <th className="p-2 border-b font-medium w-1/3 text-center">Created at</th>
                   <th className="p-2 border-b font-medium w-1/3 text-center">Actions</th>
                 </tr>
               </thead>

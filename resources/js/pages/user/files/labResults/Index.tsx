@@ -181,11 +181,11 @@ export default function Index({ records }: { records: RecordItem[] }) {
                       </Link>
                     )}
 
-                    {record.status === "pending" && (
+                    {/* {record.status === "pending" && (
                       <span className="text-sm text-gray-500 dark:text-gray-400 self-center">
                         Waiting for clinic review
                       </span>
-                    )}
+                    )} */}
 
                     {record.status === "approved" && (
                       <span className="text-sm text-green-600 dark:text-green-400 self-center font-medium">

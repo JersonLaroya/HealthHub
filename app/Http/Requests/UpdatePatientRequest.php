@@ -16,7 +16,7 @@ class UpdatePatientRequest extends FormRequest
     {
         return [
             'vital_sign_id' => 'nullable|exists:vital_signs,id',
-            'blood_type' => 'required|string|max:5',
+            'blood_type' => 'nullable|string|max:5',
             'bp' => 'required|string|max:20',
             'rr' => 'required|string|max:20',
             'pr' => 'required|string|max:20',

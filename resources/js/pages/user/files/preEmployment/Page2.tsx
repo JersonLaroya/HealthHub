@@ -76,6 +76,8 @@ export default function PreemploymentPage2({ patient }: Props) {
     home_address: patient.home_address || '',
     contact_no: patient.contact_no || '',
 
+    picture_2x2: null as string | null,
+
     // Personal history
     allergies: '',
     allergies_checkbox: false,
@@ -109,12 +111,15 @@ export default function PreemploymentPage2({ patient }: Props) {
     d.yes ? d.remarks.trim() : true
   );
 
+  const pictureValid = !!form.data.picture_2x2;
+
   const canProceed =
     isCivilStatusValid &&
     isBirthplaceValid &&
     allergiesValid &&
     medicationsValid &&
-    diseasesValid;
+    diseasesValid &&
+    pictureValid;
   
   const [showError, setShowError] = useState(false);
 
@@ -220,6 +225,58 @@ export default function PreemploymentPage2({ patient }: Props) {
               />
             </div>
           </div>
+
+          {/* 2x2 Picture Upload */}
+          <div className="flex flex-col sm:flex-row justify-start gap-6 items-start">
+            <div className="w-40 text-center flex-shrink-0">
+              <div className="border h-40 flex items-center justify-center text-xs overflow-hidden">
+                {form.data.picture_2x2 ? (
+                  <img
+                    src={form.data.picture_2x2}
+                    alt="2x2 Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="relative w-full h-full overflow-hidden rounded-md">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-300 via-sky-300 to-lime-200" />
+                    <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-emerald-500/40 to-transparent rounded-t-full blur-sm" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/30 rounded-full blur-2xl" />
+                    <div className="absolute inset-0 bg-black/20" />
+                    <span className="relative z-10 flex items-center justify-center w-full h-full text-sm font-semibold text-white tracking-wide">
+                      2×2 Picture
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                className={`mt-2 text-xs ${
+                  !pictureValid ? "text-red-600 font-semibold" : ""
+                }`}
+                onChange={(e) => {
+                  const input = e.target;
+                  const file = input.files?.[0];
+                  if (!file) return;
+
+                  const maxSizeMB = 3;
+                  if (file.size / 1024 / 1024 > maxSizeMB) {
+                    alert(`File is too large! Max size is ${maxSizeMB}MB.`);
+                    input.value = "";
+                    form.setData("picture_2x2", null);
+                    return;
+                  }
+
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    form.setData("picture_2x2", reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+</div>
 
           {/* PERSONAL HISTORY */}
           <div className="space-y-2">

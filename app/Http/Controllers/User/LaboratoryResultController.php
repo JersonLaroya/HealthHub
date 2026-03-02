@@ -104,7 +104,13 @@ class LaboratoryResultController extends Controller
 
         $submitted = $request->file('results', []);
 
-                $missing = $record->laboratoryRequestItems->filter(function ($item) use ($submitted) {
+        $missing = $record->laboratoryRequestItems->filter(function ($item) use ($submitted) {
+
+            // If test name contains "pwd" → not required
+            if (str($item->laboratoryType->name)->lower()->contains('pwd')) {
+                return false;
+            }
+
             $hasNew = isset($submitted[$item->id]);
             $hasOld = $item->result && count($item->result->images ?? []);
 

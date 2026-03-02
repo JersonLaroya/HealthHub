@@ -131,7 +131,7 @@ export default function ListOfDiseases({ diseases, categories, filters }) {
                 <tr className="bg-gray-50 dark:bg-neutral-700">
                   <th className="p-2 border-b font-medium w-1/4 text-center">Disease</th>
                   <th className="p-2 border-b font-medium w-1/4 text-center">Category</th>
-                  <th className="p-2 border-b font-medium w-1/4 text-center">Created At</th>
+                  <th className="p-2 border-b font-medium w-1/4 text-center">Created at</th>
                   <th className="p-2 border-b font-medium w-1/4 text-center">Actions</th>
                 </tr>
               </thead>

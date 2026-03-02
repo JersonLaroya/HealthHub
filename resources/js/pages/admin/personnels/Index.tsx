@@ -159,7 +159,7 @@ export default function Index({ personnels, roles, filters, breadcrumbs }) {
                   <SortableHeader column="last_name" label="Name" sortBy={sort} sortDirection={direction} onSort={handleSort} />
                   <SortableHeader column="email" label="Email" sortBy={sort} sortDirection={direction} onSort={handleSort} />
                   <SortableHeader column="role" label="Role" sortBy={sort} sortDirection={direction} onSort={handleSort} />
-                  <SortableHeader column="created_at" label="Created At" sortBy={sort} sortDirection={direction} onSort={handleSort} />
+                  <SortableHeader column="created_at" label="Created at" sortBy={sort} sortDirection={direction} onSort={handleSort} />
                   <th className="p-2 border-b">Actions</th>
                 </tr>
               </thead>

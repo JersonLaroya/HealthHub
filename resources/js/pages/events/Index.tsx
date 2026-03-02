@@ -292,10 +292,10 @@ const formatDateTime = (date: string | null) => {
                   <th className="p-2 border-b">Description</th>
                   <th className="p-2 border-b">Start At</th>
                   <th className="p-2 border-b">End At</th>
-                  <th className="p-2 border-b">Created By</th>
-                  <th className="p-2 border-b">Edited By</th>
-                  <th className="p-2 border-b">Created At</th>
-                  <th className="p-2 border-b">Updated At</th>
+                  <th className="p-2 border-b">Created by</th>
+                  <th className="p-2 border-b">Edited by</th>
+                  <th className="p-2 border-b">Created at</th>
+                  <th className="p-2 border-b">Updated at</th>
                   <th className="p-2 border-b">Actions</th>
                 </tr>
               </thead>
@@ -385,7 +385,7 @@ const formatDateTime = (date: string | null) => {
                 onClick={() =>
                   router.get(
                     events.prev_page_url,
-                    { search, sort, direction },
+                    { search },
                     { preserveState: true }
                   )
                 }
@@ -402,7 +402,7 @@ const formatDateTime = (date: string | null) => {
                 onClick={() =>
                   router.get(
                     events.next_page_url,
-                    { search, sort, direction },
+                    { search },
                     { preserveState: true }
                   )
                 }

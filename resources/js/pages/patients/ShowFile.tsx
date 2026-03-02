@@ -14,6 +14,17 @@ import { toast } from "sonner";
 import { usePage } from '@inertiajs/react';
 import { useEffect } from "react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
 interface Record {
   id: number;
   created_at: string;
@@ -39,6 +50,7 @@ export default function ShowFile({ patient, service, records }: Props) {
   const [editingRecord, setEditingRecord] = useState<Record | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deletingRecord, setDeletingRecord] = useState<Record | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
   
   const { props } = usePage();
   const loggedInUser = props.auth.user;
@@ -47,6 +59,43 @@ export default function ShowFile({ patient, service, records }: Props) {
   const isStaff = role === "admin" || role === "nurse";
   const prefix = role === "nurse" ? "nurse" : "admin";
   const [editMode, setEditMode] = useState(false);
+
+  const [rejectingRecord, setRejectingRecord] = useState<Record | null>(null);
+    const [rejectionReason, setRejectionReason] = useState("");
+    const [isRejecting, setIsRejecting] = useState(false);
+
+  const cleanVitalValue = (value?: string) => {
+    if (!value) return "";
+    // allow only numbers, dot, and slash (just in case)
+    return value.replace(/[^0-9./]/g, "");
+  };
+
+  useEffect(() => {
+  const h = parseFloat(cleanVitalValue(formData?.anthropometry?.height));
+  const w = parseFloat(cleanVitalValue(formData?.anthropometry?.weight));
+
+  if (h > 0 && w > 0) {
+    const heightInMeters = h / 100;
+    const bmi = w / (heightInMeters * heightInMeters);
+    const bmiValue = bmi.toFixed(2);
+
+    setFormData((prev: any) => ({
+      ...prev,
+      anthropometry: {
+        ...prev?.anthropometry,
+        bmi: bmiValue,   // ✅ ONLY number now
+      },
+    }));
+  } else {
+    setFormData((prev: any) => ({
+      ...prev,
+      anthropometry: {
+        ...prev?.anthropometry,
+        bmi: "",
+      },
+    }));
+  }
+}, [formData?.anthropometry?.height, formData?.anthropometry?.weight]);
 
   useEffect(() => {
     if (!(window as any).Echo) return;
@@ -267,21 +316,14 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 </Button>
 
                                 <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                    router.post(`/${prefix}/forms/${record.id}/reject`, {}, {
-                                        onSuccess: () => {
-                                        toast.error("Form rejected");
-                                        setRecordList(prev =>
-                                        prev.filter(r => r.id !== record.id)
-                                        );
-                                        window.dispatchEvent(new Event("notifications-updated"));
-                                        }
-                                    })
-                                    }
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                    setRejectingRecord(record);
+                                    setRejectionReason("");
+                                }}
                                 >
-                                    Reject
+                                Reject
                                 </Button>
                                 </>
                             )}
@@ -347,24 +389,48 @@ export default function ShowFile({ patient, service, records }: Props) {
 
             {/* Anthropometry */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 text-sm">
-                {["height", "weight", "bmi"].map((field, idx) => (
-                <div key={field} className="flex flex-col">
-                    <label className="font-medium">
-                    {["Height (cm)", "Weight (kg)", "BMI"][idx]}
-                    </label>
-                    <input
-                    type="text"
-                    value={formData.anthropometry?.[field] || ""}
-                    onChange={e =>
-                        setFormData({
-                        ...formData,
-                        anthropometry: { ...formData.anthropometry, [field]: e.target.value },
-                        })
-                    }
-                    className="border p-1 rounded"
-                    />
-                </div>
-                ))}
+            {/* Height */}
+            <div className="flex flex-col">
+                <label className="font-medium">Height (cm)</label>
+                <input
+                type="text"
+                value={formData.anthropometry?.height || ""}
+                onChange={(e) =>
+                    setFormData({
+                    ...formData,
+                    anthropometry: { ...formData.anthropometry, height: e.target.value },
+                    })
+                }
+                className="border p-1 rounded"
+                />
+            </div>
+
+            {/* Weight */}
+            <div className="flex flex-col">
+                <label className="font-medium">Weight (kg)</label>
+                <input
+                type="text"
+                value={formData.anthropometry?.weight || ""}
+                onChange={(e) =>
+                    setFormData({
+                    ...formData,
+                    anthropometry: { ...formData.anthropometry, weight: e.target.value },
+                    })
+                }
+                className="border p-1 rounded"
+                />
+            </div>
+
+            {/* BMI (auto) */}
+            <div className="flex flex-col">
+                <label className="font-medium">BMI (auto)</label>
+                <input
+                type="text"
+                value={formData.anthropometry?.bmi || ""}
+                disabled
+                className="border p-1 rounded bg-gray-100 cursor-not-allowed"
+                />
+            </div>
             </div>
 
             {/* General Health Appearance */}
@@ -577,42 +643,65 @@ export default function ShowFile({ patient, service, records }: Props) {
 
                 <Button
                     variant="default"
+                    disabled={isApproving}
                     onClick={() => {
+                        if (!editingRecord || isApproving) return;
+
+                        setIsApproving(true);
+
+                        // 1) save edits
                         router.put(
                         `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${editingRecord.id}`,
                         { responses: formData },
                         {
+                            preserveScroll: true,
+                            preserveState: true,
                             onSuccess: () => {
+                            // 2) approve
                             router.post(
                                 `/${prefix}/forms/${editingRecord.id}/approve`,
                                 {},
                                 {
+                                preserveScroll: true,
+                                preserveState: true,
+
+                                // optional: if your ShowFile page props include "records",
+                                // this limits the prop reload and reduces "double load feel"
+                                // only: ["records"],
+
                                 onSuccess: () => {
                                     toast.success("Form approved");
 
-                                    setRecordList(prev =>
-                                    prev.map(r =>
-                                        r.id === editingRecord.id
-                                        ? { ...r, status: "approved" }
-                                        : r
+                                    setRecordList((prev) =>
+                                    prev.map((r) =>
+                                        r.id === editingRecord.id ? { ...r, status: "approved" } : r
                                     )
                                     );
 
                                     setEditingRecord(null);
                                     window.dispatchEvent(new Event("notifications-updated"));
                                 },
+
                                 onError: () => {
                                     toast.error("Failed to approve form");
                                 },
+
+                                onFinish: () => {
+                                    setIsApproving(false);
+                                },
                                 }
                             );
+                            },
+                            onError: () => {
+                            toast.error("Failed to save changes");
+                            setIsApproving(false);
                             },
                         }
                         );
                     }}
                     >
-                    Approve
-                </Button>
+                    {isApproving ? "Approving…" : "Approve"}
+                    </Button>
                 </div>
             </div>
         </div>
@@ -761,6 +850,104 @@ export default function ShowFile({ patient, service, records }: Props) {
             </div>
         </div>
         )}
+
+        <Dialog
+            open={!!rejectingRecord}
+            onOpenChange={(open) => {
+                if (!open) {
+                setRejectingRecord(null);
+                setRejectionReason("");
+                setIsRejecting(false);
+                }
+            }}
+            >
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                <DialogTitle>Reject Medical Form</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-2">
+                <Label htmlFor="rejection_reason">Reason for rejection</Label>
+                <Textarea
+                    id="rejection_reason"
+                    placeholder="Type the reason (required)..."
+                    value={rejectionReason}
+                    disabled={isRejecting}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="min-h-[110px]"
+                    />
+                <p className="text-xs text-muted-foreground">
+                    This message will be sent to the user via notification and email.
+                </p>
+                </div>
+
+                <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isRejecting}
+                        onClick={() => {
+                        setRejectingRecord(null);
+                        setRejectionReason("");
+                        }}
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={isRejecting}
+                        onClick={() => {
+                        const reason = rejectionReason.trim();
+
+                        if (!reason) {
+                            toast.error("Rejection reason is required.");
+                            return;
+                        }
+
+                        if (!rejectingRecord) return;
+
+                        // ✅ show "Rejecting…" immediately
+                        setIsRejecting(true);
+
+                        // optional but helps UI paint first
+                        requestAnimationFrame(() => {
+                            router.post(
+                            `/${prefix}/forms/${rejectingRecord.id}/reject`,
+                            { rejection_reason: reason },
+                            {
+                                preserveScroll: true,
+                                onSuccess: () => {
+                                toast.error("Form rejected");
+                                setRecordList((prev) =>
+                                    prev.filter((r) => r.id !== rejectingRecord.id)
+                                );
+                                window.dispatchEvent(new Event("notifications-updated"));
+
+                                setRejectingRecord(null);
+                                setRejectionReason("");
+                                setIsRejecting(false);
+                                },
+                                onError: () => {
+                                toast.error("Reject failed");
+                                setIsRejecting(false);
+                                },
+                                onFinish: () => {
+                                // safety: if something weird happens, this ensures state resets
+                                // (won't hurt even if onSuccess already ran)
+                                setIsRejecting(false);
+                                },
+                            }
+                            );
+                        });
+                        }}
+                    >
+                        {isRejecting ? "Rejecting…" : "Reject Form"}
+                    </Button>
+                    </DialogFooter>
+            </DialogContent>
+            </Dialog>
 
     </AppLayout>
   );

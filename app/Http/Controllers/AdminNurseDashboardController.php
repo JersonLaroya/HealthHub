@@ -25,6 +25,9 @@ class AdminNurseDashboardController extends Controller
         $from = $request->query('from');
         $to   = $request->query('to');
 
+        $monthStart = now()->startOfMonth()->toDateString();
+        $monthEnd   = now()->endOfMonth()->toDateString();
+
         // Parse safely
         try {
             $rangeStart = $from ? \Carbon\Carbon::parse($from)->startOfDay() : $defaultStart->copy()->startOfDay();
@@ -69,7 +72,7 @@ class AdminNurseDashboardController extends Controller
         $patientsSeen = Record::where('records.status', Record::STATUS_APPROVED)
             ->where('records.service_id', $consultationServiceId)
             ->join('consultations', 'consultations.id', '=', 'records.consultation_id')
-            ->whereBetween('consultations.date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->whereBetween('consultations.date', [$monthStart, $monthEnd])
             ->distinct('consultations.patient_id')
             ->count('consultations.patient_id');
 

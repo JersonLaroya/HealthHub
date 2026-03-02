@@ -317,10 +317,11 @@ class AppointmentManagementController extends Controller
         }
 
         /* --------------------------------
-        ✅ PREVENT APPROVAL CONFLICTS
+        ✅ PREVENT APPROVAL CONFLICTS (same user only)
         -------------------------------- */
-        $hasConflict = Appointment::where('appointment_date', $appointment->appointment_date)
-            ->where('status', 'approved')
+        $hasConflict = Appointment::where('user_id', $appointment->user_id) // ✅ same user only
+            ->where('appointment_date', $appointment->appointment_date)
+            ->whereIn('status', ['pending', 'approved']) // ✅ block if user already has one pending/approved
             ->where('id', '!=', $appointment->id)
             ->where(function ($q) use ($appointment) {
                 $q->where('start_time', '<', $appointment->end_time)
@@ -330,7 +331,7 @@ class AppointmentManagementController extends Controller
 
         if ($hasConflict) {
             return back()->withErrors([
-                'appointment' => 'This appointment conflicts with another approved appointment.',
+                'appointment' => 'This user already has an appointment that overlaps the selected time.',
             ]);
         }
 

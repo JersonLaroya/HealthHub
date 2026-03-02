@@ -170,9 +170,9 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
                   <th className="p-2 border-b">Inquiry Type</th>
                   <th className="p-2 border-b">Description</th>
                   <th className="p-2 border-b">Response</th>
-                  <th className="p-2 border-b">Created By</th>
-                  <th className="p-2 border-b">Updated By</th>
-                  <th className="p-2 border-b">Created At</th>
+                  <th className="p-2 border-b">Created by</th>
+                  <th className="p-2 border-b">Updated by</th>
+                  <th className="p-2 border-b">Created at</th>
                   <th className="p-2 border-b">Status</th>
                   <th className="p-2 border-b">Actions</th>
                 </tr>

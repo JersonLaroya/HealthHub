@@ -55,9 +55,17 @@ export default function Show({ record, labTests }: any) {
     });
   };
 
+  function isPwdTest(name: string) {
+    return (name || "").toLowerCase().includes("pwd");
+  }
+
   const allCompleted = labTests.every((test: any) => {
+    // If test contains "pwd" → not required
+    if (isPwdTest(test.name)) return true;
+
     const newFiles = selectedFiles[test.id]?.length || 0;
     const oldFiles = test.result?.images?.length || 0;
+
     return newFiles > 0 || oldFiles > 0;
   });
 
@@ -76,6 +84,18 @@ export default function Show({ record, labTests }: any) {
     });
   };
 
+  const PDF_PATH = "/storage/pdf/F-SAS-HWS-005.pdf";
+
+  function hasKeyword(text: string, keywords: string[]) {
+    const t = (text || "").toLowerCase();
+    return keywords.some((k) => t.includes(k.toLowerCase()));
+  }
+
+  function shouldShowVaccinationPdf(testName: string) {
+    // add more keywords if needed
+    return hasKeyword(testName, ["vaccination"]);
+  }
+
   return (
     <AppLayout>
       <Head title="Upload Laboratory Results" />
@@ -91,6 +111,7 @@ export default function Show({ record, labTests }: any) {
 
         {labTests.map((test: any) => {
           const files = selectedFiles[test.id] || [];
+          const showPdf = shouldShowVaccinationPdf(test.name);
 
           const hasImages =
             (selectedFiles[test.id]?.length || 0) > 0 ||
@@ -101,6 +122,34 @@ export default function Show({ record, labTests }: any) {
               <h2 className="font-medium">
                 {test.name}
               </h2>
+
+              {showPdf && (
+                <div className="rounded-md border bg-blue-50/70 dark:bg-blue-500/10 p-4 space-y-3">
+                  
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-700 dark:text-blue-400">
+                      No vaccination record?
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      If you do not have a vaccination certificate or proof of immunization,
+                      you may download and accomplish the waiver form below.
+                    </p>
+                  </div>
+
+                  <a
+                    href="/storage/pdf/F-SAS-HWS-005.pdf"
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex"
+                  >
+                    <Button type="button" variant="outline" size="sm">
+                      Download Vaccination Waiver (F-SAS-HWS-005)
+                    </Button>
+                  </a>
+
+                </div>
+              )}
 
               {/* Hidden input */}
               <input

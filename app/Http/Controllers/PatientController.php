@@ -409,9 +409,13 @@ class PatientController extends Controller
         return back()->with('success', 'Form and related consultation approved.');
     }
 
-    public function rejectFormRecord(Record $record)
+    public function rejectFormRecord(Request $request, Record $record)
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+        $data = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:500'],
+        ]);
 
         /* =========================
         CLEAN UP AUTO CONSULTATION
@@ -473,7 +477,8 @@ class PatientController extends Controller
         $record->user->notify(
             new FormRejected(
                 $service?->title ?? 'Medical Form',
-                $service?->slug ?? ''
+                $service?->slug ?? '',
+                $data['rejection_reason']
             )
         );
 
@@ -526,9 +531,13 @@ class PatientController extends Controller
     }
 
     
-    public function rejectLabResult(Record $record)
+    public function rejectLabResult(Request $request, Record $record)
     {
         abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+        $data = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:500'],
+        ]);
 
         if (!$record->laboratoryRequestItems()->whereHas('result')->exists()) {
             return back()->withErrors(['lab' => 'No laboratory result found.']);
@@ -538,28 +547,26 @@ class PatientController extends Controller
             'status' => Record::STATUS_REJECTED,
         ]);
 
-        // mark related notifications as read for the current staff user
         User::whereHas('userRole', fn ($q) =>
             $q->whereIn('name', ['Admin', 'Nurse'])
         )->each(function ($staff) use ($record) {
-
             $staff->unreadNotifications()
                 ->where('type', \App\Notifications\LabResultSubmitted::class)
                 ->whereRaw("data->>'record_id' = ?", [(string) $record->id])
                 ->update(['read_at' => now()]);
         });
 
-        // tell all staff browsers to update
         broadcast(new LabNotificationsRead($record->id))->toOthers();
 
         $service = Service::find($record->service_id);
 
-        // notify user
         $record->user->notify(
-            new LabResultRejected($service?->title ?? 'Laboratory Request')
+            new LabResultRejected(
+                $service?->title ?? 'Laboratory Request',
+                $data['rejection_reason']
+            )
         );
 
-        // broadcast live update
         broadcast(new LabResultRejectedEvent($record))->toOthers();
 
         return back()->with('success', 'Laboratory result rejected.');

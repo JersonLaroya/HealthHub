@@ -65,13 +65,13 @@ export default function Records() {
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <h1 className="text-xl font-bold">My Consultation Records</h1>
 
-          <Button
+          {/* <Button
             variant="outline"
             onClick={handleOpenPdf}
             disabled={isDownloading}
             >
             {isDownloading ? "Downloading..." : "Download PDF"}
-            </Button>
+            </Button> */}
         </div>
 
         {/* ================= PATIENT INFO ================= */}
@@ -191,16 +191,31 @@ export default function Records() {
 
                       {/* VITAL SIGNS */}
                       <td className="p-2 border-b align-top">
-                        <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md space-y-1">
+                        <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md text-sm space-y-1">
                           {c.vital_signs ? (
                             <>
                               {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
                               {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
                               {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
-                              {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}°C</div>}
+                              {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}</div>}
                               {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
+                              {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
+                              {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
+                              {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
+
+                              {/* if all empty */}
+                              {!c.vital_signs.bp &&
+                                !c.vital_signs.rr &&
+                                !c.vital_signs.pr &&
+                                !c.vital_signs.temp &&
+                                !c.vital_signs.o2_sat &&
+                                !c.vital_signs.height &&
+                                !c.vital_signs.weight &&
+                                !c.vital_signs.bmi && <div>-</div>}
                             </>
-                          ) : "-"}
+                          ) : (
+                            <div>-</div>
+                          )}
                         </div>
                       </td>
 

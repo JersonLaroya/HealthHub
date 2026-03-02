@@ -583,7 +583,7 @@ const handleApproveWithUpdate = () => {
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Disease</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Management & Treatment</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Treatments</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Updated By</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Updated by</th>
                   <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Status</th>
                   {canApprove && (
                     <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Actions</th>

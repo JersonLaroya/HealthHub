@@ -1,17 +1,21 @@
 import AppLayout from "@/layouts/app-layout";
-import { usePage } from "@inertiajs/react";
+import { usePage, router } from "@inertiajs/react";
 import { Card } from "@/components/ui/card";
-import { CalendarDays, Stethoscope, User, GraduationCap, Building2 } from "lucide-react";
+import {
+  CalendarDays,
+  Stethoscope,
+  User,
+  GraduationCap,
+  Building2,
+  Clock,
+} from "lucide-react";
 import { useState } from "react";
-import { router } from "@inertiajs/react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock } from "lucide-react";
 
 function TodayBadge() {
   return (
@@ -21,15 +25,29 @@ function TodayBadge() {
   );
 }
 
+function LiveBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-semibold ml-2">
+      LIVE
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const { user, totalConsultations, events, appointments, schoolYear } =
-  usePage().props as any;
+    usePage().props as any;
+
+  // expects backend shape:
+  // events: { ongoing: [], upcoming: [] }
+  // appointments: { ongoing: [], upcoming: [] }
+  const ongoingAppointments = appointments?.ongoing ?? [];
+  const upcomingAppointments = appointments?.upcoming ?? [];
+
+  const ongoingEvents = events?.ongoing ?? [];
+  const upcomingEvents = events?.upcoming ?? [];
 
   const role = user.user_role?.name;
   const category = user.user_role?.category;
-
-  console.log("role: ", role);
-  console.log("category: ", category);
 
   const isStudentOrRcy = role === "Student" || category === "rcy";
   const isFacultyOrStaff = role === "Faculty" || role === "Staff";
@@ -71,7 +89,6 @@ export default function Dashboard() {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    // normalize time
     today.setHours(0, 0, 0, 0);
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(0, 0, 0, 0);
@@ -79,14 +96,43 @@ export default function Dashboard() {
     return today >= startDate && today <= endDate;
   }
 
+  function formatTimeOnly(dateStr: string) {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function apptStart(appointment: any) {
+    return new Date(
+      `${appointment.appointment_date} ${appointment.start_time}`
+    ).toLocaleString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function apptEndTime(appointment: any) {
+    // If you don’t have end_time in DB, remove this or compute it in backend.
+    if (!appointment.end_time) return null;
+
+    return new Date(
+      `${appointment.appointment_date} ${appointment.end_time}`
+    ).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   return (
     <AppLayout title="Dashboard">
-
-      {/* ===== PAGE CONTAINER (same as other files) ===== */}
+      {/* ===== PAGE CONTAINER ===== */}
       <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-
         <div className="space-y-8 sm:space-y-10">
-
           {/* ===== HERO ===== */}
           <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-blue-50/60 via-background to-blue-100/40 dark:from-blue-500/10 dark:to-blue-400/5 shadow-sm">
             <div className="absolute right-0 top-0 opacity-[0.06] text-blue-600 dark:text-blue-400">
@@ -106,7 +152,7 @@ export default function Dashboard() {
                       {user.course?.code || "—"} {user.year_level?.level || ""}
                     </span>
                   )}
-                  
+
                   <span className="flex items-center gap-1">
                     <CalendarDays className="w-4 h-4" />
                     SY {schoolYear || "—"}
@@ -129,7 +175,6 @@ export default function Dashboard() {
 
           {/* ===== STATS ===== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-
             <Card className="relative overflow-hidden p-4 sm:p-6 hover:shadow-md transition bg-gradient-to-br from-blue-50/60 via-background to-blue-100/40 dark:from-blue-500/10 dark:to-blue-400/5">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col justify-center">
@@ -144,21 +189,10 @@ export default function Dashboard() {
                 </div>
               </div>
             </Card>
-
-            {/* <Card className="relative overflow-hidden p-4 sm:p-6 opacity-60 bg-gradient-to-br from-muted/60 via-background to-muted/40">
-              <div className="h-full flex flex-col justify-center">
-                <p className="text-sm text-muted-foreground">More analytics</p>
-                <p className="text-base sm:text-lg font-medium mt-1">
-                  Coming soon
-                </p>
-              </div>
-            </Card> */}
-
           </div>
 
-          {/* ===== MY UPCOMING APPOINTMENTS ===== */}
+          {/* ===== MY APPOINTMENTS ===== */}
           <Card className="relative p-4 sm:p-6 border bg-gradient-to-br from-blue-50/60 via-background to-blue-100/30 dark:from-blue-500/10 dark:to-blue-400/5 shadow-sm">
-
             <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-blue-400/60 to-blue-300/10" />
 
             <div className="flex items-center gap-2 mb-4">
@@ -166,48 +200,97 @@ export default function Dashboard() {
                 <CalendarDays className="w-5 h-5" />
               </div>
               <h2 className="text-base sm:text-lg font-semibold">
-                My Upcoming Appointment
+                My Appointments
               </h2>
             </div>
 
-            {(!appointments || appointments.length === 0) && (
+            {ongoingAppointments.length === 0 && upcomingAppointments.length === 0 && (
               <div className="text-sm text-muted-foreground text-center py-6">
-                No upcoming appointments.
+                No approved appointments.
               </div>
             )}
 
-            <div className="space-y-3">
-              {appointments?.map((appointment: any) => (
-                <div
-                  key={appointment.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3 bg-background/70 hover:bg-black/5 dark:bg-black/30/40 transition"
-                >
-                  <div>
-                    <p className="font-medium text-sm sm:text-base flex items-center">
-                      {appointment.purpose || "Clinic Appointment"}
-                      {isToday(appointment.appointment_date) && <TodayBadge />}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(
-                        `${appointment.appointment_date} ${appointment.start_time}`
-                      ).toLocaleString(undefined, {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
+            <div className="space-y-5">
+              {/* ONGOING */}
+              {ongoingAppointments.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      Ongoing
+                    </span>
+                    <LiveBadge />
+                  </div>
+
+                  <div className="space-y-3">
+                    {ongoingAppointments.map((appointment: any) => {
+                      const end = apptEndTime(appointment);
+
+                      return (
+                        <div
+                          key={appointment.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => router.visit("/user/appointments")}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") router.visit("/user/appointments");
+                          }}
+                          className="cursor-pointer rounded-xl border p-3 bg-emerald-50/60 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15 transition"
+                        >
+                          <p className="font-medium text-sm sm:text-base">
+                            {appointment.purpose || "Clinic Appointment"}
+                          </p>
+
+                          <p className="text-xs text-muted-foreground">
+                            {apptStart(appointment)}
+                            {end ? <>{" "}to{" "}{end}</> : null}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* UPCOMING */}
+              {upcomingAppointments.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-foreground mb-2">
+                    Upcoming
+                  </div>
+
+                  <div className="space-y-3">
+                    {upcomingAppointments.map((appointment: any) => (
+                      <div
+                        key={appointment.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => router.visit("/user/appointments")}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") router.visit("/user/appointments");
+                        }}
+                        className="cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3 bg-background/70 hover:bg-black/5 dark:bg-black/30/40 transition"
+                      >
+                        <div>
+                          <p className="font-medium text-sm sm:text-base flex items-center">
+                            {appointment.purpose || "Clinic Appointment"}
+                            {isToday(appointment.appointment_date) && (
+                              <TodayBadge />
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {apptStart(appointment)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
-
-          {/* ===== EVENTS (PROMINENT) ===== */}
+          {/* ===== EVENTS ===== */}
           <Card className="relative p-4 sm:p-6 border bg-gradient-to-br from-blue-50/60 via-background to-blue-100/30 dark:from-blue-500/10 dark:to-blue-400/5 shadow-sm">
-
             <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-blue-400/60 to-blue-300/10" />
 
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
@@ -215,44 +298,97 @@ export default function Dashboard() {
                 <CalendarDays className="w-5 h-5" />
               </div>
               <h2 className="text-base sm:text-lg font-semibold">
-                Upcoming Events
+                Clinic Events
               </h2>
             </div>
 
-            {events.length === 0 && (
+            {ongoingEvents.length === 0 && upcomingEvents.length === 0 && (
               <div className="text-sm text-muted-foreground py-10 text-center">
-                No upcoming events.
+                No events.
               </div>
             )}
 
-            <div className="space-y-3 sm:space-y-4">
-              {events.map((event: any, index: number) => (
-                <div
-                  key={event.id}
-                  onClick={() => openEvent(event)}
-                  className={`flex flex-col sm:flex-row cursor-pointer items-start sm:items-center justify-between gap-3 sm:gap-4 rounded-xl border p-3 sm:p-4 transition
-                    ${index === 0 
-                      ? "bg-blue-50/70 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30 shadow-sm" 
-                      : "bg-background/70 hover:bg-muted/40 hover:shadow-sm"
-                    }`}
-                >
-                  <div>
-                    <p className="font-medium text-sm sm:text-base flex items-center">
-                      {event.title}
-                      {isEventToday(event.start_at, event.end_at) && <TodayBadge />}
-                    </p>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {event.description}
-                    </p>
+            <div className="space-y-5">
+              {/* ONGOING EVENTS */}
+              {ongoingEvents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      Ongoing
+                    </span>
+                    <LiveBadge />
                   </div>
 
-                  <div className="w-full sm:w-auto text-xs text-muted-foreground sm:whitespace-nowrap sm:text-right border-t pt-2 sm:border-0 sm:pt-0">
-                    <p>{formatDateTime(event.start_at)}</p>
-                    <p className="text-[11px] text-center sm:text-right">to</p>
-                    <p>{formatDateTime(event.end_at)}</p>
+                  <div className="space-y-3 sm:space-y-4">
+                    {ongoingEvents.map((event: any) => (
+                      <div
+                        key={event.id}
+                        onClick={() => openEvent(event)}
+                        className="cursor-pointer rounded-xl border p-3 sm:p-4 transition bg-emerald-50/60 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30 shadow-sm"
+                      >
+                        <p className="font-medium text-sm sm:text-base flex items-center">
+                          {event.title}
+                          <TodayBadge />
+                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {event.description}
+                        </p>
+
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          <p>
+                            {formatDateTime(event.start_at)} to{" "}
+                            {formatDateTime(event.end_at)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* UPCOMING EVENTS */}
+              {upcomingEvents.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-foreground mb-2">
+                    Upcoming
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {upcomingEvents.map((event: any, index: number) => (
+                      <div
+                        key={event.id}
+                        onClick={() => openEvent(event)}
+                        className={`flex flex-col sm:flex-row cursor-pointer items-start sm:items-center justify-between gap-3 sm:gap-4 rounded-xl border p-3 sm:p-4 transition
+                          ${
+                            index === 0
+                              ? "bg-blue-50/70 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30 shadow-sm"
+                              : "bg-background/70 hover:bg-muted/40 hover:shadow-sm"
+                          }`}
+                      >
+                        <div>
+                          <p className="font-medium text-sm sm:text-base flex items-center">
+                            {event.title}
+                            {isEventToday(event.start_at, event.end_at) && (
+                              <TodayBadge />
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {event.description}
+                          </p>
+                        </div>
+
+                        <div className="w-full sm:w-auto text-xs text-muted-foreground sm:whitespace-nowrap sm:text-right border-t pt-2 sm:border-0 sm:pt-0">
+                          <p>{formatDateTime(event.start_at)}</p>
+                          <p className="text-[11px] text-center sm:text-right">
+                            to
+                          </p>
+                          <p>{formatDateTime(event.end_at)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -261,7 +397,6 @@ export default function Dashboard() {
       {/* ===== EVENT MODAL ===== */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[95vw] sm:w-[90vw] max-w-5xl max-h-[90vh] overflow-hidden p-0">
-
           {selectedEvent && (
             <>
               {selectedEvent.image && (
@@ -314,7 +449,6 @@ export default function Dashboard() {
               </div>
             </>
           )}
-
         </DialogContent>
       </Dialog>
     </AppLayout>

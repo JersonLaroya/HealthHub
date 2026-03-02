@@ -27,7 +27,9 @@ export async function fillPreEmploymentForm(
   // ----------------------
   form.getTextField('name').setText(allPagesData.page1.name || '');
   form.getTextField('birthdate').setText(allPagesData.page1.birthdate || '');
-  form.getTextField('printed_name').setText(allPagesData.page1.printed_name || '');
+  form
+  .getTextField('printed_name')
+  .setText((allPagesData.page1?.printed_name ?? '').toString().toUpperCase());
 
   // ----------------------
   // Fix checkboxes
@@ -76,6 +78,40 @@ export async function fillPreEmploymentForm(
   const marriedBox = form.getCheckBox('check_box_married');
   const widowedBox = form.getCheckBox('check_box_widowed');
   const separatedBox = form.getCheckBox('check_box_separated');
+
+  // ----------------------
+  // Page 2: 2x2 Picture
+  // ----------------------
+  if (allPagesData.page2?.picture_2x2) {
+    const dataUrl = allPagesData.page2.picture_2x2;
+
+    // Strip base64 header
+    const base64 = dataUrl.split(',')[1];
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+
+    // Detect image type
+    const image = dataUrl.startsWith('data:image/png')
+      ? await pdfDoc.embedPng(bytes)
+      : await pdfDoc.embedJpg(bytes);
+
+    // PDF field name must be a Button field in your PDF template
+    const pictureField = form.getButton('picture_2x2');
+
+    if (pictureField) {
+      const widget = pictureField.acroField.getWidgets()[0];
+      const rect = widget.getRectangle();
+
+      // Page 2 = index 1
+      const page = pdfDoc.getPages()[1];
+
+      page.drawImage(image, {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    }
+  }
 
 
   // Uncheck all first

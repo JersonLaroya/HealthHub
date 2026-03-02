@@ -91,19 +91,19 @@ class FileController extends Controller
 
         // Only filter by current school year for pre-employment and athlete forms
         if (in_array($slug, ['pre-employment-health-form', 'athlete-medical'])) {
-            $currentSchoolYear = Setting::first()?->school_year;
+            $currentSchoolYear = $this->currentSchoolYear(); // ✅ normalize dash
             $recordsQuery->where('school_year', $currentSchoolYear);
         }
 
-        $records = $recordsQuery->get(['id', 'service_id', 'created_at', 'status'])
+        $records = $recordsQuery
+            ->orderBy('created_at', 'asc') // or ->latest()
+            ->get(['id', 'service_id', 'created_at', 'status'])
             ->map(function ($record) {
                 return [
                     'id'         => $record->id,
                     'service_id' => $record->service_id,
                     'slug'       => optional($record->service)->slug ?? null,
                     'status'     => $record->status,
-                    
-                    // convert from UTC to Asia/Manila before sending to frontend
                     'created_at' => $record->created_at
                         ->setTimezone('Asia/Manila')
                         ->toDateTimeString(),
