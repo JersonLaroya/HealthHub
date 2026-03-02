@@ -105,10 +105,49 @@ const others = labTypes.filter(t =>
 if (others.length > 0) {
   form.getCheckBox('check_box_others')?.check();
 
+  const othersText = others.join(', ');
+
+  const field1 = form.getTextField('others');
+  const field2 = form.getTextField('others2'); // your extra field
+
+  // helper: split text respecting a max length, preferably at commas/spaces
+  const splitByMaxLen = (text: string, maxLen: number) => {
+    if (!maxLen || maxLen <= 0 || text.length <= maxLen) {
+      return [text, ''] as const;
+    }
+
+    // try to cut at a comma before maxLen
+    let cut = text.lastIndexOf(',', maxLen);
+    if (cut === -1) cut = text.lastIndexOf(' ', maxLen);
+    if (cut === -1) cut = maxLen;
+
+    const first = text.slice(0, cut).trim().replace(/[, ]+$/, '');
+    const rest = text.slice(cut).trim().replace(/^,/, '').trim();
+
+    return [first, rest] as const;
+  };
+
   try {
-    form.getTextField('others')?.setText(others.join(', '));
-  } catch {
-    console.warn('Others text field not found in PDF');
+    // Prefer actual PDF max length if present; fallback to a safe number.
+    const maxLen1 =
+      (field1?.acroField?.getMaxLength?.() as number | undefined) ?? 80;
+
+    const [part1, remaining] = splitByMaxLen(othersText, maxLen1);
+
+    field1?.setText(part1);
+
+    if (remaining) {
+      // If others2 also has a max length, you can split again (optional).
+      const maxLen2 =
+        (field2?.acroField?.getMaxLength?.() as number | undefined) ?? 80;
+
+      const [part2] = splitByMaxLen(remaining, maxLen2);
+      field2?.setText(part2);
+
+      // If you want, you can keep chaining to others3, others4, etc.
+    }
+  } catch (e) {
+    console.warn('Others text fields not found or failed to set:', e);
   }
 }
 

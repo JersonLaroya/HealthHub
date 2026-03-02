@@ -179,61 +179,68 @@ class MessageController extends Controller
     }
 
     public function contacts(Request $request)
-    {
-        $auth = Auth::user();
+{
+    $auth = Auth::user();
 
-        $search = $request->search;
+    $search = trim((string) $request->query('search', ''));
+    $roleFilter = strtolower($request->query('role_filter', 'all'));
 
-        $senderRole     = strtolower($auth->userRole->name ?? '');
-        $senderCategory = strtolower($auth->userRole->category ?? '');
-        $roleFilter = strtolower($request->query('role_filter', 'all'));
+    $senderRole     = strtolower($auth->userRole->name ?? '');
+    $senderCategory = strtolower($auth->userRole->category ?? '');
 
-        $query = User::where('users.id', '!=', $auth->id)
-    ->leftJoin('user_roles', 'user_roles.id', '=', 'users.user_role_id')
-    ->select(
-        'users.id',
-        'users.first_name',
-        'users.last_name',
-        DB::raw("user_roles.name as user_role_name"),
-        DB::raw("user_roles.category as user_role_category")
-    )
-
-            ->whereHas('userRole', function ($q) use ($senderRole, $senderCategory) {
-
-                if ($senderRole === 'super admin') {
-                    $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
-                } elseif ($senderRole === 'admin') {
-                    $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
-                    ->orWhereIn(DB::raw('LOWER(category)'), ['user','rcy']);
-                } elseif ($senderRole === 'nurse') {
-                    $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
-                    ->orWhereIn(DB::raw('LOWER(category)'), ['user','rcy']);
-                } elseif (in_array($senderCategory, ['user','rcy'])) {
-                    $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
+    $query = User::query()
+        ->where('users.id', '!=', $auth->id)
+        ->leftJoin('user_roles', 'user_roles.id', '=', 'users.user_role_id')
+        ->select(
+            'users.id',
+            'users.first_name',
+            'users.last_name',
+            DB::raw("user_roles.name as user_role_name"),
+            DB::raw("user_roles.category as user_role_category")
+        )
+        ->whereHas('userRole', function ($q) use ($senderRole, $senderCategory) {
+            if ($senderRole === 'super admin') {
+                $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
+            } elseif ($senderRole === 'admin') {
+                $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
+                  ->orWhereIn(DB::raw('LOWER(category)'), ['user','rcy']);
+            } elseif ($senderRole === 'nurse') {
+                $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
+                  ->orWhereIn(DB::raw('LOWER(category)'), ['user','rcy']);
+            } elseif (in_array($senderCategory, ['user','rcy'])) {
+                $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
+            }
+        })
+        ->when($roleFilter !== 'all', function ($q) use ($roleFilter) {
+            $q->where(function ($x) use ($roleFilter) {
+                if ($roleFilter === 'student') {
+                    $x->whereRaw("LOWER(user_roles.name) = 'student'")
+                      ->orWhereRaw("LOWER(user_roles.category) = 'rcy'");
                 }
-            })
-            ->when($roleFilter !== 'all', function ($q) use ($roleFilter) {
-    $q->where(function ($x) use ($roleFilter) {
 
-        if ($roleFilter === 'student') {
-            $x->whereRaw("LOWER(user_roles.name) = 'student'")
-              ->orWhereRaw("LOWER(user_roles.category) = 'rcy'");
-        }
+                if ($roleFilter === 'employee') {
+                    $x->whereRaw("LOWER(user_roles.name) IN ('staff','faculty')");
+                }
 
-        if ($roleFilter === 'employee') {
-            $x->whereRaw("LOWER(user_roles.name) IN ('staff','faculty')");
-        }
+                if ($roleFilter === 'sa') {
+                    $x->whereRaw("LOWER(user_roles.name) = 'super admin'");
+                }
+            });
+        })
+        ->when($search !== '', function ($q) use ($search) {
+            $q->where(function ($x) use ($search) {
+                $x->where('users.first_name', 'like', "%{$search}%")
+                  ->orWhere('users.last_name', 'like', "%{$search}%")
+                  ->orWhereRaw(
+                      "LOWER(CONCAT(users.first_name,' ',users.last_name)) LIKE ?",
+                      ['%' . strtolower($search) . '%']
+                  );
+            });
+        })
+        ->orderBy('users.first_name');
 
-        if ($roleFilter === 'sa') {
-            $x->whereRaw("LOWER(user_roles.name) = 'super admin'");
-        }
-    });
-});
-
-        return response()->json(
-            $query->orderBy('first_name')->paginate(20)
-        );
-    }
+    return response()->json($query->paginate(20));
+}
 
     /**
      * Mark one message as seen

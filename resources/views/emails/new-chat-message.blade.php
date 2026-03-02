@@ -34,16 +34,17 @@
                     <tr>
                         <td align="center" style="padding: 20px 0;">
                             <a href="{{ url('/messages') }}"
-                               style="
-                                   background-color: #2563eb;
-                                   color: #ffffff;
-                                   padding: 12px 20px;
-                                   text-decoration: none;
-                                   border-radius: 5px;
-                                   display: inline-block;
-                                   font-size: 14px;
-                               ">
-                                Open Messages
+                            style="
+                                background-color: #0f172a;
+                                color: #ffffff;
+                                padding: 12px 20px;
+                                text-decoration: none;
+                                border-radius: 6px;
+                                display: inline-block;
+                                font-size: 14px;
+                                font-weight: 500;
+                            ">
+                            Open Messages
                             </a>
                         </td>
                     </tr>

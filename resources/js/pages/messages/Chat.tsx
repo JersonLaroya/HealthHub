@@ -2,7 +2,7 @@ import { Head } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { useEffect, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { Image as ImageIcon, Paperclip, Plus, Download, X } from "lucide-react";
+import { Image as ImageIcon, Paperclip, Plus, Download, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,10 @@ export default function Chat() {
   const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
+  const contactsReqSeq = useRef(0);
+  const [isSearchingContacts, setIsSearchingContacts] = useState(false);
+  const latestContactsQueryRef = useRef({ search: "", role: "all" as ContactRoleFilter });
+
   function normalizeRoleName(v: any) {
   return String(v ?? "").toLowerCase().trim();
 }
@@ -124,6 +128,12 @@ function matchesRoleFilter(user: any, filter: ContactRoleFilter) {
     return groupMessages(messages);
   }, [messages]);
 
+  const showEmptyConversation =
+  !!activeUser &&
+  !loadingConversation &&
+  !loadingOlder &&
+  groupedMessages.length === 0;
+
 
 function getCookie(name: string): string {
   const match = document.cookie.match(
@@ -174,28 +184,46 @@ useEffect(() => {
   loadContacts(1, search, contactRoleFilter);
 }, [contactRoleFilter]);
 
-async function loadContacts(page = 1, searchText = "", roleFilter: ContactRoleFilter = contactRoleFilter) {
-  if (loadingMoreContacts) return;
+async function loadContacts(
+  page = 1,
+  searchText = "",
+  roleFilter: ContactRoleFilter = contactRoleFilter
+) {
+  if (loadingMoreContacts && page > 1) return;
+
+  const seq = ++contactsReqSeq.current;
+
+  // only show searching indicator for "fresh search" (page 1)
+  if (page === 1) setIsSearchingContacts(true);
 
   setLoadingMoreContacts(true);
 
-  const res = await fetch(
-    `/messages/contacts?page=${page}&search=${encodeURIComponent(searchText)}&role_filter=${roleFilter}`
-  );
+  try {
+    const res = await fetch(
+      `/messages/contacts?page=${page}&search=${encodeURIComponent(searchText)}&role_filter=${roleFilter}`
+    );
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (page === 1) setContacts(data.data);
-  else {
-    setContacts(prev => {
-      const merged = [...prev, ...data.data];
-      return merged.filter((v, i, arr) => arr.findIndex(x => x.id === v.id) === i);
-    });
+    if (seq !== contactsReqSeq.current) return;
+
+    if (page === 1) {
+      setContacts(data.data);
+    } else {
+      setContacts(prev => {
+        const merged = [...prev, ...data.data];
+        return merged.filter((v, i, arr) => arr.findIndex(x => x.id === v.id) === i);
+      });
+    }
+
+    setContactsPage(data.current_page);
+    setContactsHasMore(data.current_page < data.last_page);
+  } finally {
+    if (seq === contactsReqSeq.current) {
+      setLoadingMoreContacts(false);
+      if (page === 1) setIsSearchingContacts(false);
+    }
   }
-
-  setContactsPage(data.current_page);
-  setContactsHasMore(data.current_page < data.last_page);
-  setLoadingMoreContacts(false);
 }
 
   function openViewer(src: string) {
@@ -412,6 +440,7 @@ function otherUserWithRole(m: any) {
 
   return matchesSearch && matchesRole;
 });
+
   function isUserOnline(userId: number) {
     return onlineUsers.includes(userId);
   }
@@ -627,10 +656,16 @@ useEffect(() => {
   }, [messages])
 
 useEffect(() => {
+  const searchText = search.trim();
+  latestContactsQueryRef.current = { search: searchText, role: contactRoleFilter };
+
+  // when user types/clears, show searching indicator right away
+  setIsSearchingContacts(true);
+
   const delay = setTimeout(() => {
     setContactsPage(1);
     setContactsHasMore(true);
-    loadContacts(1, search, contactRoleFilter);
+    loadContacts(1, searchText, contactRoleFilter);
   }, 300);
 
   return () => clearTimeout(delay);
@@ -1048,6 +1083,16 @@ const filteredInbox = inbox.filter(m => {
   return matchesSearch && matchesRole;
 });
 
+const searchTrimmed = search.trim();
+const isQueryActive = searchTrimmed !== "" || contactRoleFilter !== "all";
+const hasAnyResults = filteredInbox.length > 0 || filteredNewContacts.length > 0;
+
+const showNotFound =
+  !loadingInbox &&
+  !isSearchingContacts &&
+  isQueryActive &&
+  !hasAnyResults;
+
   /* ================================
       UI
   ================================= */
@@ -1070,53 +1115,77 @@ const filteredInbox = inbox.filter(m => {
                         ${showInbox ? "flex" : "hidden md:flex"}`}
           >
             <div className="p-3 border-b dark:border-neutral-700">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search people..."
-                className="w-full px-3 py-2 text-sm rounded-lg border 
-                          focus:outline-none focus:ring 
-                          dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
-              />
+              <div className="relative">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search people..."
+                  className="w-full px-3 py-2 pr-14 text-sm rounded-lg border
+                            focus:outline-none focus:ring
+                            dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+                />
+
+                {/* right-side controls inside input */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {/* spinner (shows while searching) */}
+                  {isSearchingContacts && (
+                    <span className="w-3.5 h-3.5 border-2 border-gray-400 dark:border-gray-500 border-t-transparent rounded-full animate-spin" />
+                  )}
+
+                  {/* clear button (shows only when there's text) */}
+                  {search.trim() !== "" && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-neutral-700"
+                      aria-label="Clear search"
+                      title="Clear"
+                    >
+                      <XCircle className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              
               {isAdminOrNurse && (
-  <div className="mt-2 flex flex-wrap gap-2">
-    <Button
-      type="button"
-      variant={contactRoleFilter === "all" ? "default" : "outline"}
-      className="h-7 px-3 text-xs"
-      onClick={() => setContactRoleFilter("all")}
-    >
-      All
-    </Button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={contactRoleFilter === "all" ? "default" : "outline"}
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setContactRoleFilter("all")}
+                  >
+                    All
+                  </Button>
 
-    <Button
-      type="button"
-      variant={contactRoleFilter === "student" ? "default" : "outline"}
-      className="h-7 px-3 text-xs"
-      onClick={() => setContactRoleFilter("student")}
-    >
-      Student
-    </Button>
+                  <Button
+                    type="button"
+                    variant={contactRoleFilter === "student" ? "default" : "outline"}
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setContactRoleFilter("student")}
+                  >
+                    Student
+                  </Button>
 
-    <Button
-      type="button"
-      variant={contactRoleFilter === "employee" ? "default" : "outline"}
-      className="h-7 px-3 text-xs"
-      onClick={() => setContactRoleFilter("employee")}
-    >
-      Employee
-    </Button>
+                  <Button
+                    type="button"
+                    variant={contactRoleFilter === "employee" ? "default" : "outline"}
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setContactRoleFilter("employee")}
+                  >
+                    Employee
+                  </Button>
 
-    <Button
-      type="button"
-      variant={contactRoleFilter === "sa" ? "default" : "outline"}
-      className="h-7 px-3 text-xs"
-      onClick={() => setContactRoleFilter("sa")}
-    >
-      SA
-    </Button>
-  </div>
-)}
+                  <Button
+                    type="button"
+                    variant={contactRoleFilter === "sa" ? "default" : "outline"}
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setContactRoleFilter("sa")}
+                  >
+                    SA
+                  </Button>
+                </div>
+              )}
             </div>
 
              {/* ⭐ SINGLE SCROLL AREA */}
@@ -1126,11 +1195,12 @@ const filteredInbox = inbox.filter(m => {
                 const el = e.currentTarget;
 
                 if (
+                  !isSearchingContacts &&
                   el.scrollHeight - el.scrollTop - el.clientHeight < 80 &&
                   contactsHasMore &&
                   !loadingMoreContacts
                 ) {
-                  loadContacts(contactsPage + 1, search, contactRoleFilter);
+                  loadContacts(contactsPage + 1, search.trim(), contactRoleFilter);
                 }
               }}
             >
@@ -1145,6 +1215,13 @@ const filteredInbox = inbox.filter(m => {
               <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
                 No conversations yet
               </p>
+            )}
+
+            {/* Not found */}
+            {showNotFound && (
+              <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
+                No users found{searchTrimmed ? ` for “${searchTrimmed}”` : ""}.
+              </div>
             )}
 
             {!loadingInbox && filteredInbox.map((m, i) => {
@@ -1307,6 +1384,21 @@ const filteredInbox = inbox.filter(m => {
                       No more messages
                     </div>
                   )}
+
+                  {showEmptyConversation && (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 dark:text-gray-400 py-10">
+                      {/* <div className="w-10 h-10 rounded-full bg-white dark:bg-neutral-900 border dark:border-neutral-700 flex items-center justify-center mb-3">
+                        <span className="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-500" />
+                      </div> */}
+                      <div className="font-medium text-gray-700 dark:text-gray-200">
+                        No messages yet
+                      </div>
+                      <div className="text-xs mt-1">
+                        Say hi to {activeUser.first_name} {activeUser.last_name}.
+                      </div>
+                    </div>
+                  )}
+
                   {groupedMessages.map((group, i, arr) => {
 
                     const current =
