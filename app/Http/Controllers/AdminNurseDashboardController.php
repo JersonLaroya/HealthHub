@@ -68,6 +68,41 @@ class AdminNurseDashboardController extends Controller
             ->groupBy('service.title')
             ->map(fn ($group) => $group->count())
             ->sortDesc();
+        
+        $pendingUsersByService = Record::where('status', Record::STATUS_PENDING)
+            ->with([
+                'service:id,title,slug',
+                // change 'user' if your relation name is different
+                'user:id,first_name,middle_name,last_name,email,ismis_id,user_role_id',
+                'user.userRole:id,name,category',
+            ])
+            ->latest()
+            ->get()
+            ->groupBy(fn ($r) => $r->service?->title ?? 'Unknown Service')
+            ->map(function ($records) {
+                // Prevent duplicates per user (if a user has multiple pending records in same service)
+                return $records
+                    ->groupBy('user_id')
+                    ->map(function ($userRecords) {
+                        $r = $userRecords->first(); // representative record for the user
+
+                        $u = $r->user;
+
+                        return [
+                            'record_id' => $r->id,
+                            'service_slug' => $r->service?->slug,
+                            'service_title' => $r->service?->title,
+
+                            'patient_id' => $u?->id,
+                            'name' => trim(($u?->first_name ?? '') . ' ' . ($u?->middle_name ?? '') . ' ' . ($u?->last_name ?? '')),
+                            'email' => $u?->email,
+                            'ismis_id' => $u?->ismis_id,
+                            'role' => $u?->userRole?->category === 'rcy' ? 'Student' : $u?->userRole?->name,
+                            'created_at' => optional($r->created_at)->toDateTimeString(),
+                        ];
+                    })
+                    ->values(); // make it an array
+            });
 
         $patientsSeen = Record::where('records.status', Record::STATUS_APPROVED)
             ->where('records.service_id', $consultationServiceId)
@@ -162,6 +197,7 @@ class AdminNurseDashboardController extends Controller
             'totalConsultations'   => $totalConsultations,
             'pendingRecords'       => $pendingRecords,
             'pendingBreakdown'     => $pendingBreakdown,
+            'pendingUsersByService'  => $pendingUsersByService,
             'patientsSeen'         => $patientsSeen,
             'todayConsultations'   => $todayConsultations,
             'chartData'            => $chartData,

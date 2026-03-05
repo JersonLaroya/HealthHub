@@ -7,11 +7,21 @@ export async function fillLaboratoryRequests(allPagesData: any, slug: string, pa
   if (!slug) throw new Error('Service slug is required to fetch PDF template.');
 
   // Fetch PDF template
-  const pdfBytes = await fetch(`/user/files/${slug}/template`)
+  const getPrefixFromPath = () => {
+  const p = window.location.pathname;
+  if (p.startsWith("/admin")) return "admin";
+  if (p.startsWith("/nurse")) return "nurse";
+    return "user";
+  };
+
+  const prefix = getPrefixFromPath();
+
+  // ✅ use the correct route alias depending on who is logged in
+  const pdfBytes = await fetch(`/${prefix}/files/${slug}/template`)
     .then(res => {
-      if (!res.ok) throw new Error('Failed to fetch PDF template');
+      if (!res.ok) throw new Error("Failed to fetch PDF template");
       return res.arrayBuffer();
-    });
+  });
 
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const form = pdfDoc.getForm();

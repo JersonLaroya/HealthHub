@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Notifications\NewUserCreated;
+use App\Notifications\PasswordResetByAdmin;
 
 class SuperAdminUserController extends Controller
 {
@@ -117,7 +118,7 @@ class SuperAdminUserController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
             'ismis_id' => 'nullable|string|max:255|unique:users,ismis_id,' . $user->id,
-            'password' => 'nullable|min:6',
+    
 
             'course_id' => 'nullable|exists:courses,id',
             'year_level_id' => 'nullable|exists:year_levels,id',
@@ -149,13 +150,46 @@ class SuperAdminUserController extends Controller
 
         /* ========================= */
 
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
-
         $user->update($data);
 
         return back()->with('success', 'User updated.');
+    }
+
+    public function updateStatus(Request $request, User $user)
+    {
+        if ($user->userRole?->name === 'Super Admin') {
+            return back()->with('error', 'You cannot change status of a Super Admin.');
+        }
+
+        $data = $request->validate([
+            'status' => 'required|in:active,inactive',
+        ]);
+
+        $user->update([
+            'status' => $data['status'],
+        ]);
+
+        // NO flash here (prevents duplicate toast)
+        return back();
+    }
+
+    public function resetPassword(User $user)
+    {
+        // extra safety
+        if ($user->userRole?->name === 'Super Admin') {
+            return back()->with('error', 'You cannot reset password of a Super Admin.');
+        }
+
+        $plainPassword = Str::random(10);
+
+        $user->update([
+            'password' => Hash::make($plainPassword),
+        ]);
+
+        // ✅ Use the correct notification for reset
+        $user->notify(new PasswordResetByAdmin($plainPassword));
+
+        return back()->with('success', 'Password reset and email sent.');
     }
 
     public function destroy(User $user)
@@ -213,6 +247,7 @@ class SuperAdminUserController extends Controller
             'course_id' => $request->course_id,
             'year_level_id' => $request->year_level_id,
             'office_id' => $request->office_id,
+            'status' => 'active',
         ];
 
         /* AUTO-SET OFFICE FROM COURSE (STUDENTS) */
@@ -426,6 +461,7 @@ class SuperAdminUserController extends Controller
                 'office_id' => $office?->id,
                 'course_id' => $course?->id,
                 'year_level_id' => $year?->id,
+                'status' => 'active',
             ];
 
             if ($course?->office_id) {

@@ -34,44 +34,60 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     <Form method="post" className="flex flex-col gap-6">
                         {({ processing, errors }) => (
                             <>
+
+                                {errors.auth && (
+                                    <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    {errors.auth}
+                                    </div>
+                                )}
+
                                 <div className="grid gap-6">
                                     <div className="grid gap-2">
                                         <Label htmlFor="email">Email address</Label>
                                         <Input
-                                            id="email"
-                                            type="email"
-                                            name="email"
-                                            required
-                                            autoFocus
-                                            autoComplete="email"
-                                            placeholder="email@example.com"
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        required
+                                        autoFocus
+                                        autoComplete="email"
+                                        placeholder="email@example.com"
+                                        className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
                                         />
                                         <InputError message={errors.email} />
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label htmlFor="password">Password</Label>
+                                    <Label htmlFor="password">Password</Label>
 
-                                        <div className="relative">
-                                            <Input
-                                                id="password"
-                                                type={showPassword ? "text" : "password"}
-                                                name="password"
-                                                required
-                                                autoComplete="current-password"
-                                                placeholder="Password"
-                                            />
+                                    <div className="relative">
+                                        <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        required
+                                        autoComplete="current-password"
+                                        placeholder="Password"
+                                        className={errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}
+                                        />
+                                        <InputError message={errors.password} />
 
-                                            <button
-                                                type="button"
-                                                onClick={togglePassword}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                            >
-                                                {showPassword
-                                                    ? <EyeOff className="h-5 w-5" />
-                                                    : <Eye className="h-5 w-5" />}
-                                            </button>
+                                        <button
+                                        type="button"
+                                        onClick={togglePassword}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        </button>
+                                    </div>
+
+                                    {canResetPassword && (
+                                        <div className="flex justify-end">
+                                        <TextLink href={request()} className="text-sm">
+                                            Forgot password?
+                                        </TextLink>
                                         </div>
+                                    )}
                                     </div>
 
                                     <Button

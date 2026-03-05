@@ -330,15 +330,11 @@ export default function Dashboard() {
                           {event.title}
                           <TodayBadge />
                         </p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {event.description}
-                        </p>
-
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          <p>
-                            {formatDateTime(event.start_at)} to{" "}
-                            {formatDateTime(event.end_at)}
-                          </p>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            {formatDateTime(event.start_at)}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -365,24 +361,18 @@ export default function Dashboard() {
                               : "bg-background/70 hover:bg-muted/40 hover:shadow-sm"
                           }`}
                       >
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-medium text-sm sm:text-base flex items-center">
                             {event.title}
-                            {isEventToday(event.start_at, event.end_at) && (
-                              <TodayBadge />
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {event.description}
+                            {isEventToday(event.start_at, event.end_at) && <TodayBadge />}
                           </p>
                         </div>
 
                         <div className="w-full sm:w-auto text-xs text-muted-foreground sm:whitespace-nowrap sm:text-right border-t pt-2 sm:border-0 sm:pt-0">
-                          <p>{formatDateTime(event.start_at)}</p>
-                          <p className="text-[11px] text-center sm:text-right">
-                            to
-                          </p>
-                          <p>{formatDateTime(event.end_at)}</p>
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            {formatDateTime(event.start_at)}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -395,62 +385,57 @@ export default function Dashboard() {
       </div>
 
       {/* ===== EVENT MODAL ===== */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] sm:w-[90vw] max-w-5xl max-h-[90vh] overflow-hidden p-0">
-          {selectedEvent && (
-            <>
-              {selectedEvent.image && (
-                <div className="w-full bg-muted flex items-center justify-center max-h-[65vh] overflow-hidden">
-                  <img
-                    src={`/storage/${selectedEvent.image}`}
-                    alt={selectedEvent.title}
-                    className="
-                      w-full
-                      h-auto
-                      max-h-[65vh]
-                      object-contain
-                      rounded-t-xl
-                      cursor-zoom-in
-                      transition-transform
-                      hover:scale-[1.01]
-                    "
-                  />
-                </div>
-              )}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="w-[95vw] sm:w-[90vw] max-w-5xl max-h-[90vh] p-0 rounded-xl overflow-hidden">
+        {selectedEvent && (
+          <div className="flex flex-col max-h-[90vh]">
+            {/* IMAGE (fixed max height) */}
+            {selectedEvent.image && (
+              <div className="shrink-0 border-b bg-muted/20">
+                <img
+                  src={`/storage/${selectedEvent.image}`}
+                  alt={selectedEvent.title}
+                  className="w-full max-h-[38vh] object-contain rounded-t-xl"
+                />
+              </div>
+            )}
 
-              <div className="p-4 sm:p-6 space-y-4">
-                <DialogHeader>
-                  <DialogTitle className="text-lg sm:text-xl">
-                    {selectedEvent.title}
-                  </DialogTitle>
-                </DialogHeader>
+            {/* SCROLLABLE CONTENT */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <DialogHeader>
+                <DialogTitle className="text-lg sm:text-xl">
+                  {selectedEvent.title}
+                </DialogTitle>
+              </DialogHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-                  <div className="flex items-start gap-2">
-                    <CalendarDays className="w-4 h-4 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">Start</p>
-                      <p>{formatDateTime(selectedEvent.start_at)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-4 h-4 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">End</p>
-                      <p>{formatDateTime(selectedEvent.end_at)}</p>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <CalendarDays className="w-4 h-4 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Start</p>
+                    <p>{formatDateTime(selectedEvent.start_at)}</p>
                   </div>
                 </div>
 
+                <div className="flex items-start gap-2">
+                  <Clock className="w-4 h-4 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">End</p>
+                    <p>{formatDateTime(selectedEvent.end_at)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedEvent.description && (
                 <p className="text-sm leading-relaxed whitespace-pre-line">
                   {selectedEvent.description}
                 </p>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
     </AppLayout>
   );
 }

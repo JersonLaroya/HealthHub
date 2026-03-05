@@ -31,9 +31,22 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        // Status check after successful credentials
+        $user = Auth::user();
+
+        if ($user && $user->isInactive()) {
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'auth' => 'Your account is inactive. Please contact the MIS admin.',
+            ]);
+        }
+
         $request->session()->regenerate();
 
-        // return redirect()->intended(route('dashboard', absolute: false));
         return redirect()->to($this->redirectTo());
     }
 

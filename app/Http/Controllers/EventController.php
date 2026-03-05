@@ -35,7 +35,7 @@ class EventController extends Controller
             $query->whereDate('end_at', '<=', $request->end_date);
         }
 
-        $query->orderBy('start_at', 'asc');
+        $query->orderBy('created_at', 'desc');
 
         $events = $query->paginate(10)->withQueryString();
 

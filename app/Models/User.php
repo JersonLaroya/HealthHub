@@ -15,6 +15,7 @@ class User extends Authenticatable
     protected $fillable = [
         'email',
         'password',
+        'status',
 
         // profile fields
         'first_name',
@@ -80,6 +81,16 @@ class User extends Authenticatable
     public function userRole()
     {
         return $this->belongsTo(UserRole::class);
+    }
+
+    public function isActive()
+    {
+        return $this->status === 'active';
+    }
+
+    public function isInactive()
+    {
+        return $this->status === 'inactive';
     }
 
     public function office()

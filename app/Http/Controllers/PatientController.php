@@ -576,26 +576,42 @@ class PatientController extends Controller
     {
         $service = Service::where('slug', $slug)->firstOrFail();
 
+        // ✅ Ensure record matches patient + service (prevents wrong record)
+        abort_if($record->user_id !== $patient->id || $record->service_id !== $service->id, 403);
+
         $role = auth()->user()->userRole->name;
 
-        // Admin / Nurse can view any record
-        if (in_array($role, ['Admin', 'Nurse'])) {
+        // Admin / Nurse only
+        abort_if(!in_array($role, ['Admin', 'Nurse']), 403);
+
+        // ✅ LAB REQUEST special payload (data is from related tables)
+        if ($service->slug === 'laboratory-request-form') {
+            $record->load('laboratoryRequestItems.laboratoryType');
+
+            $labTypes = $record->laboratoryRequestItems
+                ->pluck('laboratoryType.name')
+                ->filter()
+                ->values()
+                ->all();
+
             return response()->json([
                 'service' => [
                     'slug' => $service->slug,
                     'file_path' => $service->file_path,
                 ],
-                'responses' => $record->response_data,
+                'responses' => [
+                    'record_id' => $record->id,
+                    'date' => optional($record->created_at)
+                        ? $record->created_at->setTimezone('Asia/Manila')->format('m/d/Y')
+                        : null,
+                    'lab_types' => $labTypes,
+                    // optional: include remarks if you have it in record table
+                    'remarks' => $record->remarks ?? null,
+                ],
             ]);
         }
 
-        // Regular users: only their own records
-        abort_if(
-            $record->user_id !== $patient->id ||
-            $record->service_id !== $service->id,
-            403
-        );
-
+        // ✅ NORMAL FORMS (existing behavior)
         return response()->json([
             'service' => [
                 'slug' => $service->slug,

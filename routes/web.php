@@ -60,7 +60,7 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
@@ -69,7 +69,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 // Routes for User
-Route::middleware(['auth', ExcludeRolesMiddleware::class])
+Route::middleware(['auth', 'active', ExcludeRolesMiddleware::class])
     ->prefix('user')
     ->name('user.')
     ->group(function () {
@@ -237,7 +237,7 @@ Route::middleware(['auth', ExcludeRolesMiddleware::class])
 });
 
 // Routes for Admin
-Route::middleware(['role:Admin'])
+Route::middleware(['auth', 'active', 'role:Admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -361,7 +361,7 @@ Route::middleware(['role:Admin'])
 });
 
 // Routes for Nurse
-Route::middleware(['role:Nurse'])->prefix('nurse')->name('nurse.')->group(function () {
+Route::middleware(['auth', 'active', 'role:Nurse'])->prefix('nurse')->name('nurse.')->group(function () {
     Route::get('/dashboard', [AdminNurseDashboardController::class, 'index'])->name('dashboard');
     Route::get('/dtr', fn() => Inertia::render('admin/dtr'))->name('dtr');
 
@@ -370,7 +370,7 @@ Route::middleware(['role:Nurse'])->prefix('nurse')->name('nurse.')->group(functi
 
 
 //For Events
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     // Admin
     Route::prefix('admin')->middleware('role:Admin')->group(function () {
         Route::get('/events', [EventController::class, 'index'])->name('admin.events.index');
@@ -397,7 +397,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // For Admin, Nurse, and RCY
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     // Admin
     Route::prefix('admin')->middleware('role:Admin')->group(function () {
         Route::get('/patients/{patient}/inquiries', [InquiryController::class, 'index']);
@@ -567,6 +567,12 @@ Route::middleware(['auth', 'role:Super Admin'])
 
         Route::put('/users/{user}', [SuperAdminUserController::class, 'update'])
             ->name('users.update');
+        
+        Route::patch('/users/{user}/status', [SuperAdminUserController::class, 'updateStatus'])
+            ->name('users.updateStatus');
+
+        Route::post('/users/{user}/reset-password', [SuperAdminUserController::class, 'resetPassword'])
+            ->name('users.resetPassword');
 
         Route::delete('/users/{user}', [SuperAdminUserController::class, 'destroy'])
             ->name('users.destroy');
@@ -628,7 +634,7 @@ Route::get('/test-chat/{a}/{b}', function ($a, $b) {
 });
 
 // Message
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
 
     // Messaging API
     Route::get('/messages', [MessageController::class, 'index']);
@@ -649,7 +655,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Notifications
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);

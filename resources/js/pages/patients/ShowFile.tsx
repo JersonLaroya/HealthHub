@@ -60,6 +60,10 @@ export default function ShowFile({ patient, service, records }: Props) {
   const prefix = role === "nurse" ? "nurse" : "admin";
   const [editMode, setEditMode] = useState(false);
 
+  const isLabRequestService =
+  service.slug === "laboratory-request-form" ||
+  service.slug.includes("laboratory-request");
+
   const [rejectingRecord, setRejectingRecord] = useState<Record | null>(null);
     const [rejectionReason, setRejectionReason] = useState("");
     const [isRejecting, setIsRejecting] = useState(false);
@@ -121,48 +125,54 @@ export default function ShowFile({ patient, service, records }: Props) {
 
 
     const handleViewPdf = async (recordId: number) => {
-    try {
-        setViewingRecordId(recordId);
+        try {
+            setViewingRecordId(recordId);
 
-        const res = await fetch(
-        `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${recordId}`
-        );
+            const res = await fetch(
+            `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${recordId}`
+            );
 
-        if (!res.ok) {
-        alert("Failed to load record");
-        return;
+            if (!res.ok) {
+            alert("Failed to load record");
+            return;
+            }
+
+            const { responses, service: svc } = await res.json();
+
+            if (!responses || Object.keys(responses).length === 0) {
+            toast.error("This form has no saved data.");
+            return;
+            }
+
+            const slug = svc?.slug ?? service.slug;
+
+            let pdfBytes;
+
+            // ✅ Lab request FIRST
+            if (slug === "laboratory-request-form" || slug.includes("laboratory-request")) {
+            pdfBytes = await fillLaboratoryRequests(responses, slug, patient);
+
+            } else if (slug === "pre-enrollment-health-form") {
+            pdfBytes = await fillPreEnrollmentForm(responses, slug, prefix);
+
+            } else if (slug === "pre-employment-health-form") {
+            pdfBytes = await fillPreEmploymentForm(responses, slug, prefix);
+
+            } else if (slug === "athlete-medical") {
+            pdfBytes = await fillAthleteMedicalForm(responses, slug, prefix);
+
+            } else {
+            alert("Unsupported form type");
+            return;
+            }
+
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+            window.open(url, "_blank");
+        } finally {
+            setViewingRecordId(null);
         }
-
-        const { responses, service: svc } = await res.json();
-
-        if (!responses || Object.keys(responses).length === 0) {
-        toast.error("This athlete form has no saved data.");
-        return;
-        }
-        console.log("Fetched responses: ", responses);
-
-        let pdfBytes;
-
-        if (svc.slug === "pre-enrollment-health-form") {
-        pdfBytes = await fillPreEnrollmentForm(responses, svc.slug, prefix);
-        } else if (svc.slug === "pre-employment-health-form") {
-        pdfBytes = await fillPreEmploymentForm(responses, svc.slug, prefix);
-        } else if (svc.slug === "athlete-medical") {
-        pdfBytes = await fillAthleteMedicalForm(responses, svc.slug, prefix);
-        } else if (svc.slug === "laboratory-request-form") {
-        pdfBytes = await fillLaboratoryRequests(responses, svc.slug, patient);
-        } else {
-        alert("Unsupported form type");
-        return;
-        }
-
-        const blob = new Blob([pdfBytes], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
-    } finally {
-        setViewingRecordId(null);
-    }
-    };
+        };
 
 
   const handleDelete = (recordId: number) => {
@@ -280,7 +290,7 @@ export default function ShowFile({ patient, service, records }: Props) {
                             </Button>
 
                             {/* PENDING → Approve / Reject */}
-                            {(isAdmin || role === "nurse") && record.status === "pending" && (
+                            {/* {(isAdmin || role === "nurse") && record.status === "pending" && (
                                 <>
                                 <Button
                                     size="sm"
@@ -326,10 +336,10 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 Reject
                                 </Button>
                                 </>
-                            )}
+                            )} */}
 
                             {/* APPROVED → Delete only */}
-                            {isAdmin && record.status === "approved" && (
+                            {/* {isAdmin && record.status === "approved" && (
                                 <Button
                                 size="sm"
                                 variant="destructive"
@@ -337,6 +347,63 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 >
                                 Delete
                                 </Button>
+                            )} */}
+                            
+                            {/* ✅ For lab request: ONLY View button */}
+                            {!isLabRequestService && (
+                            <>
+                                {/* PENDING → Approve / Reject */}
+                                {(isAdmin || role === "nurse") && record.status === "pending" && (
+                                <>
+                                    <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={() => {
+                                        if (service.slug === "pre-employment-health-form") {
+                                        router.post(`/${prefix}/forms/${record.id}/approve`, {}, {
+                                            onSuccess: () => {
+                                            toast.success("Form approved");
+                                            setRecordList(prev =>
+                                                prev.map(r =>
+                                                r.id === record.id ? { ...r, status: "approved" } : r
+                                                )
+                                            );
+                                            }
+                                        });
+                                        } else {
+                                        const rec = recordList.find(r => r.id === record.id);
+                                        setEditingRecord(rec || null);
+                                        setFormData(rec?.response_data || {});
+                                        }
+                                    }}
+                                    >
+                                    Approve
+                                    </Button>
+
+                                    <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                        setRejectingRecord(record);
+                                        setRejectionReason("");
+                                    }}
+                                    >
+                                    Reject
+                                    </Button>
+                                </>
+                                )}
+
+                                {/* APPROVED → Delete only */}
+                                {isAdmin && record.status === "approved" && (
+                                <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => setDeletingRecord(record)}
+                                >
+                                    Delete
+                                </Button>
+                                )}
+                            </>
                             )}
 
                             {/* REJECTED → nothing extra */}
@@ -360,6 +427,8 @@ export default function ShowFile({ patient, service, records }: Props) {
         </Card>
       </div>
     
+    {!isLabRequestService && (
+    <>
     {editingRecord && service.slug === "athlete-medical" && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-neutral-800 p-4 sm:p-6 rounded-lg w-full sm:max-w-3xl max-w-[95vw] overflow-y-auto max-h-[90vh] shadow-lg">
@@ -948,6 +1017,8 @@ export default function ShowFile({ patient, service, records }: Props) {
                     </DialogFooter>
             </DialogContent>
             </Dialog>
+     </>
+    )}
 
     </AppLayout>
   );

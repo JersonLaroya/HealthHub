@@ -897,7 +897,7 @@ function submitEditSchedule() {
                     </div>
 
                     <div>
-                      <strong>Approved By:</strong>{" "}
+                      <strong>Approved by:</strong>{" "}
                       {selectedAppointment.approver
                         ? `${selectedAppointment.approver.first_name} ${selectedAppointment.approver.last_name}`
                         : "—"}

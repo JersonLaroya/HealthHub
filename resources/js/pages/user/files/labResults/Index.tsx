@@ -50,7 +50,7 @@ export default function Index({ records }: { records: RecordItem[] }) {
       case "missing":
         return { label: "Missing", className: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300" };
       case "pending":
-        return { label: "Pending Review", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" };
+        return { label: "Pending", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" };
       case "approved":
         return { label: "Approved", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" };
       case "rejected":
@@ -187,11 +187,11 @@ export default function Index({ records }: { records: RecordItem[] }) {
                       </span>
                     )} */}
 
-                    {record.status === "approved" && (
+                    {/* {record.status === "approved" && (
                       <span className="text-sm text-green-600 dark:text-green-400 self-center font-medium">
                         Approved by clinic
                       </span>
-                    )}
+                    )} */}
                   </div>
                 </Card>
               );

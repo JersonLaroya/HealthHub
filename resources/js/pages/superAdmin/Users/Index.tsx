@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { usePage } from "@inertiajs/react";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   users: any;
@@ -47,6 +48,51 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
   const [deletingUser, setDeletingUser] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [resetOpen, setResetOpen] = useState(false);
+    const [resettingUser, setResettingUser] = useState<any>(null);
+    const [isResetting, setIsResetting] = useState(false);
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+
+    function toggleStatus(user: any) {
+        if (togglingId) return; // prevent spam clicking
+        setTogglingId(user.id);
+
+        const nextStatus = user.status === "active" ? "inactive" : "active";
+
+        router.patch(
+            `/superadmin/users/${user.id}/status`,
+            { status: nextStatus },
+            {
+            preserveScroll: true,
+            onSuccess: () => toast.success(`User is now ${nextStatus}.`),
+            onError: () => toast.error("Failed to update status"),
+            onFinish: () => setTogglingId(null),
+            }
+        );
+    }
+
+        function openResetPassword(user: any) {
+        setResettingUser(user);
+        setResetOpen(true);
+        }
+
+        function confirmResetPassword() {
+        if (!resettingUser) return;
+
+        setIsResetting(true);
+
+        router.post(`/superadmin/users/${resettingUser.id}/reset-password`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+            toast.success("Password reset. Email sent to user.");
+            setResetOpen(false);
+            setResettingUser(null);
+            },
+            onError: () => toast.error("Failed to reset password"),
+            onFinish: () => setIsResetting(false),
+        });
+        }
+
   const { flash } = usePage().props as any;
 
   useEffect(() => {
@@ -65,11 +111,10 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
     last_name: "",
     email: "",
     ismis_id: "",
-    password: "",
     course_id: "",
     year_level_id: "",
     office_id: "",
-  });
+    });
 
   const indexUrl = "/superadmin/users";
 
@@ -140,7 +185,6 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
         last_name: user.last_name || "",
         email: user.email || "",
         ismis_id: user.ismis_id || "",
-        password: "",
         course_id: user.course?.id || "",
         year_level_id: user.year_level?.id || "",
         office_id: user.office?.id || "",
@@ -320,6 +364,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     <th className="p-2 border-b">Course / Office</th>
                     <th className="p-2 border-b">Year</th>
                     <th className="p-2 border-b">Joined</th>
+                    <th className="p-2 border-b">Status</th>
                     <th className="p-2 border-b">Actions</th>
                 </tr>
                </thead>
@@ -358,26 +403,60 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                         {new Date(u.created_at).toLocaleDateString()}
                     </td>
 
-                    <td className="p-2 border-b flex flex-col sm:flex-row gap-2">
-                    <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => openEdit(u)}>
-                        Edit
-                    </Button>
+                    <td className="p-2 border-b">
+                    <div className="flex items-center gap-3">
+                        <Switch
+                        checked={u.status === "active"}
+                        onCheckedChange={() => toggleStatus(u)}
+                        disabled={togglingId === u.id}
+                        className="
+                            data-[state=checked]:bg-emerald-500
+                            data-[state=unchecked]:bg-red-500
+                        "
+                        />
 
-                    <Button
+                        <span
+                        className={
+                            "text-xs font-semibold px-2 py-0.5 rounded-full " +
+                            (u.status === "active"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                            : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300")
+                        }
+                        >
+                        {togglingId === u.id ? "Updating..." : u.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                    </div>
+                    </td>
+
+                    <td className="p-2 border-b flex flex-col sm:flex-row gap-2">
+                        <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => openEdit(u)}>
+                            Edit
+                        </Button>
+
+                        <Button
                         size="sm"
-                        variant="destructive"
+                        variant="secondary"
                         className="w-full sm:w-auto"
-                        onClick={() => openDelete(u)}
-                    >
-                        Delete
-                    </Button>
+                        onClick={() => openResetPassword(u)}
+                        >
+                        Reset Password
+                        </Button>
+
+                        {/* <Button
+                            size="sm"
+                            variant="destructive"
+                            className="w-full sm:w-auto"
+                            onClick={() => openDelete(u)}
+                        >
+                            Delete
+                        </Button> */}
                     </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={9}
                       className="p-4 text-center text-gray-500 dark:text-gray-400"
                     >
                       No users found.
@@ -479,16 +558,6 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     <Input value={data.email} onChange={e => setData("email", e.target.value)} />
                 </div>
 
-                <div>
-                    <Label>New password (optional)</Label>
-                    <Input
-                        type="password"
-                        value={data.password}
-                        onChange={e => setData("password", e.target.value)}
-                        autoComplete="new-password"
-                    />
-                </div>
-
                 {/* STUDENT / RCY */}
                 {editingUser?.user_role?.name === "Student" || editingUser?.user_role?.category === "rcy" ? (
                     <div className="grid grid-cols-2 gap-2">
@@ -562,6 +631,33 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 </form>
             </DialogContent>
         </Dialog>
+
+        <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                <DialogTitle>Reset Password</DialogTitle>
+                </DialogHeader>
+
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                Reset password for <span className="font-semibold">{resettingUser?.name}</span>?
+                A new temporary password will be generated and emailed to the user.
+                </p>
+
+                <DialogFooter>
+                <Button variant="outline" onClick={() => setResetOpen(false)}>
+                    Cancel
+                </Button>
+
+                <Button
+                    onClick={confirmResetPassword}
+                    disabled={isResetting}
+                    className={isResetting ? "opacity-60 cursor-not-allowed" : ""}
+                >
+                    {isResetting ? "Resetting..." : "Confirm Reset"}
+                </Button>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
         
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <DialogContent className="sm:max-w-md">
