@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\PersonnelController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\SuperAdmin\CourseController;
 use App\Http\Controllers\SuperAdmin\OfficeController;
+use App\Http\Controllers\SuperAdmin\OfficeCourseController;
 use App\Http\Controllers\SuperAdmin\SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\SuperAdminUserController;
 use App\Http\Controllers\SuperAdmin\SystemSettingController;
@@ -604,12 +605,25 @@ Route::middleware(['auth', 'role:Super Admin'])
 
         Route::delete('/offices/{office}', [OfficeController::class, 'destroy'])
             ->name('offices.destroy');
+        
+        // OFFICES -> COURSES/DEPARTMENTS (nested)
+        Route::get('/offices/{office}/courses', [OfficeCourseController::class, 'index'])
+            ->name('offices.courses.index');
+
+        Route::post('/offices/{office}/courses', [OfficeCourseController::class, 'store'])
+            ->name('offices.courses.store');
+
+        Route::put('/offices/{office}/courses/{course}', [OfficeCourseController::class, 'update'])
+            ->name('offices.courses.update');
+
+        Route::delete('/offices/{office}/courses/{course}', [OfficeCourseController::class, 'destroy'])
+            ->name('offices.courses.destroy');
 
         // COURSES
-        Route::get('/courses', [CourseController::class, 'index'])->name('superadmin.courses.index');
-        Route::post('/courses', [CourseController::class, 'store']);
-        Route::put('/courses/{course}', [CourseController::class, 'update']);
-        Route::delete('/courses/{course}', [CourseController::class, 'destroy']);
+        // Route::get('/courses', [CourseController::class, 'index'])->name('superadmin.courses.index');
+        // Route::post('/courses', [CourseController::class, 'store']);
+        // Route::put('/courses/{course}', [CourseController::class, 'update']);
+        // Route::delete('/courses/{course}', [CourseController::class, 'destroy']);
 
         // Settings
         Route::get('/settings', [SystemSettingController::class, 'index']);

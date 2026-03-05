@@ -9,6 +9,8 @@ class Course extends Model
 {
     use HasFactory;
 
+    protected $table = 'courses_departments';
+
     protected $fillable = ['office_id', 'name', 'code'];
 
     public function office()
@@ -16,4 +18,3 @@ class Course extends Model
         return $this->belongsTo(Office::class);
     }
 }
-

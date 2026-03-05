@@ -32,8 +32,8 @@ class OfficeController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255|unique:offices,name',
-            'code' => 'nullable|string|max:20|unique:offices,code',
+            'name' => 'required|string|max:255|unique:offices_colleges,name',
+            'code' => 'nullable|string|max:20|unique:offices_colleges,code',
         ]);
 
         Office::create([
@@ -47,8 +47,8 @@ class OfficeController extends Controller
     public function update(Request $request, Office $office)
     {
         $request->validate([
-            'name' => 'required|string|max:255|unique:offices,name,' . $office->id,
-            'code' => 'nullable|string|max:20|unique:offices,code,' . $office->id,
+            'name' => 'required|string|max:255|unique:offices_colleges,name,' . $office->id,
+            'code' => 'nullable|string|max:20|unique:offices_colleges,code,' . $office->id,
         ]);
 
         $office->update([

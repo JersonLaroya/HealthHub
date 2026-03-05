@@ -1,19 +1,19 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Head, router, useForm, usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export default function Index({ offices, filters }: any) {
+export default function Courses({ office, courses, filters }: any) {
   const { flash } = usePage().props as any;
 
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editingOffice, setEditingOffice] = useState<any>(null);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, setData, post, put, reset, processing } = useForm({
@@ -24,42 +24,37 @@ export default function Index({ offices, filters }: any) {
   const [search, setSearch] = useState(filters?.search || "");
   const [searching, setSearching] = useState(false);
 
-  function applySearch(e?: React.FormEvent) {
-    if (e) e.preventDefault();
-
-    setSearching(true);
-
-    router.get(
-      "/superadmin/offices",
-      { search },
-      {
-        preserveState: true,
-        replace: true,
-        onFinish: () => setSearching(false),
-      }
-    );
-  }
-
   useEffect(() => {
     if (flash?.success) toast.success(flash.success);
     if (flash?.error) toast.error(flash.error);
   }, [flash]);
 
+  function applySearch(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    setSearching(true);
+
+    router.get(
+      `/superadmin/offices/${office.id}/courses`,
+      { search },
+      { preserveState: true, replace: true, onFinish: () => setSearching(false) }
+    );
+  }
+
   function openCreate() {
     reset();
-    setEditingOffice(null);
+    setEditingCourse(null);
     setData({ name: "", code: "" });
     setOpen(true);
   }
 
-  function openEdit(office: any) {
-    setEditingOffice(office);
-    setData({ name: office.name, code: office.code || "" });
+  function openEdit(course: any) {
+    setEditingCourse(course);
+    setData({ name: course.name, code: course.code || "" });
     setOpen(true);
   }
 
-  function openDeleteModal(office: any) {
-    setEditingOffice(office);
+  function openDeleteModal(course: any) {
+    setEditingCourse(course);
     setDeleteOpen(true);
   }
 
@@ -68,30 +63,36 @@ export default function Index({ offices, filters }: any) {
     router.get(url, {}, { preserveState: true });
   }
 
-  function viewCourses(officeId: number) {
-    router.get(`/superadmin/offices/${officeId}/courses`);
-  }
-
   return (
     <AppLayout>
-      <Head title="Offices / Colleges" />
+      <Head title={`Courses / Departments - ${office.name}`} />
 
-      <div className="w-full p-4 sm:p-6 space-y-8">
+      <div className="w-full p-4 sm:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold">Offices / Colleges</h1>
-          <Button onClick={openCreate} className="w-full sm:w-auto">
-            Add Office / College
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Courses / Departments</h1>
+            <p className="text-sm text-muted-foreground">
+              Office / College: <span className="font-medium text-foreground">{office.name}</span>
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => router.get("/superadmin/offices")} className="w-full sm:w-auto">
+              Back
+            </Button>
+            <Button onClick={openCreate} className="w-full sm:w-auto">
+              Add Course / Department
+            </Button>
+          </div>
         </div>
 
         <form onSubmit={applySearch} className="flex flex-col sm:flex-row gap-2">
           <Input
-            placeholder="Search office/college..."
+            placeholder="Search course/department..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-72"
           />
-
           <Button type="submit" disabled={searching} className="w-full sm:w-auto">
             {searching ? "Searching..." : "Search"}
           </Button>
@@ -103,32 +104,25 @@ export default function Index({ offices, filters }: any) {
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
                   <th className="p-2 border-b">Code</th>
-                  <th className="p-2 border-b">Office / College</th>
-                  <th className="p-2 border-b w-[320px]">Actions</th>
+                  <th className="p-2 border-b">Course / Department</th>
+                  <th className="p-2 border-b w-[220px]">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {offices.data.length ? (
-                  offices.data.map((o: any) => (
-                    <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
+                {courses.data.length ? (
+                  courses.data.map((c: any) => (
+                    <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-neutral-700">
                       <td className="p-2 border-b">
-                        {o.code ? <span className="font-medium">{o.code}</span> : <span className="text-gray-400 italic">—</span>}
+                        {c.code ? <span className="font-medium">{c.code}</span> : <span className="text-gray-400 italic">—</span>}
                       </td>
-
-                      <td className="p-2 border-b font-medium">{o.name}</td>
-
+                      <td className="p-2 border-b font-medium">{c.name}</td>
                       <td className="p-2 border-b">
                         <div className="flex flex-col sm:flex-row gap-2">
-                          <Button size="sm" variant="secondary" onClick={() => viewCourses(o.id)}>
-                            View list
-                          </Button>
-
-                          <Button size="sm" variant="outline" onClick={() => openEdit(o)}>
+                          <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
                             Edit
                           </Button>
-
-                          <Button size="sm" variant="destructive" onClick={() => openDeleteModal(o)}>
+                          <Button size="sm" variant="destructive" onClick={() => openDeleteModal(c)}>
                             Delete
                           </Button>
                         </div>
@@ -138,7 +132,7 @@ export default function Index({ offices, filters }: any) {
                 ) : (
                   <tr>
                     <td colSpan={3} className="p-4 text-center text-gray-500">
-                      No offices found.
+                      No courses found.
                     </td>
                   </tr>
                 )}
@@ -151,22 +145,22 @@ export default function Index({ offices, filters }: any) {
               variant="outline"
               size="sm"
               className="w-full sm:w-auto"
-              disabled={!offices.prev_page_url}
-              onClick={() => goToPage(offices.prev_page_url)}
+              disabled={!courses.prev_page_url}
+              onClick={() => goToPage(courses.prev_page_url)}
             >
               Previous
             </Button>
 
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Page {offices.current_page} of {offices.last_page}
+              Page {courses.current_page} of {courses.last_page}
             </span>
 
             <Button
               variant="outline"
               size="sm"
               className="w-full sm:w-auto"
-              disabled={!offices.next_page_url}
-              onClick={() => goToPage(offices.next_page_url)}
+              disabled={!courses.next_page_url}
+              onClick={() => goToPage(courses.next_page_url)}
             >
               Next
             </Button>
@@ -180,36 +174,36 @@ export default function Index({ offices, filters }: any) {
             setOpen(v);
             if (!v) {
               reset();
-              setEditingOffice(null);
+              setEditingCourse(null);
             }
           }}
         >
-          <DialogContent key={editingOffice ? editingOffice.id : "create"}>
+          <DialogContent key={editingCourse ? editingCourse.id : "create"}>
             <DialogHeader>
-              <DialogTitle>{editingOffice ? "Edit Office / College" : "Add Office / College"}</DialogTitle>
+              <DialogTitle>{editingCourse ? "Edit Course / Department" : "Add Course / Department"}</DialogTitle>
             </DialogHeader>
 
             <form
               onSubmit={(e) => {
                 e.preventDefault();
 
-                if (editingOffice) {
-                  put(`/superadmin/offices/${editingOffice.id}`, {
-                    onSuccess: () => {
-                      reset();
-                      setEditingOffice(null);
-                      setOpen(false);
-                    },
-                    onError: () => toast.error("Failed to update office"),
-                  });
+                if (editingCourse) {
+                    put(`/superadmin/offices/${office.id}/courses/${editingCourse.id}`, {
+                        onSuccess: () => {
+                        reset();
+                        setEditingCourse(null);
+                        setOpen(false);
+                        },
+                        onError: () => toast.error("Failed to update course"),
+                    });setDeleteOpen(false);
                 } else {
-                  post("/superadmin/offices", {
-                    onSuccess: () => {
-                      reset();
-                      setOpen(false);
-                    },
-                    onError: () => toast.error("Failed to add office"),
-                  });
+                    post(`/superadmin/offices/${office.id}/courses`, {
+                        onSuccess: () => {
+                        reset();
+                        setOpen(false);
+                        },
+                        onError: () => toast.error("Failed to add course"),
+                    });
                 }
               }}
               className="space-y-4"
@@ -217,15 +211,11 @@ export default function Index({ offices, filters }: any) {
               <div className="space-y-3">
                 <div>
                   <Label>Code (optional)</Label>
-                  <Input
-                    value={data.code}
-                    onChange={(e) => setData("code", e.target.value)}
-                    placeholder="e.g. IT, HR, CCS, CBA"
-                  />
+                  <Input value={data.code} onChange={(e) => setData("code", e.target.value)} placeholder="e.g. BSIT, HRM, ENG" />
                 </div>
 
                 <div>
-                  <Label>Office / College name</Label>
+                  <Label>Course / Department name</Label>
                   <Input value={data.name} onChange={(e) => setData("name", e.target.value)} />
                 </div>
               </div>
@@ -247,11 +237,11 @@ export default function Index({ offices, filters }: any) {
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle className="text-red-600">Delete Office / College</DialogTitle>
+              <DialogTitle className="text-red-600">Delete Course / Department</DialogTitle>
             </DialogHeader>
 
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Are you sure you want to delete <span className="font-semibold">{editingOffice?.name}</span>? This action cannot be undone.
+              Are you sure you want to delete <span className="font-semibold">{editingCourse?.name}</span>? This action cannot be undone.
             </p>
 
             <DialogFooter>
@@ -266,12 +256,12 @@ export default function Index({ offices, filters }: any) {
                 onClick={() => {
                   setIsDeleting(true);
 
-                  router.delete(`/superadmin/offices/${editingOffice.id}`, {
+                  router.delete(`/superadmin/offices/${office.id}/courses/${editingCourse.id}`, {
                     onFinish: () => setIsDeleting(false),
                     onSuccess: () => {
                       setDeleteOpen(false);
                     },
-                    onError: () => toast.error("Failed to delete office"),
+                    onError: () => toast.error("Failed to delete course"),
                   });
                 }}
               >

@@ -9,9 +9,16 @@ class Office extends Model
 {
     use HasFactory;
 
+    protected $table = 'offices_colleges';
+
     protected $fillable = ['name', 'code'];
 
-    public function office()
+    // public function office()
+    // {
+    //     return $this->hasMany(User::class, 'office_id');
+    // }
+
+    public function users()
     {
         return $this->hasMany(User::class, 'office_id');
     }
@@ -20,5 +27,4 @@ class Office extends Model
     {
         return $this->hasMany(Course::class);
     }
-
 }

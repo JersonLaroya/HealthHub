@@ -384,8 +384,8 @@ const mainNavItems: NavItem[] =
         icon: Shield,
         children: [
             { title: "Users", href: "/superadmin/users", icon: Users },
-            { title: "Offices", href: "/superadmin/offices", icon: Building2 },
-            { title: "Courses", href: "/superadmin/courses", icon: GraduationCap },
+            { title: "Offices/Colleges", href: "/superadmin/offices", icon: Building2 },
+            //{ title: "Courses", href: "/superadmin/courses", icon: GraduationCap },
         ],
         },
 
