@@ -42,36 +42,39 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user() ? $request->user()->load('userRole') : null;
         $isRcyMember = $user && $user->userRole && $user->userRole->category === 'rcy';
-        
-        $settings = Setting::first(); 
+
+        $settings = Setting::first();
 
         return [
             ...parent::share($request),
-            //'name' => config('app.name'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
                 'bulkResult' => fn () => $request->session()->get('bulkResult'),
                 'bulkDeleteResult' => fn () => $request->session()->get('bulkDeleteResult'),
             ],
-            
+
             'quote' => ['message' => trim($message), 'author' => trim($author)],
 
             'system' => [
-                'app_name'    => $settings?->app_name ?? config('app.name'),
-                'app_logo'    => $settings?->app_logo,
+                'app_name' => $settings?->app_name ?? config('app.name'),
+                'app_logo' => $settings?->app_logo,
                 'clinic_logo' => $settings?->clinic_logo,
                 'school_year' => $settings?->school_year,
+                'clinic_accomplishments' => $settings?->clinic_accomplishments ?? [],
+                'homepage_services' => $settings?->homepage_services ?? [],
+                'healthcare_professionals' => $settings?->healthcare_professionals ?? [],
+                'healthhub_tour' => $settings?->healthhub_tour ?? [],
+                'footer_content' => $settings?->footer_content ?? [],
             ],
 
             'featuredEvent' => fn () => Event::where(function ($query) {
                 $now = now();
 
-                // ongoing
                 $query->where('start_at', '<=', $now)
                     ->where('end_at', '>=', $now);
             })
-            ->orWhere('start_at', '>', now()) // upcoming
+            ->orWhere('start_at', '>', now())
             ->orderByRaw("
                 CASE
                     WHEN start_at <= ? AND end_at >= ? THEN 0
@@ -85,7 +88,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
                 'is_rcy_member' => $isRcyMember,
             ],
-            
+
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

@@ -11,6 +11,18 @@ class Setting extends Model
         'app_logo',
         'clinic_logo',
         'school_year',
+        'clinic_accomplishments',
+        'homepage_services',
+        'healthcare_professionals',
+        'healthhub_tour',
+        'footer_content',
+    ];
+
+    protected $casts = [
+        'clinic_accomplishments' => 'array',
+        'homepage_services' => 'array',
+        'healthcare_professionals' => 'array',
+        'healthhub_tour' => 'array',
+        'footer_content' => 'array',
     ];
 }
-

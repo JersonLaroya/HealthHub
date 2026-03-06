@@ -9,6 +9,7 @@ import { request } from '@/routes/password';
 import { Form, Head, usePage } from '@inertiajs/react';
 import { LoaderCircle, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import GuestFooter from "@/components/GuestFooter";
 
 interface LoginProps {
     status?: string;
@@ -119,38 +120,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
             </div>
 
             {/* FOOTER (same as Welcome) */}
-            <footer className="border-t bg-white">
-                <div className="mx-auto max-w-6xl px-6 py-10">
-                    <div className="grid gap-8 md:grid-cols-3">
-                        <div>
-                            <h3 className="font-semibold text-lg">BISU Candijay Campus</h3>
-                            <p className="text-sm text-muted-foreground mt-2">
-                                University Health Services
-                            </p>
-                        </div>
-
-                        <div>
-                            <h4 className="font-medium mb-3">System</h4>
-                            <p className="text-sm text-muted-foreground">
-                                {system?.app_name || "HealthHub"}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                School Year: {system?.school_year || "—"}
-                            </p>
-                        </div>
-
-                        <div>
-                            <h4 className="font-medium mb-3">Information</h4>
-                            <p className="text-sm text-muted-foreground">
-                                © {new Date().getFullYear()} BISU Candijay Campus.
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                All rights reserved.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            <GuestFooter />
 
         </div>
     );
