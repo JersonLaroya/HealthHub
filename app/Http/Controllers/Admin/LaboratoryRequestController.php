@@ -38,8 +38,8 @@ class LaboratoryRequestController extends Controller
             // recipients
             'user_ids'   => 'nullable|array',
             'user_ids.*' => 'exists:users,id',
-            'course_id'  => 'nullable|exists:courses,id',
-            'office_id'  => 'nullable|exists:offices,id',
+            'course_id'  => 'nullable|exists:courses_departments,id',
+            'office_id'  => 'nullable|exists:offices_colleges,id',
 
             // lab request answers (checkboxes)
             'response_data'  => 'required|array',

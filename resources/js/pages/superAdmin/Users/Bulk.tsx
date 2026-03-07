@@ -34,16 +34,34 @@ function ResultSection({
   render: (item: any) => string;
 }) {
   const [open, setOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(200);
 
   const colorMap = {
     green: "text-green-600",
     blue: "text-blue-600",
     red: "text-red-600",
+    black: "text-gray-700",
   };
+
+  useEffect(() => {
+    if (open) {
+      setVisibleCount(200);
+    }
+  }, [open, items]);
+
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+
+    if (nearBottom && visibleCount < items.length) {
+      setVisibleCount((prev) => Math.min(prev + 200, items.length));
+    }
+  }
 
   return (
     <div className="border rounded-lg">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
       >
@@ -56,12 +74,15 @@ function ResultSection({
       </button>
 
       {open && (
-        <div className="max-h-[45vh] overflow-y-auto border-t p-3 text-sm space-y-2">
+        <div
+          className="max-h-[45vh] overflow-y-auto border-t p-3 text-sm space-y-2"
+          onScroll={handleScroll}
+        >
           {items.length === 0 && (
             <p className="text-muted-foreground italic">No records.</p>
           )}
 
-          {items.slice(0, 200).map((item, i) => (
+          {items.slice(0, visibleCount).map((item, i) => (
             <div
               key={i}
               className="rounded-md border px-3 py-2 bg-background flex flex-col gap-0.5"
@@ -78,9 +99,9 @@ function ResultSection({
             </div>
           ))}
 
-          {items.length > 200 && (
+          {visibleCount < items.length && (
             <p className="mt-2 text-xs italic text-muted-foreground">
-              Showing first 200 of {items.length} records…
+              Showing {visibleCount} of {items.length} records. Scroll down to load more.
             </p>
           )}
         </div>
@@ -100,6 +121,14 @@ export default function Bulk() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const deleteForm = useForm<{
+    file: File | null;
+    role: string;
+  }>({
+    file: null,
+    role: "",
+  });
+
+  const inactivateForm = useForm<{
     file: File | null;
     role: string;
   }>({
@@ -129,12 +158,25 @@ export default function Bulk() {
   const [addCount, setAddCount] = useState<number | null>(null);
   const [deleteCount, setDeleteCount] = useState<number | null>(null);
 
+  const [previewVisibleCount, setPreviewVisibleCount] = useState(200);
+  const [deletePreviewVisibleCount, setDeletePreviewVisibleCount] = useState(200);
+
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [deletePreview, setDeletePreview] = useState<any[]>([]);
   const bulkDeleteResult = flash?.bulkDeleteResult;
   const [showDeleteResult, setShowDeleteResult] = useState(false);
   const deleteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [deleteFileInputKey, setDeleteFileInputKey] = useState(Date.now());
+
+  const [inactivatePreview, setInactivatePreview] = useState<any[]>([]);
+  const [showInactivateConfirm, setShowInactivateConfirm] = useState(false);
+  const [showInactivateResult, setShowInactivateResult] = useState(false);
+  const [inactivateCount, setInactivateCount] = useState<number | null>(null);
+  const [inactivatePreviewVisibleCount, setInactivatePreviewVisibleCount] = useState(200);
+  const inactivateFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [inactivateFileInputKey, setInactivateFileInputKey] = useState(Date.now());
+
+  const bulkInactivateResult = flash?.bulkInactivateResult;
 
   function parseCsv(file: File) {
     const reader = new FileReader();
@@ -170,9 +212,20 @@ export default function Bulk() {
             year,
           };
         });
+      
+      if (users.length === 0) {
+        toast.error("No valid rows found in CSV.");
+        return;
+      }
+
+      if (users.length > 500) {
+        toast.error("Too many users. Maximum is 500 per upload.");
+        return;
+      }
 
       setPreviewUsers(users);
       setAddCount(users.length);
+      setPreviewVisibleCount(200);
       setShowAddConfirm(true);
     };
 
@@ -210,16 +263,107 @@ export default function Bulk() {
       }
 
       if (users.length > 500) {
-        toast.error("Too many users. Please upload smaller batches.");
+        toast.error("Too many users. Maximum is 500 per upload.");
         return;
       }
 
       setDeletePreview(users);
       setDeleteCount(users.length);
+      setDeletePreviewVisibleCount(200);
       setShowDeleteConfirm(true);
     };
 
     reader.readAsText(file);
+  }
+
+  function parseInactivateCsv(file: File) {
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    const text = e.target?.result as string;
+    const lines = text.split(/\r\n|\n/);
+    const header = lines.shift()?.split(",");
+
+    const emailIndex = header?.findIndex(
+      h => h.trim().toLowerCase() === "email"
+    );
+
+    if (emailIndex === -1 || emailIndex === undefined) {
+      toast.error('CSV must contain an "email" column.');
+      return;
+    }
+
+    const users = lines
+      .filter(l => l.trim() !== "")
+      .map(l => {
+        const cols = l.split(",");
+        return { email: cols[emailIndex]?.trim() };
+      })
+      .filter(u => u.email);
+
+    if (users.length === 0) {
+      toast.error("No valid emails found in CSV.");
+      return;
+    }
+
+    if (users.length > 500) {
+      toast.error("Too many users. Maximum is 500 per upload.");
+      return;
+    }
+
+    setInactivatePreview(users);
+    setInactivateCount(users.length);
+    setInactivatePreviewVisibleCount(200);
+    setShowInactivateConfirm(true);
+  };
+
+  reader.readAsText(file);
+}
+
+  function handlePreviewScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+
+    if (nearBottom && previewVisibleCount < previewUsers.length) {
+      setPreviewVisibleCount((prev) =>
+        Math.min(prev + 200, previewUsers.length)
+      );
+    }
+  }
+
+  function handleDeletePreviewScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+
+    if (nearBottom && deletePreviewVisibleCount < deletePreview.length) {
+      setDeletePreviewVisibleCount((prev) =>
+        Math.min(prev + 200, deletePreview.length)
+      );
+    }
+  }
+
+  function handleInactivatePreviewScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+
+    if (nearBottom && inactivatePreviewVisibleCount < inactivatePreview.length) {
+      setInactivatePreviewVisibleCount((prev) =>
+        Math.min(prev + 200, inactivatePreview.length)
+      );
+    }
+  }
+
+  function resetBulkInactivateForm() {
+    inactivateForm.reset();
+    setInactivatePreview([]);
+    setInactivateCount(null);
+    setInactivatePreviewVisibleCount(200);
+
+    if (inactivateFileInputRef.current) {
+      inactivateFileInputRef.current.value = "";
+    }
+
+    setInactivateFileInputKey(Date.now());
   }
 
   function downloadSkippedCsv() {
@@ -254,6 +398,7 @@ export default function Bulk() {
     setData("role", "");
     setPreviewUsers([]);
     setAddCount(null);
+    setPreviewVisibleCount(200);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -268,6 +413,12 @@ export default function Bulk() {
       setShowDeleteResult(true);
     }
   }, [bulkDeleteResult]);
+
+  useEffect(() => {
+    if (bulkInactivateResult) {
+      setShowInactivateResult(true);
+    }
+  }, [bulkInactivateResult]);
 
   function downloadDeleteSkippedCsv() {
     if (!bulkDeleteResult?.skipped?.length) {
@@ -299,6 +450,7 @@ export default function Bulk() {
     deleteForm.reset(); // clears file + role
     setDeletePreview([]);
     setDeleteCount(null);
+    setDeletePreviewVisibleCount(200);
 
     if (deleteFileInputRef.current) {
       deleteFileInputRef.current.value = "";
@@ -392,19 +544,34 @@ export default function Bulk() {
           </form>
         </Card>
 
-        <Dialog open={showAddConfirm} onOpenChange={setShowAddConfirm}>
+        <Dialog
+          open={showAddConfirm}
+          onOpenChange={(open) => {
+            setShowAddConfirm(open);
+            if (!open) setPreviewVisibleCount(200);
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Bulk Add</DialogTitle>
             </DialogHeader>
 
-            <div className="mt-3 max-h-60 overflow-y-auto border rounded p-2 text-sm space-y-1">
-              {previewUsers.map((u, i) => (
+            <div
+              className="mt-3 max-h-60 overflow-y-auto border rounded p-2 text-sm space-y-1"
+              onScroll={handlePreviewScroll}
+            >
+              {previewUsers.slice(0, previewVisibleCount).map((u, i) => (
                 <p key={i}>
                 • {u.ismis_id && <span className="text-muted-foreground mr-1">[{u.ismis_id}]</span>}
                 {u.name} — {u.email || "No email"}
               </p>
               ))}
+
+              {previewVisibleCount < previewUsers.length && (
+                <p className="text-xs italic text-muted-foreground mt-2">
+                  Showing {previewVisibleCount} of {previewUsers.length} users. Scroll down to load more.
+                </p>
+              )}
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -444,7 +611,13 @@ export default function Bulk() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <Dialog
+          open={showDeleteConfirm}
+          onOpenChange={(open) => {
+            setShowDeleteConfirm(open);
+            if (!open) setDeletePreviewVisibleCount(200);
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-red-600">
@@ -452,10 +625,19 @@ export default function Bulk() {
               </DialogTitle>
             </DialogHeader>
 
-            <div className="max-h-60 overflow-y-auto border rounded p-2 text-sm space-y-1">
-              {deletePreview.map((u, i) => (
+            <div
+              className="max-h-60 overflow-y-auto border rounded p-2 text-sm space-y-1"
+              onScroll={handleDeletePreviewScroll}
+            >
+              {deletePreview.slice(0, deletePreviewVisibleCount).map((u, i) => (
                 <p key={i}>• {u.email}</p>
               ))}
+
+              {deletePreviewVisibleCount < deletePreview.length && (
+                <p className="text-xs italic text-muted-foreground mt-2">
+                  Showing {deletePreviewVisibleCount} of {deletePreview.length} users. Scroll down to load more.
+                </p>
+              )}
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -762,6 +944,216 @@ export default function Bulk() {
             </div>
           </form>
         </Card>
+
+        <Card className="p-6 space-y-4 border-amber-200">
+          <h2 className="text-lg font-semibold text-amber-600">Bulk Inactivate Users</h2>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+
+              if (!inactivateForm.data.file || !inactivateForm.data.role) {
+                toast.error("Please select role and CSV file.");
+                return;
+              }
+
+              parseInactivateCsv(inactivateForm.data.file);
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <Label>Role</Label>
+              <Select
+                value={inactivateForm.data.role}
+                onValueChange={(v) => inactivateForm.setData("role", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Student">Student</SelectItem>
+                  <SelectItem value="Staff">Staff</SelectItem>
+                  <SelectItem value="Faculty">Faculty</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Nurse">Nurse</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>CSV File (emails only)</Label>
+              <Input
+                key={inactivateFileInputKey}
+                ref={inactivateFileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={(e) =>
+                  inactivateForm.setData("file", e.target.files?.[0] || null)
+                }
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={inactivateForm.processing}
+              >
+                {inactivateForm.processing ? "Processing..." : "Bulk Inactivate"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        <Dialog
+          open={showInactivateConfirm}
+          onOpenChange={(open) => {
+            setShowInactivateConfirm(open);
+            if (!open) setInactivatePreviewVisibleCount(200);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-amber-600">
+                Confirm Bulk Inactivate
+              </DialogTitle>
+            </DialogHeader>
+
+            <div
+              className="max-h-60 overflow-y-auto border rounded p-2 text-sm space-y-1"
+              onScroll={handleInactivatePreviewScroll}
+            >
+              {inactivatePreview.slice(0, inactivatePreviewVisibleCount).map((u, i) => (
+                <p key={i}>• {u.email}</p>
+              ))}
+
+              {inactivatePreviewVisibleCount < inactivatePreview.length && (
+                <p className="text-xs italic text-muted-foreground mt-2">
+                  Showing {inactivatePreviewVisibleCount} of {inactivatePreview.length} users. Scroll down to load more.
+                </p>
+              )}
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              You are about to inactivate{" "}
+              <span className="font-semibold text-amber-600">
+                {inactivateCount}
+              </span>{" "}
+              users with role{" "}
+              <span className="font-semibold">
+                {inactivateForm.data.role}
+              </span>.
+            </p>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowInactivateConfirm(false)}>
+                Cancel
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setShowInactivateConfirm(false);
+
+                  inactivateForm.post("/superadmin/users/bulk-inactivate", {
+                    forceFormData: true,
+                    onSuccess: () => {
+                      toast.success("Bulk inactivate completed.");
+                      resetBulkInactivateForm();
+                    },
+                    onError: () => {
+                      toast.error("Bulk inactivate failed.");
+                    },
+                  });
+                }}
+              >
+                Yes, inactivate users
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={showInactivateResult}
+          onOpenChange={(open) => {
+            setShowInactivateResult(open);
+
+            if (!open) {
+              resetBulkInactivateForm();
+            }
+          }}
+        >
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Bulk Inactivate Result</DialogTitle>
+            </DialogHeader>
+
+            <div className="grid grid-cols-4 gap-3 text-center mt-2">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Inactivated</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  {bulkInactivateResult?.inactivated?.length || 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Already inactive</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {bulkInactivateResult?.already_inactive?.length || 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Not found</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {bulkInactivateResult?.not_found?.length || 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Skipped</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {bulkInactivateResult?.skipped?.length || 0}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mt-4">
+              <ResultSection
+                title="Inactivated"
+                color="blue"
+                items={bulkInactivateResult?.inactivated || []}
+                render={(u: any) => `${u.name} (${u.email})`}
+              />
+
+              <ResultSection
+                title="Already inactive"
+                color="black"
+                items={bulkInactivateResult?.already_inactive || []}
+                render={(u: any) => `${u.name} (${u.email})`}
+              />
+
+              <ResultSection
+                title="Not found"
+                color="black"
+                items={bulkInactivateResult?.not_found || []}
+                render={(u: any) => `${u.email} — ${u.reason}`}
+              />
+
+              <ResultSection
+                title="Skipped"
+                color="red"
+                items={bulkInactivateResult?.skipped || []}
+                render={(u: any) => `${u.email ?? "Unknown"} — ${u.reason}`}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setShowInactivateResult(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

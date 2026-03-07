@@ -457,6 +457,11 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::delete('/patients/{patient}/consultations/{consultation}', [ConsultationController::class, 'destroy'])->name('admin.patients.consultations.destroy');
         Route::patch('/patients/{patient}/consultations/{consultation}/approve', [ConsultationController::class, 'approve'])->name('admin.patients.consultations.approve');
 
+        Route::post(
+            '/patients/{patient}/files/{slug}/records/{record}/sign',
+            [PatientController::class, 'signLabRequest']
+        )->name('admin.patients.records.sign');
+
         // delete lab result
         Route::delete('/lab-results/{record}', [PatientController::class, 'deleteLabResult'])->name('admin.lab-results.delete');
         Route::post('/lab-results/{record}/approve', [PatientController::class, 'approveLabResult'])->name('admin.lab-results.approve');
@@ -513,6 +518,11 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::post('/lab-results/{record}/reject', [PatientController::class, 'rejectLabResult']);
         Route::post('/forms/{record}/approve', [PatientController::class, 'approveFormRecord']);
         Route::post('/forms/{record}/reject', [PatientController::class, 'rejectFormRecord']);
+
+        Route::post(
+            '/patients/{patient}/files/{slug}/records/{record}/sign',
+            [PatientController::class, 'signLabRequest']
+        )->name('admin.patients.records.sign');
 
         // Message
         Route::get('/messages', function () {
@@ -592,6 +602,9 @@ Route::middleware(['auth', 'role:Super Admin'])
         
         Route::post('/users/bulk-delete', [SuperAdminUserController::class, 'bulkDelete'])
             ->name('users.bulk.delete');
+        
+        Route::post('/users/bulk-inactivate', [SuperAdminUserController::class, 'bulkInactivate'])
+            ->name('users.bulk.inactivate');
 
         // OFFICES
         Route::get('/offices', [OfficeController::class, 'index'])

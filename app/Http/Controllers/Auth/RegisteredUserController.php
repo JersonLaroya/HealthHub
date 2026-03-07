@@ -41,7 +41,7 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
         'user_role_id' => 'required|exists:user_roles,id',
-        'office_id' => 'required|exists:offices,id',
+        'office_id' => 'required|exists:offices_colleges,id',
 
         'first_name' => 'required|string|max:255',
         'middle_name' => 'nullable|string|max:255',
@@ -58,7 +58,7 @@ class RegisteredUserController extends Controller
         'email' => 'required|string|email|max:255|unique:users,email',
         'password' => ['required', Rules\Password::defaults()],
 
-        'course_id' => 'nullable|exists:courses,id',
+        'course_id' => 'nullable|exists:courses_departments,id',
         'year_level_id' => 'nullable|exists:year_levels,id',
     ]);
 

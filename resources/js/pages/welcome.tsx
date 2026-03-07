@@ -442,11 +442,11 @@ export default function Welcome() {
 
       {/* ===== FOOTER ===== */}
       <GuestFooter />
-      
+
       {/* ===== ACCOMPLISHMENT MODAL ===== */}
       {selectedAccomplishment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-5xl overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+          <div className="relative w-full max-w-6xl overflow-hidden rounded-[2rem] bg-white shadow-2xl">
             <button
               type="button"
               onClick={closeAccomplishment}
@@ -461,7 +461,10 @@ export default function Welcome() {
                   <img
                     src={`/storage/${selectedAccomplishmentImages[selectedImageIndex]}`}
                     alt={selectedAccomplishment.title}
-                    className="h-full max-h-[550px] w-full object-cover"
+                    onClick={() =>
+                      setOpenTourImage(`/storage/${selectedAccomplishmentImages[selectedImageIndex]}`)
+                    }
+                    className="h-full max-h-[75vh] w-full object-contain cursor-zoom-in"
                   />
                 ) : (
                   <div className="flex min-h-[300px] items-center justify-center text-sm text-slate-400">

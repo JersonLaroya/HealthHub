@@ -120,9 +120,9 @@ class SuperAdminUserController extends Controller
             'ismis_id' => 'nullable|string|max:255|unique:users,ismis_id,' . $user->id,
     
 
-            'course_id' => 'nullable|exists:courses,id',
+            'course_id' => 'nullable|exists:courses_departments,id',
             'year_level_id' => 'nullable|exists:year_levels,id',
-            'office_id' => 'nullable|exists:offices,id',
+            'office_id' => 'nullable|exists:offices_colleges,id',
         ]);
 
         $data = $request->only([
@@ -225,11 +225,11 @@ class SuperAdminUserController extends Controller
             'role' => 'required|exists:user_roles,name',
 
             // STUDENT REQUIREMENTS
-            'course_id' => 'required_if:role,Student|nullable|exists:courses,id',
+            'course_id' => 'required_if:role,Student|nullable|exists:courses_departments,id',
             'year_level_id' => 'required_if:role,Student|nullable|exists:year_levels,id',
 
             // NON-STUDENT REQUIREMENT
-            'office_id' => 'required_unless:role,Student|nullable|exists:offices,id',
+            'office_id' => 'required_unless:role,Student|nullable|exists:offices_colleges,id',
         ]);
 
         $role = UserRole::where('name', $request->role)->firstOrFail();
@@ -288,8 +288,20 @@ class SuperAdminUserController extends Controller
         fgetcsv($file); // skip header
 
         $created = 0;
+        $rowCount = 0;
 
         while (($row = fgetcsv($file)) !== false) {
+    if (!array_filter($row)) {
+        continue;
+    }
+
+    $rowCount++;
+
+    if ($rowCount > 500) {
+        fclose($file);
+        return back()->with('error', 'Maximum of 500 rows per bulk upload.');
+    }
+
     [
         $ismis_id,
         $first_name,
@@ -512,6 +524,8 @@ class SuperAdminUserController extends Controller
             return back()->with('error', 'Empty or invalid CSV file.');
         }
 
+        $rowCount = 0;
+
         $emailIndex = collect($header)->search(fn ($h) => strtolower(trim($h)) === 'email');
 
         if ($emailIndex === false) {
@@ -523,6 +537,13 @@ class SuperAdminUserController extends Controller
             // skip completely empty rows
             if (!array_filter($row)) {
                 continue;
+            }
+
+            $rowCount++;
+
+            if ($rowCount > 500) {
+                fclose($file);
+                return back()->with('error', 'Maximum of 500 rows per bulk delete.');
             }
 
             $email = trim($row[$emailIndex] ?? '');
@@ -578,4 +599,115 @@ class SuperAdminUserController extends Controller
             'skipped' => $skippedUsers,
         ]);
     }
+
+    public function bulkInactivate(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:csv,txt',
+        'role' => 'required|exists:user_roles,name',
+    ]);
+
+    $role = UserRole::where('name', $request->role)->firstOrFail();
+
+    $inactivatedUsers = [];
+    $alreadyInactiveUsers = [];
+    $skippedUsers = [];
+    $notFoundUsers = [];
+
+    $file = fopen($request->file('file')->getRealPath(), 'r');
+
+    $header = fgetcsv($file);
+
+    if (!$header) {
+        return back()->with('error', 'Empty or invalid CSV file.');
+    }
+
+    $emailIndex = collect($header)->search(
+        fn ($h) => strtolower(trim($h)) === 'email'
+    );
+
+    if ($emailIndex === false) {
+        fclose($file);
+        return back()->with('error', 'CSV must contain an "email" column.');
+    }
+
+    $rowCount = 0;
+
+    while (($row = fgetcsv($file)) !== false) {
+        if (!array_filter($row)) {
+            continue;
+        }
+
+        $rowCount++;
+
+        if ($rowCount > 500) {
+            fclose($file);
+            return back()->with('error', 'Maximum of 500 rows per bulk inactivate.');
+        }
+
+        $email = trim($row[$emailIndex] ?? '');
+
+        if (!$email) {
+            $skippedUsers[] = [
+                'email' => null,
+                'reason' => 'Missing email',
+            ];
+            continue;
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $notFoundUsers[] = [
+                'email' => $email,
+                'reason' => 'User not found',
+            ];
+            continue;
+        }
+
+        if ($user->userRole?->name === 'Super Admin') {
+            $skippedUsers[] = [
+                'email' => $email,
+                'reason' => 'Super Admin cannot be inactivated',
+            ];
+            continue;
+        }
+
+        if ($user->user_role_id !== $role->id) {
+            $skippedUsers[] = [
+                'email' => $email,
+                'reason' => 'Role mismatch',
+            ];
+            continue;
+        }
+
+        if ($user->status === 'inactive') {
+            $alreadyInactiveUsers[] = [
+                'id' => $user->id,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'email' => $user->email,
+            ];
+            continue;
+        }
+
+        $user->update([
+            'status' => 'inactive',
+        ]);
+
+        $inactivatedUsers[] = [
+            'id' => $user->id,
+            'name' => $user->first_name . ' ' . $user->last_name,
+            'email' => $user->email,
+        ];
+    }
+
+    fclose($file);
+
+    return back()->with('bulkInactivateResult', [
+        'inactivated' => $inactivatedUsers,
+        'already_inactive' => $alreadyInactiveUsers,
+        'not_found' => $notFoundUsers,
+        'skipped' => $skippedUsers,
+    ]);
+}
 }

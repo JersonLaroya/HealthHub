@@ -39,7 +39,7 @@ class CourseController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'office_id' => 'required|exists:offices,id',
+            'office_id' => 'required|exists:offices_colleges,id',
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50',
         ]);
@@ -52,7 +52,7 @@ class CourseController extends Controller
     public function update(Request $request, Course $course)
     {
         $request->validate([
-            'office_id' => 'required|exists:offices,id',
+            'office_id' => 'required|exists:offices_colleges,id',
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50',
         ]);

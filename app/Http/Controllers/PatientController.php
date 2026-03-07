@@ -605,8 +605,8 @@ class PatientController extends Controller
                         ? $record->created_at->setTimezone('Asia/Manila')->format('m/d/Y')
                         : null,
                     'lab_types' => $labTypes,
-                    // optional: include remarks if you have it in record table
                     'remarks' => $record->remarks ?? null,
+                    'signature' => $record->response_data['signature'] ?? null,
                 ],
             ]);
         }
@@ -691,5 +691,42 @@ class PatientController extends Controller
 
         return back()->with('success', 'Laboratory results deleted successfully.');
     }
+
+    public function signLabRequest(User $patient, string $slug, Record $record)
+{
+    abort_if(!in_array(auth()->user()->userRole->name, ['Admin', 'Nurse']), 403);
+
+    $service = Service::where('slug', $slug)->firstOrFail();
+
+    abort_if($record->user_id !== $patient->id, 403);
+    abort_if($record->service_id !== $service->id, 403);
+
+    if (!str_contains($service->slug, 'laboratory-request')) {
+        abort(403, 'Signing is only allowed for laboratory requests.');
+    }
+
+    $responses = $record->response_data ?? [];
+
+    if (!empty($responses['signature'])) {
+        return back()->with('error', 'This laboratory request is already signed.');
+    }
+
+    $signaturePath = auth()->user()->signature;
+
+    if ($signaturePath && !str_starts_with($signaturePath, '/storage/')) {
+        $signaturePath = '/storage/' . ltrim(str_replace('storage/', '', $signaturePath), '/');
+    }
+
+    $responses['signature'] = [
+        'user_id' => auth()->id(),
+        'signature_image' => $signaturePath,
+    ];
+
+    $record->update([
+        'response_data' => $responses,
+    ]);
+
+    return back()->with('success', 'Laboratory request signed successfully.');
+}
 
 }

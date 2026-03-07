@@ -29,6 +29,7 @@ interface Record {
   id: number;
   created_at: string;
   status: "pending" | "approved" | "rejected";
+  response_data?: any;
   isDeleting?: boolean;
 }
 
@@ -209,6 +210,47 @@ export default function ShowFile({ patient, service, records }: Props) {
     );
     };
 
+    const isSigned = (record: Record) => {
+  return !!record.response_data?.signature;
+};
+
+const isSignedByCurrentUser = (record: Record) => {
+  return record.response_data?.signature?.user_id === loggedInUser?.id;
+};
+
+const handleSign = (recordId: number) => {
+  router.post(
+    `/${prefix}/patients/${patient.id}/files/${service.slug}/records/${recordId}/sign`,
+    {},
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success("Laboratory request signed.");
+
+        setRecordList((prev) =>
+          prev.map((r) =>
+            r.id === recordId
+              ? {
+                  ...r,
+                  response_data: {
+                    ...r.response_data,
+                    signature: {
+                      user_id: loggedInUser?.id,
+                      signature_image: loggedInUser?.signature,
+                    },
+                  },
+                }
+              : r
+          )
+        );
+      },
+      onError: () => {
+        toast.error("Failed to sign laboratory request.");
+      },
+    }
+  );
+};
+
 
   return (
     <AppLayout>
@@ -279,7 +321,6 @@ export default function ShowFile({ patient, service, records }: Props) {
 
                       <td className="p-2 border-b whitespace-normal break-words">
                         <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
-                            {/* View is ALWAYS visible */}
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -289,124 +330,70 @@ export default function ShowFile({ patient, service, records }: Props) {
                                 {viewingRecordId === record.id ? "Viewing…" : "View PDF"}
                             </Button>
 
-                            {/* PENDING → Approve / Reject */}
-                            {/* {(isAdmin || role === "nurse") && record.status === "pending" && (
-                                <>
-                                <Button
-                                    size="sm"
-                                    variant="default"
-                                    // onClick={() => {
-                                    // const rec = recordList.find(r => r.id === record.id);
-                                    // setEditMode("approve");
-                                    // setEditingRecord(rec || null);
-                                    // setFormData(rec?.response_data || {});
-                                    // }}
-                                    onClick={() => {
-                                    if (service.slug === "pre-employment-health-form") {
-                                        // direct approve
-                                        router.post(`/${prefix}/forms/${record.id}/approve`, {}, {
-                                        onSuccess: () => {
-                                            toast.success("Form approved");
-                                            setRecordList(prev =>
-                                            prev.map(r =>
-                                                r.id === record.id ? { ...r, status: "approved" } : r
-                                            )
-                                            );
-                                        }
-                                        });
-                                    } else {
-                                        // open modal for athlete & pre-enrollment
-                                        const rec = recordList.find(r => r.id === record.id);
-                                        setEditingRecord(rec || null);
-                                        setFormData(rec?.response_data || {});
-                                    }
-                                    }}
-                                >
-                                    Approve
-                                </Button>
-
+                            {isLabRequestService && isStaff && (
                                 <Button
                                 size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                    setRejectingRecord(record);
-                                    setRejectionReason("");
-                                }}
+                                variant={isSigned(record) ? "secondary" : "default"}
+                                disabled={isSigned(record)}
+                                onClick={() => handleSign(record.id)}
                                 >
-                                Reject
+                                {isSigned(record) ? "Signed" : "Sign"}
                                 </Button>
-                                </>
-                            )} */}
+                            )}
 
-                            {/* APPROVED → Delete only */}
-                            {/* {isAdmin && record.status === "approved" && (
-                                <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setDeletingRecord(record)}
-                                >
-                                Delete
-                                </Button>
-                            )} */}
-                            
-                            {/* ✅ For lab request: ONLY View button */}
                             {!isLabRequestService && (
-                            <>
-                                {/* PENDING → Approve / Reject */}
-                                {(isAdmin || role === "nurse") && record.status === "pending" && (
                                 <>
+                                {(isAdmin || role === "nurse") && record.status === "pending" && (
+                                    <>
                                     <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={() => {
+                                        size="sm"
+                                        variant="default"
+                                        onClick={() => {
                                         if (service.slug === "pre-employment-health-form") {
-                                        router.post(`/${prefix}/forms/${record.id}/approve`, {}, {
+                                            router.post(`/${prefix}/forms/${record.id}/approve`, {}, {
                                             onSuccess: () => {
-                                            toast.success("Form approved");
-                                            setRecordList(prev =>
+                                                toast.success("Form approved");
+                                                setRecordList(prev =>
                                                 prev.map(r =>
-                                                r.id === record.id ? { ...r, status: "approved" } : r
+                                                    r.id === record.id ? { ...r, status: "approved" } : r
                                                 )
-                                            );
+                                                );
                                             }
-                                        });
+                                            });
                                         } else {
-                                        const rec = recordList.find(r => r.id === record.id);
-                                        setEditingRecord(rec || null);
-                                        setFormData(rec?.response_data || {});
+                                            const rec = recordList.find(r => r.id === record.id);
+                                            setEditingRecord(rec || null);
+                                            setFormData(rec?.response_data || {});
                                         }
-                                    }}
+                                        }}
                                     >
-                                    Approve
+                                        Approve
                                     </Button>
 
                                     <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
                                         setRejectingRecord(record);
                                         setRejectionReason("");
-                                    }}
+                                        }}
                                     >
-                                    Reject
+                                        Reject
                                     </Button>
-                                </>
+                                    </>
                                 )}
 
-                                {/* APPROVED → Delete only */}
                                 {isAdmin && record.status === "approved" && (
-                                <Button
+                                    <Button
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => setDeletingRecord(record)}
-                                >
+                                    >
                                     Delete
-                                </Button>
+                                    </Button>
                                 )}
-                            </>
+                                </>
                             )}
-
-                            {/* REJECTED → nothing extra */}
                             </div>
                       </td>
                     </tr>

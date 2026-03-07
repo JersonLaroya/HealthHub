@@ -13,7 +13,9 @@ class SuperAdminDashboardController extends Controller
     {
         $schoolYear = Setting::first()?->school_year;
 
-        $totalUsers = User::count();
+        $totalUsers = User::whereHas('userRole', function ($q) {
+            $q->where('name', '!=', 'Super Admin');
+        })->count();
 
         $students = User::whereHas('userRole', function ($q) {
             $q->where('name', 'Student')

@@ -35,7 +35,7 @@ class LabRequestPageController extends Controller
         $request->validate([
             'service_id' => 'required|exists:services,id',
             'user_id'    => 'nullable|exists:users,id',
-            'course_id'  => 'nullable|exists:courses,id',
+            'course_id'  => 'nullable|exists:courses_departments,id',
             'year_level_id' => 'nullable|exists:year_levels,id',
             'assign_faculty' => 'nullable|boolean',
             'assign_staff' => 'nullable|boolean',
