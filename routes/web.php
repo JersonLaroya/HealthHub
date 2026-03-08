@@ -603,8 +603,14 @@ Route::middleware(['auth', 'role:Super Admin'])
         Route::post('/users/bulk-delete', [SuperAdminUserController::class, 'bulkDelete'])
             ->name('users.bulk.delete');
         
-        Route::post('/users/bulk-inactivate', [SuperAdminUserController::class, 'bulkInactivate'])
-            ->name('users.bulk.inactivate');
+        Route::post('/superadmin/users/bulk-archive', [SuperAdminUserController::class, 'bulkArchive'])
+            ->name('superadmin.users.bulk-archive');
+
+        Route::patch('/users/{user}/archive', [SuperAdminUserController::class, 'archive'])
+            ->name('superadmin.users.archive');
+
+        Route::patch('/users/{user}/restore', [SuperAdminUserController::class, 'restore'])
+            ->name('superadmin.users.restore');
 
         // OFFICES
         Route::get('/offices', [OfficeController::class, 'index'])

@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { usePage } from "@inertiajs/react";
-import { Switch } from "@/components/ui/switch";
 
 interface Props {
   users: any;
@@ -28,8 +27,11 @@ interface Props {
   filters: {
     role?: string;
     search?: string;
-    year_level?: number;
-  };
+    year_level?: number | string;
+    course_id?: number | string;
+    office_id?: number | string;
+    view?: "active" | "archived";
+    };
 }
 
 export default function SuperAdminUsers({ users, roles, yearLevels, courses, offices, filters }: Props) {
@@ -51,22 +53,58 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
   const [resetOpen, setResetOpen] = useState(false);
     const [resettingUser, setResettingUser] = useState<any>(null);
     const [isResetting, setIsResetting] = useState(false);
-    const [togglingId, setTogglingId] = useState<number | null>(null);
+    //const [togglingId, setTogglingId] = useState<number | null>(null);
 
-    function toggleStatus(user: any) {
-        if (togglingId) return; // prevent spam clicking
-        setTogglingId(user.id);
+    const [view, setView] = useState(filters.view || "active");
+    const [archivingId, setArchivingId] = useState<number | null>(null);
+    const [restoringId, setRestoringId] = useState<number | null>(null);
 
-        const nextStatus = user.status === "active" ? "inactive" : "active";
+    // function toggleStatus(user: any) {
+    //     if (togglingId) return; // prevent spam clicking
+    //     setTogglingId(user.id);
+
+    //     const nextStatus = user.status === "active" ? "inactive" : "active";
+
+    //     router.patch(
+    //         `/superadmin/users/${user.id}/status`,
+    //         { status: nextStatus },
+    //         {
+    //         preserveScroll: true,
+    //         onSuccess: () => toast.success(`User is now ${nextStatus}.`),
+    //         onError: () => toast.error("Failed to update status"),
+    //         onFinish: () => setTogglingId(null),
+    //         }
+    //     );
+    // }
+
+    function archiveUser(user: any) {
+        if (archivingId) return;
+
+        setArchivingId(user.id);
 
         router.patch(
-            `/superadmin/users/${user.id}/status`,
-            { status: nextStatus },
+            `/superadmin/users/${user.id}/archive`,
+            {},
             {
             preserveScroll: true,
-            onSuccess: () => toast.success(`User is now ${nextStatus}.`),
-            onError: () => toast.error("Failed to update status"),
-            onFinish: () => setTogglingId(null),
+            onError: () => toast.error("Failed to archive user."),
+            onFinish: () => setArchivingId(null),
+            }
+        );
+    }
+
+    function restoreUser(user: any) {
+        if (restoringId) return;
+
+        setRestoringId(user.id);
+
+        router.patch(
+            `/superadmin/users/${user.id}/restore`,
+            {},
+            {
+            preserveScroll: true,
+            onError: () => toast.error("Failed to restore user."),
+            onFinish: () => setRestoringId(null),
             }
         );
     }
@@ -128,6 +166,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
     router.get(
         indexUrl,
         {
+        view,
         role: role === "all" ? undefined : role,
         search,
         year_level: yearLevel === "all" ? undefined : yearLevel,
@@ -166,6 +205,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
     router.get(
         url,
         {
+        view,
         role: role === "all" ? undefined : role,
         search,
         year_level: yearLevel === "all" ? undefined : yearLevel,
@@ -233,10 +273,52 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                 </Button>
 
                 <Button variant="outline" onClick={() => router.get("/superadmin/users/bulk")}>
-                Bulk Add
+                Bulk Management
                 </Button>
             </div>
         </div>
+
+        <div className="flex flex-wrap gap-2">
+            <Button
+                variant={view === "active" ? "default" : "outline"}
+                onClick={() => {
+                setView("active");
+                router.get(indexUrl, {
+                    view: "active",
+                    role: role === "all" ? undefined : role,
+                    search,
+                    year_level: yearLevel === "all" ? undefined : yearLevel,
+                    course_id: course === "all" ? undefined : course,
+                    office_id: office === "all" ? undefined : office,
+                }, {
+                    preserveState: true,
+                    replace: true,
+                });
+                }}
+            >
+                Active Users
+            </Button>
+
+            <Button
+                variant={view === "archived" ? "default" : "outline"}
+                onClick={() => {
+                setView("archived");
+                router.get(indexUrl, {
+                    view: "archived",
+                    role: role === "all" ? undefined : role,
+                    search,
+                    year_level: yearLevel === "all" ? undefined : yearLevel,
+                    course_id: course === "all" ? undefined : course,
+                    office_id: office === "all" ? undefined : office,
+                }, {
+                    preserveState: true,
+                    replace: true,
+                });
+                }}
+            >
+                Archived Users
+            </Button>
+            </div>
 
         {/* Search + Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 w-full">
@@ -340,11 +422,11 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     setCourse("all");
                     setOffice("all");
 
-                    router.get(indexUrl, {}, {
-                    replace: true,
-                    onFinish: () => setResetting(false),
+                    router.get(indexUrl, { view }, {
+                        replace: true,
+                        onFinish: () => setResetting(false),
                     });
-                }}
+                    }}
                 >
                 {resetting ? "Resetting..." : "Reset"}
             </Button>
@@ -404,52 +486,78 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     </td>
 
                     <td className="p-2 border-b">
-                    <div className="flex items-center gap-3">
-                        <Switch
-                        checked={u.status === "active"}
-                        onCheckedChange={() => toggleStatus(u)}
-                        disabled={togglingId === u.id}
-                        className="
-                            data-[state=checked]:bg-emerald-500
-                            data-[state=unchecked]:bg-red-500
-                        "
-                        />
-
-                        <span
+                    <span
                         className={
-                            "text-xs font-semibold px-2 py-0.5 rounded-full " +
-                            (u.status === "active"
+                        "text-xs font-semibold px-2 py-0.5 rounded-full " +
+                        (u.status === "active"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
-                            : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300")
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300")
                         }
-                        >
-                        {togglingId === u.id ? "Updating..." : u.status === "active" ? "Active" : "Inactive"}
-                        </span>
-                    </div>
+                    >
+                        {u.status === "active" ? "Active" : "Archived"}
+                    </span>
+
+                    {u.archived_at && (
+                        <>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                            Archived: {new Date(u.archived_at).toLocaleDateString()}
+                        </div>
+
+                        <div className="text-[11px] text-red-500 dark:text-red-400 mt-0.5">
+                            Delete on: {new Date(
+                                new Date(u.archived_at).setFullYear(new Date(u.archived_at).getFullYear() + 5)
+                            ).toLocaleDateString()}
+                        </div>
+                        </>
+                    )}
                     </td>
 
-                    <td className="p-2 border-b flex flex-col sm:flex-row gap-2">
-                        <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => openEdit(u)}>
+                    <td className="p-2 border-b">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        {view === "active" && (
+                        <>
+                            <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() => openEdit(u)}
+                            >
                             Edit
-                        </Button>
+                            </Button>
 
-                        <Button
-                        size="sm"
-                        variant="secondary"
-                        className="w-full sm:w-auto"
-                        onClick={() => openResetPassword(u)}
-                        >
-                        Reset Password
-                        </Button>
+                            <Button
+                            size="sm"
+                            variant="secondary"
+                            className="w-full sm:w-auto"
+                            onClick={() => openResetPassword(u)}
+                            >
+                            Reset Password
+                            </Button>
 
-                        {/* <Button
+                            <Button
                             size="sm"
                             variant="destructive"
                             className="w-full sm:w-auto"
-                            onClick={() => openDelete(u)}
+                            disabled={archivingId === u.id}
+                            onClick={() => archiveUser(u)}
+                            >
+                            {archivingId === u.id ? "Archiving..." : "Archive"}
+                            </Button>
+                        </>
+                        )}
+
+                        {view === "archived" && (
+                        <Button
+                            size="sm"
+                            variant="default"
+                            className="w-full sm:w-auto"
+                            disabled={restoringId === u.id}
+                            onClick={() => restoreUser(u)}
                         >
-                            Delete
-                        </Button> */}
+                            {restoringId === u.id ? "Restoring..." : "Restore"}
+                        </Button>
+                        )}
+                    </div>
                     </td>
                     </tr>
                   ))

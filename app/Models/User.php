@@ -16,6 +16,7 @@ class User extends Authenticatable
         'email',
         'password',
         'status',
+        'archived_at',
 
         // profile fields
         'first_name',
@@ -54,6 +55,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'birthdate' => 'date',
         'last_seen_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     protected $appends = ['name'];
@@ -86,6 +88,11 @@ class User extends Authenticatable
     public function isActive()
     {
         return $this->status === 'active';
+    }
+
+    public function isArchived()
+    {
+        return $this->status === 'inactive' && $this->archived_at !== null;
     }
 
     public function isInactive()

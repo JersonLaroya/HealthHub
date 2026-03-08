@@ -128,13 +128,13 @@ export default function Bulk() {
     role: "",
   });
 
-  const inactivateForm = useForm<{
-    file: File | null;
-    role: string;
-  }>({
-    file: null,
-    role: "",
-  });
+  const archiveForm = useForm<{
+  file: File | null;
+  role: string;
+}>({
+  file: null,
+  role: "",
+});
 
   const { flash } = usePage().props as any;
   const bulkResult = flash?.bulkResult;
@@ -168,15 +168,15 @@ export default function Bulk() {
   const deleteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [deleteFileInputKey, setDeleteFileInputKey] = useState(Date.now());
 
-  const [inactivatePreview, setInactivatePreview] = useState<any[]>([]);
-  const [showInactivateConfirm, setShowInactivateConfirm] = useState(false);
-  const [showInactivateResult, setShowInactivateResult] = useState(false);
-  const [inactivateCount, setInactivateCount] = useState<number | null>(null);
-  const [inactivatePreviewVisibleCount, setInactivatePreviewVisibleCount] = useState(200);
-  const inactivateFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [inactivateFileInputKey, setInactivateFileInputKey] = useState(Date.now());
+  const [archivePreview, setArchivePreview] = useState<any[]>([]);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showArchiveResult, setShowArchiveResult] = useState(false);
+  const [archiveCount, setArchiveCount] = useState<number | null>(null);
+  const [archivePreviewVisibleCount, setArchivePreviewVisibleCount] = useState(200);
+  const archiveFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [archiveFileInputKey, setArchiveFileInputKey] = useState(Date.now());
 
-  const bulkInactivateResult = flash?.bulkInactivateResult;
+  const bulkArchiveResult = flash?.bulkArchiveResult;
 
   function parseCsv(file: File) {
     const reader = new FileReader();
@@ -276,7 +276,7 @@ export default function Bulk() {
     reader.readAsText(file);
   }
 
-  function parseInactivateCsv(file: File) {
+  function parseArchiveCsv(file: File) {
   const reader = new FileReader();
 
   reader.onload = (e) => {
@@ -311,10 +311,10 @@ export default function Bulk() {
       return;
     }
 
-    setInactivatePreview(users);
-    setInactivateCount(users.length);
-    setInactivatePreviewVisibleCount(200);
-    setShowInactivateConfirm(true);
+    setArchivePreview(users);
+    setArchiveCount(users.length);
+    setArchivePreviewVisibleCount(200);
+    setShowArchiveConfirm(true);
   };
 
   reader.readAsText(file);
@@ -342,29 +342,29 @@ export default function Bulk() {
     }
   }
 
-  function handleInactivatePreviewScroll(e: React.UIEvent<HTMLDivElement>) {
-    const el = e.currentTarget;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+  function handleArchivePreviewScroll(e: React.UIEvent<HTMLDivElement>) {
+  const el = e.currentTarget;
+  const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
 
-    if (nearBottom && inactivatePreviewVisibleCount < inactivatePreview.length) {
-      setInactivatePreviewVisibleCount((prev) =>
-        Math.min(prev + 200, inactivatePreview.length)
-      );
-    }
+  if (nearBottom && archivePreviewVisibleCount < archivePreview.length) {
+    setArchivePreviewVisibleCount((prev) =>
+      Math.min(prev + 200, archivePreview.length)
+    );
+  }
+}
+
+  function resetBulkArchiveForm() {
+  archiveForm.reset();
+  setArchivePreview([]);
+  setArchiveCount(null);
+  setArchivePreviewVisibleCount(200);
+
+  if (archiveFileInputRef.current) {
+    archiveFileInputRef.current.value = "";
   }
 
-  function resetBulkInactivateForm() {
-    inactivateForm.reset();
-    setInactivatePreview([]);
-    setInactivateCount(null);
-    setInactivatePreviewVisibleCount(200);
-
-    if (inactivateFileInputRef.current) {
-      inactivateFileInputRef.current.value = "";
-    }
-
-    setInactivateFileInputKey(Date.now());
-  }
+  setArchiveFileInputKey(Date.now());
+}
 
   function downloadSkippedCsv() {
     if (!bulkResult?.skipped?.length) {
@@ -415,10 +415,10 @@ export default function Bulk() {
   }, [bulkDeleteResult]);
 
   useEffect(() => {
-    if (bulkInactivateResult) {
-      setShowInactivateResult(true);
-    }
-  }, [bulkInactivateResult]);
+  if (bulkArchiveResult) {
+    setShowArchiveResult(true);
+  }
+}, [bulkArchiveResult]);
 
   function downloadDeleteSkippedCsv() {
     if (!bulkDeleteResult?.skipped?.length) {
@@ -466,11 +466,11 @@ export default function Bulk() {
 
   return (
     <AppLayout>
-      <Head title="Bulk Add Users" />
+      <Head title="Bulk User Management" />
 
       <div className="p-6 max-w-xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Bulk Add/Delete Users</h1>
+          <h1 className="text-2xl font-bold">Bulk User Management</h1>
 
           <Button variant="outline" onClick={() => router.get("/superadmin/users")}>
             Back
@@ -665,7 +665,6 @@ export default function Bulk() {
                     forceFormData: true,
 
                     onSuccess: () => {
-                      toast.success("Bulk delete completed.");
                       resetBulkDeleteForm();
                     },
 
@@ -885,7 +884,7 @@ export default function Bulk() {
           </DialogContent>
         </Dialog>
 
-        <Card className="p-6 space-y-4 border-red-200">
+        {/* <Card className="p-6 space-y-4 border-red-200">
           <h2 className="text-lg font-semibold text-red-600">Bulk Delete Users</h2>
 
           <form
@@ -943,29 +942,29 @@ export default function Bulk() {
               </Button>
             </div>
           </form>
-        </Card>
+        </Card> */}
 
         <Card className="p-6 space-y-4 border-amber-200">
-          <h2 className="text-lg font-semibold text-amber-600">Bulk Inactivate Users</h2>
+          <h2 className="text-lg font-semibold text-amber-600">Bulk Archive Users</h2>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
 
-              if (!inactivateForm.data.file || !inactivateForm.data.role) {
+              if (!archiveForm.data.file || !archiveForm.data.role) {
                 toast.error("Please select role and CSV file.");
                 return;
               }
 
-              parseInactivateCsv(inactivateForm.data.file);
+              parseArchiveCsv(archiveForm.data.file);
             }}
             className="space-y-4"
           >
             <div>
               <Label>Role</Label>
               <Select
-                value={inactivateForm.data.role}
-                onValueChange={(v) => inactivateForm.setData("role", v)}
+                value={archiveForm.data.role}
+                onValueChange={(v) => archiveForm.setData("role", v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
@@ -983,12 +982,12 @@ export default function Bulk() {
             <div>
               <Label>CSV File (emails only)</Label>
               <Input
-                key={inactivateFileInputKey}
-                ref={inactivateFileInputRef}
+                key={archiveFileInputKey}
+                ref={archiveFileInputRef}
                 type="file"
                 accept=".csv"
                 onChange={(e) =>
-                  inactivateForm.setData("file", e.target.files?.[0] || null)
+                  archiveForm.setData("file", e.target.files?.[0] || null)
                 }
               />
             </div>
@@ -997,158 +996,157 @@ export default function Bulk() {
               <Button
                 type="submit"
                 variant="outline"
-                disabled={inactivateForm.processing}
+                disabled={archiveForm.processing}
               >
-                {inactivateForm.processing ? "Processing..." : "Bulk Inactivate"}
+                {archiveForm.processing ? "Processing..." : "Bulk Archive"}
               </Button>
             </div>
           </form>
         </Card>
 
         <Dialog
-          open={showInactivateConfirm}
+          open={showArchiveConfirm}
           onOpenChange={(open) => {
-            setShowInactivateConfirm(open);
-            if (!open) setInactivatePreviewVisibleCount(200);
+            setShowArchiveConfirm(open);
+            if (!open) setArchivePreviewVisibleCount(200);
           }}
         >
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-amber-600">
-                Confirm Bulk Inactivate
+                Confirm Bulk Archive
               </DialogTitle>
             </DialogHeader>
 
             <div
               className="max-h-60 overflow-y-auto border rounded p-2 text-sm space-y-1"
-              onScroll={handleInactivatePreviewScroll}
+              onScroll={handleArchivePreviewScroll}
             >
-              {inactivatePreview.slice(0, inactivatePreviewVisibleCount).map((u, i) => (
+              {archivePreview.slice(0, archivePreviewVisibleCount).map((u, i) => (
                 <p key={i}>• {u.email}</p>
               ))}
 
-              {inactivatePreviewVisibleCount < inactivatePreview.length && (
+              {archivePreviewVisibleCount < archivePreview.length && (
                 <p className="text-xs italic text-muted-foreground mt-2">
-                  Showing {inactivatePreviewVisibleCount} of {inactivatePreview.length} users. Scroll down to load more.
+                  Showing {archivePreviewVisibleCount} of {archivePreview.length} users. Scroll down to load more.
                 </p>
               )}
             </div>
 
             <p className="text-sm text-muted-foreground">
-              You are about to inactivate{" "}
+              You are about to archive{" "}
               <span className="font-semibold text-amber-600">
-                {inactivateCount}
+                {archiveCount}
               </span>{" "}
               users with role{" "}
               <span className="font-semibold">
-                {inactivateForm.data.role}
+                {archiveForm.data.role}
               </span>.
             </p>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowInactivateConfirm(false)}>
+              <Button variant="outline" onClick={() => setShowArchiveConfirm(false)}>
                 Cancel
               </Button>
 
               <Button
                 onClick={() => {
-                  setShowInactivateConfirm(false);
+                  setShowArchiveConfirm(false);
 
-                  inactivateForm.post("/superadmin/users/bulk-inactivate", {
+                  archiveForm.post("/superadmin/users/bulk-archive", {
                     forceFormData: true,
                     onSuccess: () => {
-                      toast.success("Bulk inactivate completed.");
-                      resetBulkInactivateForm();
+                      resetBulkArchiveForm();
                     },
                     onError: () => {
-                      toast.error("Bulk inactivate failed.");
+                      toast.error("Bulk archive failed.");
                     },
                   });
                 }}
               >
-                Yes, inactivate users
+                Yes, archive users
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog
-          open={showInactivateResult}
+          open={showArchiveResult}
           onOpenChange={(open) => {
-            setShowInactivateResult(open);
+            setShowArchiveResult(open);
 
             if (!open) {
-              resetBulkInactivateForm();
+              resetBulkArchiveForm();
             }
           }}
         >
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Bulk Inactivate Result</DialogTitle>
+              <DialogTitle>Bulk Archive Result</DialogTitle>
             </DialogHeader>
 
             <div className="grid grid-cols-4 gap-3 text-center mt-2">
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Inactivated</p>
+                <p className="text-xs text-muted-foreground">Archived</p>
                 <p className="text-2xl font-bold text-amber-600">
-                  {bulkInactivateResult?.inactivated?.length || 0}
+                  {bulkArchiveResult?.archived?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Already inactive</p>
+                <p className="text-xs text-muted-foreground">Already archived</p>
                 <p className="text-2xl font-bold text-gray-600">
-                  {bulkInactivateResult?.already_inactive?.length || 0}
+                  {bulkArchiveResult?.already_archived?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Not found</p>
                 <p className="text-2xl font-bold text-gray-600">
-                  {bulkInactivateResult?.not_found?.length || 0}
+                  {bulkArchiveResult?.not_found?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Skipped</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {bulkInactivateResult?.skipped?.length || 0}
+                  {bulkArchiveResult?.skipped?.length || 0}
                 </p>
               </div>
             </div>
 
             <div className="space-y-4 mt-4">
               <ResultSection
-                title="Inactivated"
+                title="Archived"
                 color="blue"
-                items={bulkInactivateResult?.inactivated || []}
+                items={bulkArchiveResult?.archived || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
               <ResultSection
-                title="Already inactive"
+                title="Already archived"
                 color="black"
-                items={bulkInactivateResult?.already_inactive || []}
+                items={bulkArchiveResult?.already_archived || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
               <ResultSection
                 title="Not found"
                 color="black"
-                items={bulkInactivateResult?.not_found || []}
+                items={bulkArchiveResult?.not_found || []}
                 render={(u: any) => `${u.email} — ${u.reason}`}
               />
 
               <ResultSection
                 title="Skipped"
                 color="red"
-                items={bulkInactivateResult?.skipped || []}
+                items={bulkArchiveResult?.skipped || []}
                 render={(u: any) => `${u.email ?? "Unknown"} — ${u.reason}`}
               />
             </div>
 
             <DialogFooter>
-              <Button onClick={() => setShowInactivateResult(false)}>
+              <Button onClick={() => setShowArchiveResult(false)}>
                 Close
               </Button>
             </DialogFooter>

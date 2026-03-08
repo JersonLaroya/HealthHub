@@ -13,3 +13,5 @@ Schedule::command('app:complete-past-appointments')
 
 Schedule::command('appointments:send-reminders')
     ->everyMinute();
+
+Schedule::command('users:delete-archived')->daily();

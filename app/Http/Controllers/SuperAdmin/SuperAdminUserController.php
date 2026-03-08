@@ -19,11 +19,12 @@ class SuperAdminUserController extends Controller
 {
     public function index(Request $request)
     {
-        $filter = $request->get('role');       
-        $search = $request->get('search');     
+        $filter = $request->get('role');
+        $search = $request->get('search');
         $course = $request->get('course_id');
         $office = $request->get('office_id');
         $year   = $request->get('year_level');
+        $view   = $request->get('view', 'active'); // active | archived
 
         $users = User::with([
                 'userRole',
@@ -35,6 +36,14 @@ class SuperAdminUserController extends Controller
             // Exclude Super Admin
             ->whereHas('userRole', function ($q) {
                 $q->where('name', '!=', 'Super Admin');
+            })
+
+            // Active / Archived filter
+            ->when($view === 'archived', function ($q) {
+                $q->where('status', 'inactive')
+                ->whereNotNull('archived_at');
+            }, function ($q) {
+                $q->where('status', 'active');
             })
 
             // Search
@@ -50,11 +59,10 @@ class SuperAdminUserController extends Controller
 
             // Role filter
             ->when($filter, function ($query) use ($filter) {
-
                 if ($filter === 'Student') {
                     $query->whereHas('userRole', function ($q) {
                         $q->where('name', 'Student')
-                          ->orWhere('category', 'rcy');
+                        ->orWhere('category', 'rcy');
                     });
                 } else {
                     $query->whereHas('userRole', function ($q) use ($filter) {
@@ -63,7 +71,7 @@ class SuperAdminUserController extends Controller
                 }
             })
 
-            // Year level filter (only users who actually have year_level_id)
+            // Student filters
             ->when($filter === 'Student', function ($q) use ($year, $course) {
                 $q->when($year, fn ($x) => $x->where('year_level_id', $year))
                 ->when($course, fn ($x) => $x->where('course_id', $course));
@@ -74,21 +82,17 @@ class SuperAdminUserController extends Controller
                 $q->when($office, fn ($x) => $x->where('office_id', $office));
             })
 
-            // All roles (no role selected)
+            // All roles
             ->when(!$filter, function ($q) use ($office) {
                 $q->when($office, fn ($x) => $x->where('office_id', $office));
             })
 
-            // Newest first
             ->orderByDesc('created_at')
-
             ->paginate(10)
             ->withQueryString();
 
         $roles = ['Student', 'Staff', 'Faculty', 'Admin', 'Nurse'];
-
         $yearLevels = YearLevel::orderBy('name')->get(['id', 'name']);
-
         $courses = Course::orderBy('code')->get(['id', 'code']);
         $offices = Office::orderBy('name')->get(['id', 'name', 'code']);
 
@@ -104,11 +108,10 @@ class SuperAdminUserController extends Controller
                 'course_id' => $course,
                 'office_id' => $office,
                 'year_level' => $year,
+                'view' => $view,
             ],
         ]);
     }
-
-
     
     public function update(Request $request, User $user)
     {
@@ -171,6 +174,38 @@ class SuperAdminUserController extends Controller
 
         // NO flash here (prevents duplicate toast)
         return back();
+    }
+
+    public function archive(User $user)
+    {
+        if ($user->userRole?->name === 'Super Admin') {
+            return back()->with('error', 'You cannot archive a Super Admin.');
+        }
+
+        if ($user->status === 'inactive' && $user->archived_at) {
+            return back()->with('error', 'User is already archived.');
+        }
+
+        $user->update([
+            'status' => 'inactive',
+            'archived_at' => now(),
+        ]);
+
+        return back()->with('success', 'User archived successfully.');
+    }
+
+    public function restore(User $user)
+    {
+        if ($user->userRole?->name === 'Super Admin') {
+            return back()->with('error', 'You cannot restore a Super Admin.');
+        }
+
+        $user->update([
+            'status' => 'active',
+            'archived_at' => null,
+        ]);
+
+        return back()->with('success', 'User restored successfully.');
     }
 
     public function resetPassword(User $user)
@@ -600,7 +635,7 @@ class SuperAdminUserController extends Controller
         ]);
     }
 
-    public function bulkInactivate(Request $request)
+    public function bulkArchive(Request $request)
 {
     $request->validate([
         'file' => 'required|file|mimes:csv,txt',
@@ -609,8 +644,8 @@ class SuperAdminUserController extends Controller
 
     $role = UserRole::where('name', $request->role)->firstOrFail();
 
-    $inactivatedUsers = [];
-    $alreadyInactiveUsers = [];
+    $archivedUsers = [];
+    $alreadyArchivedUsers = [];
     $skippedUsers = [];
     $notFoundUsers = [];
 
@@ -642,7 +677,7 @@ class SuperAdminUserController extends Controller
 
         if ($rowCount > 500) {
             fclose($file);
-            return back()->with('error', 'Maximum of 500 rows per bulk inactivate.');
+            return back()->with('error', 'Maximum of 500 rows per bulk archive.');
         }
 
         $email = trim($row[$emailIndex] ?? '');
@@ -668,7 +703,7 @@ class SuperAdminUserController extends Controller
         if ($user->userRole?->name === 'Super Admin') {
             $skippedUsers[] = [
                 'email' => $email,
-                'reason' => 'Super Admin cannot be inactivated',
+                'reason' => 'Super Admin cannot be archived',
             ];
             continue;
         }
@@ -681,8 +716,8 @@ class SuperAdminUserController extends Controller
             continue;
         }
 
-        if ($user->status === 'inactive') {
-            $alreadyInactiveUsers[] = [
+        if ($user->status === 'inactive' && $user->archived_at) {
+            $alreadyArchivedUsers[] = [
                 'id' => $user->id,
                 'name' => $user->first_name . ' ' . $user->last_name,
                 'email' => $user->email,
@@ -692,9 +727,10 @@ class SuperAdminUserController extends Controller
 
         $user->update([
             'status' => 'inactive',
+            'archived_at' => now(),
         ]);
 
-        $inactivatedUsers[] = [
+        $archivedUsers[] = [
             'id' => $user->id,
             'name' => $user->first_name . ' ' . $user->last_name,
             'email' => $user->email,
@@ -703,9 +739,9 @@ class SuperAdminUserController extends Controller
 
     fclose($file);
 
-    return back()->with('bulkInactivateResult', [
-        'inactivated' => $inactivatedUsers,
-        'already_inactive' => $alreadyInactiveUsers,
+    return back()->with('bulkArchiveResult', [
+        'archived' => $archivedUsers,
+        'already_archived' => $alreadyArchivedUsers,
         'not_found' => $notFoundUsers,
         'skipped' => $skippedUsers,
     ]);
