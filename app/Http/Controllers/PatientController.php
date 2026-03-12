@@ -24,6 +24,7 @@ use App\Events\LabResultRejected as LabResultRejectedEvent;
 use App\Events\FormStatusUpdated;
 use App\Notifications\FormApproved;
 use App\Notifications\FormRejected;
+use App\Models\Appointment;
 
 class PatientController extends Controller
 {
@@ -160,12 +161,30 @@ class PatientController extends Controller
         $diseases = Disease::orderBy('name')->get();
         $treatments = Treatment::orderBy('name')->get();
 
+        $activeAppointment = Appointment::with([
+            'approver:id,first_name,last_name',
+            'slot:id,appointment_date,start_time,end_time,capacity,is_active',
+        ])
+            ->where('user_id', $patient->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->orderByRaw("
+                CASE
+                    WHEN status = 'approved' THEN 0
+                    WHEN status = 'pending' THEN 1
+                    ELSE 2
+                END
+            ")
+            ->orderBy('appointment_date')
+            ->orderBy('start_time')
+            ->first();
+
         return inertia('patients/Show', [
             'patient' => $patient,
             'consultations' => $consultations,
             'diseases' => $diseases,
             'treatments' => $treatments,
             'schoolYear' => $schoolYear,
+            'activeAppointment' => $activeAppointment,
         ]);
     }
 

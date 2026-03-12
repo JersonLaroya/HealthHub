@@ -1,5 +1,5 @@
 import AppLayout from "@/layouts/app-layout";
-import { Head, router } from "@inertiajs/react";
+import { Head, router, usePage } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -94,7 +94,12 @@ function isPastSlot(dateStr: string, startHHMM: string, slotMinutes = 30) {
   return isSameDay(start, now) && end.getTime() <= now.getTime();
 }
 
-export default function AdminAppointments({ appointments, calendarAppointments, filters }: any) {
+export default function AppointmentsIndex({ appointments, calendarAppointments, filters }: any) {
+  const page = usePage() as any;
+  const url = page.url || "";
+  const isNurseRoute = url.startsWith("/nurse");
+  const basePath = isNurseRoute ? "/nurse" : "/admin";
+  
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [view, setView] = useState<"table" | "calendar">("table");
@@ -104,7 +109,6 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
   const [editing, setEditing] = useState<any | null>(null);
   const [editDate, setEditDate] = useState("");
   const [editStart, setEditStart] = useState("");
-  const [editSlots, setEditSlots] = useState<any[]>([]);
 
   const [editAvailability, setEditAvailability] = useState<AvailabilityResponse | null>(null);
   const [editLoadingSlots, setEditLoadingSlots] = useState(false);
@@ -137,11 +141,15 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     };
   }, []);
 
+  function goToAppointmentSlots() {
+    router.get(`${basePath}/appointment-slots`);
+  }
+
   function approve(id: number) {
   setProcessingId(id);
 
   router.patch(
-    `/admin/appointments/${id}/approve`,
+  `${basePath}/appointments/${id}/approve`,
     {},
     {
       onSuccess: () => {
@@ -166,7 +174,7 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
   setProcessingId(rejectingId);
 
   router.patch(
-    `/admin/appointments/${rejectingId}/reject`,
+  `${basePath}/appointments/${rejectingId}/reject`,
     { rejection_reason: reason },
     {
       onSuccess: () => {
@@ -187,7 +195,7 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
 
   function filter(status?: string) {
     router.get(
-      "/admin/appointments",
+    `${basePath}/appointments`,
       status ? { status } : {},
       { preserveState: true }
     );
@@ -224,7 +232,7 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     setEditLoadingSlots(true);
     try {
       const res = await fetch(
-        `/admin/appointments/availability?date=${encodeURIComponent(date)}`,
+        `${basePath}/appointments/availability?date=${encodeURIComponent(date)}`,
         { headers: { Accept: "application/json" } }
       );
       if (!res.ok) throw new Error("Failed to fetch availability");
@@ -256,7 +264,7 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     setMonthLoading(true);
     try {
       const res = await fetch(
-        `/admin/appointments/availability/month?month=${encodeURIComponent(month)}`,
+        `${basePath}/appointments/availability/month?month=${encodeURIComponent(month)}`,
         { headers: { Accept: "application/json" } }
       );
       if (!res.ok) throw new Error("Failed to fetch month availability");
@@ -294,10 +302,32 @@ export default function AdminAppointments({ appointments, calendarAppointments, 
     setEditing(null);
     setEditDate("");
     setEditStart("");
-    setEditSlots([]);
     setOverrideFull(false);
     setOverridePast(false); // ✅ reset
   }
+
+  function deleteAppointment(id: number, closeModal = false) {
+  setProcessingId(id);
+
+  router.delete(`${basePath}/appointments/${id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Appointment deleted");
+
+      if (closeModal) {
+        setSelectedAppointment(null);
+      }
+
+      router.reload({ only: ["appointments", "calendarAppointments"] });
+    },
+    onError: () => {
+      toast.error("Failed to delete appointment");
+    },
+    onFinish: () => {
+      setProcessingId(null);
+    },
+  });
+}
 
 useEffect(() => {
   if (!editing) return;
@@ -494,7 +524,7 @@ function submitEditSchedule() {
   setProcessingId(editing.id);
 
   router.patch(
-    `/admin/appointments/${editing.id}/schedule`,
+    `${basePath}/appointments/${editing.id}/schedule`,
     {
       appointment_date: editDate,
       start_time: editStart,
@@ -515,13 +545,64 @@ function submitEditSchedule() {
   );
 }
 
+function completeAppointment(id: number) {
+  setProcessingId(id);
+
+  router.patch(
+    `${basePath}/appointments/${id}/complete`,
+    {},
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success("Appointment marked as completed");
+        router.reload({ only: ["appointments", "calendarAppointments"] });
+      },
+      onError: () => {
+        toast.error("Failed to complete appointment");
+      },
+      onFinish: () => {
+        setProcessingId(null);
+      },
+    }
+  );
+}
+
+function approveAndComplete(id: number) {
+  setProcessingId(id);
+
+  router.patch(
+    `${basePath}/appointments/${id}/approve-complete`,
+    {},
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success("Appointment approved and completed");
+        router.reload({ only: ["appointments", "calendarAppointments"] });
+      },
+      onError: () => {
+        toast.error("Failed to approve and complete appointment");
+      },
+      onFinish: () => {
+        setProcessingId(null);
+      },
+    }
+  );
+}
+
 
   return (
     <AppLayout>
       <Head title="Manage Appointments" />
 
       <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-semibold">Appointments</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-semibold">Appointments</h1>
+
+          <Button onClick={goToAppointmentSlots} className="gap-2">
+            {/* <CalendarPlus className="h-4 w-4" /> */}
+            Appointment Slots
+          </Button>
+        </div>
 
         {/* FILTERS + VIEW TOGGLE */}
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -675,24 +756,33 @@ function submitEditSchedule() {
                             </td>
 
                             <td className="p-3 text-right">
-                              {a.status === "pending" ? (
+                              {a.status === "pending" && (
                                 <div className="flex justify-end gap-2">
                                   <Button
                                     size="sm"
                                     disabled={processingId === a.id}
                                     onClick={() => approve(a.id)}
                                   >
-                                    {processingId === a.id ? "Approving..." : "Approve"}
+                                    {processingId === a.id ? "Processing..." : "Approve"}
                                   </Button>
 
                                   <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={processingId === a.id}
+                                    onClick={() => approveAndComplete(a.id)}
+                                  >
+                                    Approve & Complete
+                                  </Button>
+
+                                  {/* <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => openEditSchedule(a)}
                                     disabled={processingId === a.id}
                                   >
                                     Edit
-                                  </Button>
+                                  </Button> */}
 
                                   <Button
                                     size="sm"
@@ -703,27 +793,47 @@ function submitEditSchedule() {
                                     Reject
                                   </Button>
                                 </div>
-                              ) : (
+                              )}
+
+                              {a.status === "approved" && (
                                 <div className="flex justify-end gap-2">
-                                  {/* Allow edit for approved too (block completed/rejected) */}
-                                  {a.status === "approved" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => openEditSchedule(a)}
-                                      disabled={processingId === a.id}
-                                    >
-                                      Edit
-                                    </Button>
-                                  )}
+                                  <Button
+                                    size="sm"
+                                    onClick={() => completeAppointment(a.id)}
+                                    disabled={processingId === a.id}
+                                  >
+                                    {processingId === a.id ? "Processing..." : "Complete"}
+                                  </Button>
+
+                                  {/* <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openEditSchedule(a)}
+                                    disabled={processingId === a.id}
+                                  >
+                                    Edit
+                                  </Button> */}
 
                                   <Button
                                     size="sm"
                                     variant="destructive"
-                                    onClick={() => router.delete(`/admin/appointments/${a.id}`, { preserveScroll: true })}
+                                    onClick={() => deleteAppointment(a.id)}
                                     disabled={processingId === a.id}
                                   >
-                                    Delete
+                                    {processingId === a.id ? "Deleting..." : "Delete"}
+                                  </Button>
+                                </div>
+                              )}
+
+                              {(a.status === "completed" || a.status === "rejected") && (
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteAppointment(a.id)}
+                                    disabled={processingId === a.id}
+                                  >
+                                    {processingId === a.id ? "Deleting..." : "Delete"}
                                   </Button>
                                 </div>
                               )}
@@ -913,10 +1023,84 @@ function submitEditSchedule() {
                 </div>
                 )}
 
-                <DialogFooter>
-                <Button variant="outline" onClick={() => setSelectedAppointment(null)}>
+                <DialogFooter className="flex flex-wrap gap-2">
+                  {selectedAppointment?.status === "pending" && (
+                    <>
+                      <Button
+                        onClick={() => approve(selectedAppointment.id)}
+                        disabled={processingId === selectedAppointment.id}
+                      >
+                        {processingId === selectedAppointment.id ? "Processing..." : "Approve"}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        onClick={() => approveAndComplete(selectedAppointment.id)}
+                        disabled={processingId === selectedAppointment.id}
+                      >
+                        Approve & Complete
+                      </Button>
+
+                      {/* <Button
+                        variant="outline"
+                        onClick={() => {
+                          openEditSchedule(selectedAppointment);
+                          setSelectedAppointment(null);
+                        }}
+                        disabled={processingId === selectedAppointment.id}
+                      >
+                        Edit
+                      </Button> */}
+
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          setRejectingId(selectedAppointment.id);
+                          setSelectedAppointment(null);
+                        }}
+                        disabled={processingId === selectedAppointment.id}
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  )}
+
+                  {selectedAppointment?.status === "approved" && (
+                    <>
+                      <Button
+                        onClick={() => completeAppointment(selectedAppointment.id)}
+                        disabled={processingId === selectedAppointment.id}
+                      >
+                        {processingId === selectedAppointment.id ? "Processing..." : "Complete"}
+                      </Button>
+
+                      {/* <Button
+                        variant="outline"
+                        onClick={() => {
+                          openEditSchedule(selectedAppointment);
+                          setSelectedAppointment(null);
+                        }}
+                        disabled={processingId === selectedAppointment.id}
+                      >
+                        Edit
+                      </Button> */}
+                    </>
+                  )}
+
+                  {(selectedAppointment?.status === "completed" ||
+                    selectedAppointment?.status === "rejected") && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => deleteAppointment(selectedAppointment.id, true)}
+                      disabled={processingId === selectedAppointment?.id}
+                    >
+                      {processingId === selectedAppointment?.id ? "Deleting..." : "Delete"}
+                    </Button>
+                  )}
+
+                  <Button variant="outline" onClick={() => setSelectedAppointment(null)}>
                     Close
-                </Button>
+                  </Button>
                 </DialogFooter>
             </DialogContent>
             </Dialog>

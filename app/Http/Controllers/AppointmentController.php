@@ -9,70 +9,49 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Notifications\NewAppointmentRequested;
 use Carbon\Carbon;
+use App\Models\AppointmentSlot;
+use Illuminate\Support\Facades\DB;
 
 class AppointmentController extends Controller
 {
-    private const SLOT_MINUTES = 30;
-    private const SLOT_CAPACITY = 3;
     private const TIMEZONE = 'Asia/Manila';
+
+    private function getAvailableSlotsQuery(string $date)
+    {
+        return AppointmentSlot::query()
+            ->whereDate('appointment_date', $date)
+            ->whereRaw('is_active = true')
+            ->orderBy('start_time');
+    }
+
+    private function findSlot(string $date, string $startTime): ?AppointmentSlot
+{
+    $normalizedStart = substr($startTime, 0, 5);
+
+    return AppointmentSlot::query()
+        ->whereDate('appointment_date', $date)
+        ->whereRaw("to_char(start_time, 'HH24:MI') = ?", [$normalizedStart])
+        ->whereRaw('is_active = true')
+        ->first();
+}
+
+    private function slotBookedCountBySlot(int $slotId, ?int $excludeAppointmentId = null): int
+    {
+        return Appointment::where('appointment_slot_id', $slotId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->when($excludeAppointmentId, fn ($q) => $q->where('id', '!=', $excludeAppointmentId))
+            ->count();
+    }
 
     /**
      * Clinic sessions: 08:00-12:00 and 13:00-17:00
      * End is exclusive (i.e., last slot must END <= session end).
      */
-    private function clinicSessions(): array
-    {
-        return [
-            ['start' => '08:00', 'end' => '12:00'],
-            ['start' => '13:00', 'end' => '17:00'],
-        ];
-    }
 
     private function isWeekend(string $date): bool
     {
         $day = Carbon::parse($date, self::TIMEZONE)->dayOfWeek; // 0 Sun, 6 Sat
         return in_array($day, [0, 6], true);
-    }
-
-    /**
-     * Build all 30-min slots for a given date based on clinic sessions.
-     */
-    private function buildSlots(string $date): array
-    {
-        $slots = [];
-
-        foreach ($this->clinicSessions() as $session) {
-            $cursor = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$session['start']}", self::TIMEZONE);
-            $end    = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$session['end']}", self::TIMEZONE);
-
-            // end is exclusive: slot_end must be <= $end
-            while ($cursor->copy()->addMinutes(self::SLOT_MINUTES)->lte($end)) {
-                $slotStart = $cursor->format('H:i');
-                $slotEnd   = $cursor->copy()->addMinutes(self::SLOT_MINUTES)->format('H:i');
-
-                $slots[] = [
-                    'start' => $slotStart,
-                    'end'   => $slotEnd,
-                ];
-
-                $cursor->addMinutes(self::SLOT_MINUTES);
-            }
-        }
-
-        return $slots;
-    }
-
-    /**
-     * Check if a start_time is a valid clinic slot for the date.
-     */
-    private function isValidSlot(string $date, string $startTime): bool
-    {
-        $slots = $this->buildSlots($date);
-
-        foreach ($slots as $s) {
-            if ($s['start'] === $startTime) return true;
-        }
-        return false;
     }
 
     private function userHasSlot(int $userId, string $date, string $startTime, ?int $excludeId = null): bool
@@ -85,87 +64,92 @@ class AppointmentController extends Controller
             ->exists();
     }
 
-    private function computeEndTime(string $date, string $startTime): string
-    {
-        return Carbon::createFromFormat('Y-m-d H:i', "{$date} {$startTime}", self::TIMEZONE)
-            ->addMinutes(self::SLOT_MINUTES)
-            ->format('H:i');
-    }
-
-    /**
-     * Count existing appointments for a given slot (capacity enforcement).
-     */
-    private function slotBookedCount(string $date, string $startTime, ?int $excludeAppointmentId = null): int
-    {
-        return Appointment::where('appointment_date', $date)
-            ->where('start_time', $startTime)
-            ->whereIn('status', ['pending', 'approved'])
-            ->when($excludeAppointmentId, fn ($q) => $q->where('id', '!=', $excludeAppointmentId))
-            ->count();
-    }
-
     // -------------------------
     // MONTH AVAILABILITY ENDPOINT
     // GET /user/appointments/availability/month?month=YYYY-MM
     // -------------------------
-    public function availabilityMonth(Request $request)
-    {
-        $data = $request->validate([
-            'month' => ['required', 'date_format:Y-m'],
-        ]);
+public function availabilityMonth(Request $request)
+{
+    $data = $request->validate([
+        'month' => ['required', 'date_format:Y-m'],
+    ]);
 
-        $month = $data['month']; // "2026-02"
-        $start = Carbon::createFromFormat('Y-m', $month, self::TIMEZONE)->startOfMonth();
-        $end   = $start->copy()->endOfMonth();
+    $month = $data['month'];
 
-        // booked appointments per date (pending + approved only)
-        $bookedByDate = Appointment::selectRaw('appointment_date, COUNT(*) as cnt')
-            ->whereBetween('appointment_date', [$start->toDateString(), $end->toDateString()])
-            ->whereIn('status', ['pending', 'approved'])
-            ->groupBy('appointment_date')
-            ->pluck('cnt', 'appointment_date'); // ["2026-02-03" => 12, ...]
+    $startDate = Carbon::createFromFormat('Y-m-d', "{$month}-01", self::TIMEZONE)->startOfMonth();
+    $endDate = $startDate->copy()->endOfMonth();
 
-        $days = [];
-        $cursor = $start->copy();
+    $slots = AppointmentSlot::query()
+        ->whereBetween('appointment_date', [
+            $startDate->toDateString(),
+            $endDate->toDateString(),
+        ])
+        ->whereRaw('is_active = true')
+        ->orderBy('appointment_date')
+        ->orderBy('start_time')
+        ->get();
 
-        while ($cursor->lte($end)) {
-            $date = $cursor->toDateString();
+    $bookedCounts = Appointment::query()
+        ->select('appointment_slot_id', DB::raw('COUNT(*) as booked_count'))
+        ->whereIn('status', ['pending', 'approved'])
+        ->whereNotNull('appointment_slot_id')
+        ->groupBy('appointment_slot_id')
+        ->pluck('booked_count', 'appointment_slot_id');
 
-            if ($this->isWeekend($date)) {
-                $days[] = [
-                    'date' => $date,
-                    'status' => 'closed',     // weekend
-                    'available_total' => 0,
-                    'capacity_total' => 0,
-                ];
-                $cursor->addDay();
-                continue;
-            }
+    $grouped = $slots->groupBy(function ($slot) {
+        return Carbon::parse($slot->appointment_date)->toDateString();
+    });
 
-            $slotsCount = count($this->buildSlots($date));
-            $capacityTotal = $slotsCount * self::SLOT_CAPACITY;
-            $booked = (int) ($bookedByDate[$date] ?? 0);
-            $availableTotal = max($capacityTotal - $booked, 0);
+    $days = [];
+    $cursor = $startDate->copy();
 
+    while ($cursor->lte($endDate)) {
+        $date = $cursor->toDateString();
+
+        if ($this->isWeekend($date)) {
             $days[] = [
                 'date' => $date,
-                'status' => $availableTotal === 0 ? 'full' : 'available',
-                'available_total' => $availableTotal,
-                'capacity_total' => $capacityTotal,
+                'status' => 'closed',
+                'available_total' => 0,
+                'capacity_total' => 0,
             ];
-
             $cursor->addDay();
+            continue;
         }
 
-        return response()->json([
-            'month' => $month,
-            'days' => $days,
-        ]);
+        $daySlots = $grouped->get($date, collect());
+
+        $capacityTotal = 0;
+        $bookedTotal = 0;
+
+        foreach ($daySlots as $slot) {
+            $capacityTotal += (int) $slot->capacity;
+            $bookedTotal += (int) ($bookedCounts[$slot->id] ?? 0);
+        }
+
+        $availableTotal = max($capacityTotal - $bookedTotal, 0);
+
+        $status = $daySlots->isEmpty()
+            ? 'closed'
+            : ($availableTotal === 0 ? 'full' : 'available');
+
+        $days[] = [
+            'date' => $date,
+            'status' => $status,
+            'available_total' => $availableTotal,
+            'capacity_total' => $capacityTotal,
+        ];
+
+        $cursor->addDay();
     }
 
-    // -------------------------
-    // INDEX (unchanged)
-    // -------------------------
+    return response()->json([
+        'month' => $month,
+        'days' => $days,
+    ]);
+}
+
+    
     public function index(Request $request)
     {
         $status = $request->query('status');
@@ -197,64 +181,68 @@ class AppointmentController extends Controller
     // AVAILABILITY ENDPOINT
     // GET /user/appointments/availability?date=YYYY-MM-DD
     // -------------------------
-    public function availability(Request $request)
-    {
-        $data = $request->validate([
-            'date' => ['required', 'date'],
-        ]);
+public function availability(Request $request)
+{
+    $data = $request->validate([
+        'date' => ['required', 'date'],
+    ]);
 
-        $date = $data['date'];
+    $date = $data['date'];
 
-        if ($this->isWeekend($date)) {
-            return response()->json([
-                'date' => $date,
-                'slot_minutes' => self::SLOT_MINUTES,
-                'capacity' => self::SLOT_CAPACITY,
-                'slots' => [],
-                'message' => 'No slots on weekends.',
-            ]);
-        }
-
-        $slots = $this->buildSlots($date);
-
-        // Pre-load counts for performance
-        $counts = Appointment::selectRaw("to_char(start_time, 'HH24:MI') as start_key, COUNT(*) as cnt")
-            ->where('appointment_date', $date)
-            ->whereIn('status', ['pending', 'approved'])
-            ->groupBy('start_key')
-            ->pluck('cnt', 'start_key'); // [ "08:00" => 1, ... ]
-
-        $mapped = array_map(function ($s) use ($counts) {
-            $booked = (int)($counts[$s['start']] ?? 0);
-            $available = max(self::SLOT_CAPACITY - $booked, 0);
-
-            return [
-                'start' => $s['start'],
-                'end' => $s['end'],
-                'booked' => $booked,
-                'available' => $available,
-                'is_full' => $available === 0,
-            ];
-        }, $slots);
-
+    if ($this->isWeekend($date)) {
         return response()->json([
             'date' => $date,
-            'slot_minutes' => self::SLOT_MINUTES,
-            'capacity' => self::SLOT_CAPACITY,
-            'slots' => $mapped,
+            'slots' => [],
+            'message' => 'No slots on weekends.',
         ]);
     }
 
-    private function isPastSlot(string $date, string $startTime): bool
-    {
-        $now = Carbon::now(self::TIMEZONE);
+    $slots = AppointmentSlot::query()
+        ->where('appointment_date', $date)
+        ->whereRaw('is_active = true')
+        ->orderBy('start_time')
+        ->get();
 
-        $start = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$startTime}", self::TIMEZONE);
-        $end   = $start->copy()->addMinutes(self::SLOT_MINUTES);
+    $bookedCounts = Appointment::query()
+        ->select('appointment_slot_id', DB::raw('COUNT(*) as booked_count'))
+        ->whereIn('status', ['pending', 'approved'])
+        ->whereNotNull('appointment_slot_id')
+        ->groupBy('appointment_slot_id')
+        ->pluck('booked_count', 'appointment_slot_id');
 
-        // passed only after END time
-        return $start->isSameDay($now) && $end->lte($now);
-    }
+    $mapped = $slots->map(function ($slot) use ($bookedCounts) {
+        $booked = (int) ($bookedCounts[$slot->id] ?? 0);
+        $available = max((int) $slot->capacity - $booked, 0);
+
+        return [
+            'id' => $slot->id,
+            'start' => substr((string) $slot->start_time, 0, 5),
+            'end' => substr((string) $slot->end_time, 0, 5),
+            'booked' => $booked,
+            'available' => $available,
+            'capacity' => (int) $slot->capacity,
+            'is_full' => $available <= 0,
+        ];
+    })->values();
+
+    return response()->json([
+        'date' => $date,
+        'slots' => $mapped,
+    ]);
+}
+
+    private function isPastSlot(string $date, string $startTime, ?string $endTime = null): bool
+{
+    $now = Carbon::now(self::TIMEZONE);
+
+    $normalizedStart = substr($startTime, 0, 5); // 08:00:00 -> 08:00
+    $normalizedEnd = $endTime ? substr($endTime, 0, 5) : $normalizedStart;
+
+    $start = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$normalizedStart}", self::TIMEZONE);
+    $end = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$normalizedEnd}", self::TIMEZONE);
+
+    return $start->isSameDay($now) && $end->lte($now);
+}
 
     // -------------------------
     // STORE (slot-based)
@@ -271,34 +259,30 @@ class AppointmentController extends Controller
                     }
                 },
             ],
-            // ✅ only start_time from UI (slot selection)
-            'start_time' => [
-                'required',
-                'date_format:H:i',
-                function ($attribute, $value, $fail) use ($request) {
-                    $date = $request->input('appointment_date');
-                    if (!$date) return;
-
-                    if (!$this->isValidSlot($date, $value)) {
-                        $fail('Invalid time slot. Please select an available 30-minute slot.');
-                    }
-
-                    if ($this->isPastSlot($date, $value)) {
-                        $fail('That time slot has already passed. Please choose a later time.');
-                    }
-                },
-            ],
+            'start_time' => ['required', 'date_format:H:i'],
             'purpose' => ['required', 'string', 'max:255'],
         ]);
 
         $date = $data['appointment_date'];
         $start = $data['start_time'];
-        $end = $this->computeEndTime($date, $start);
 
-        // ✅ capacity check (3 per slot)
-        $booked = $this->slotBookedCount($date, $start);
+        $slot = $this->findSlot($date, $start);
 
-        if ($booked >= self::SLOT_CAPACITY) {
+        if (!$slot) {
+            return back()->withErrors([
+                'start_time' => 'Invalid slot. Please select an available schedule.',
+            ]);
+        }
+
+        if ($this->isPastSlot($date, $slot->start_time, $slot->end_time)) {
+            return back()->withErrors([
+                'start_time' => 'That time slot has already passed. Please choose a later time.',
+            ]);
+        }
+
+        $booked = $this->slotBookedCountBySlot($slot->id);
+
+        if ($booked >= $slot->capacity) {
             return back()->withErrors([
                 'appointment_time' => 'This slot is already full. Please choose another time.',
             ]);
@@ -312,9 +296,10 @@ class AppointmentController extends Controller
 
         $appointment = Appointment::create([
             'user_id' => Auth::id(),
+            'appointment_slot_id' => $slot->id,
             'appointment_date' => $date,
-            'start_time' => $start,
-            'end_time' => $end,
+            'start_time' => $slot->start_time,
+            'end_time' => $slot->end_time,
             'purpose' => $data['purpose'],
             'status' => 'pending',
         ]);
@@ -350,32 +335,29 @@ class AppointmentController extends Controller
                     }
                 },
             ],
-            'start_time' => [
-                'required',
-                'date_format:H:i',
-                function ($attribute, $value, $fail) use ($request) {
-                    $date = $request->input('appointment_date');
-                    if (!$date) return;
-
-                    if (!$this->isValidSlot($date, $value)) {
-                        $fail('Invalid time slot. Please select an available 30-minute slot.');
-                    }
-
-                    if ($this->isPastSlot($date, $value)) {
-                        $fail('That time slot has already passed. Please choose a later time.');
-                    }
-                },
-            ],
+            'start_time' => ['required', 'date_format:H:i'],
         ]);
 
         $date = $data['appointment_date'];
         $start = $data['start_time'];
-        $end = $this->computeEndTime($date, $start);
 
-        // ✅ capacity check excluding current appointment id
-        $booked = $this->slotBookedCount($date, $start, $appointment->id);
+        $slot = $this->findSlot($date, $start);
 
-        if ($booked >= self::SLOT_CAPACITY) {
+        if (!$slot) {
+            return back()->withErrors([
+                'start_time' => 'Invalid slot. Please select an available schedule.',
+            ]);
+        }
+
+        if ($this->isPastSlot($date, $slot->start_time, $slot->end_time)) {
+            return back()->withErrors([
+                'start_time' => 'That time slot has already passed. Please choose a later time.',
+            ]);
+        }
+
+        $booked = $this->slotBookedCountBySlot($slot->id, $appointment->id);
+
+        if ($booked >= $slot->capacity) {
             return back()->withErrors([
                 'appointment_time' => 'This slot is already full. Please choose another time.',
             ]);
@@ -387,14 +369,11 @@ class AppointmentController extends Controller
             ]);
         }
 
-        $oldDate  = $appointment->appointment_date;
-        $oldStart = $appointment->start_time;
-        $oldEnd   = $appointment->end_time;
-
         $appointment->update([
+            'appointment_slot_id' => $slot->id,
             'appointment_date' => $date,
-            'start_time' => $start,
-            'end_time' => $end,
+            'start_time' => $slot->start_time,
+            'end_time' => $slot->end_time,
             'status' => 'pending',
             'rejection_reason' => null,
             'assigned_to' => null,

@@ -4,94 +4,59 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
-use App\Notifications\AppointmentRescheduledNotification;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Models\AppointmentSlot;
 use App\Models\User;
 use App\Notifications\AppointmentApproved;
 use App\Notifications\AppointmentRejected;
+use App\Notifications\AppointmentRescheduledNotification;
 use App\Notifications\NewAppointmentRequested;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AppointmentManagementController extends Controller
 {
-
-    private const SLOT_MINUTES = 30;
-    private const SLOT_CAPACITY = 3;
     private const TIMEZONE = 'Asia/Manila';
-
-    private function clinicSessions(): array
-    {
-        return [
-            ['start' => '08:00', 'end' => '12:00'],
-            ['start' => '13:00', 'end' => '17:00'],
-        ];
-    }
 
     private function isWeekend(string $date): bool
     {
-        $day = Carbon::parse($date, self::TIMEZONE)->dayOfWeek; // 0 Sun, 6 Sat
+        $day = Carbon::parse($date, self::TIMEZONE)->dayOfWeek;
         return in_array($day, [0, 6], true);
     }
 
-    private function buildSlots(string $date): array
+    private function findSlot(string $date, string $startTime): ?AppointmentSlot
     {
-        $slots = [];
+        $normalizedStart = substr($startTime, 0, 5);
 
-        foreach ($this->clinicSessions() as $session) {
-            $cursor = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$session['start']}", self::TIMEZONE);
-            $end    = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$session['end']}", self::TIMEZONE);
-
-            while ($cursor->copy()->addMinutes(self::SLOT_MINUTES)->lte($end)) {
-                $slotStart = $cursor->format('H:i');
-                $slotEnd   = $cursor->copy()->addMinutes(self::SLOT_MINUTES)->format('H:i');
-
-                $slots[] = ['start' => $slotStart, 'end' => $slotEnd];
-                $cursor->addMinutes(self::SLOT_MINUTES);
-            }
-        }
-
-        return $slots;
+        return AppointmentSlot::query()
+            ->whereDate('appointment_date', $date)
+            ->whereRaw("to_char(start_time, 'HH24:MI') = ?", [$normalizedStart])
+            ->whereRaw('is_active = true')
+            ->first();
     }
 
-    private function isValidSlot(string $date, string $startTime): bool
+    private function slotBookedCountBySlot(int $slotId, ?int $excludeAppointmentId = null): int
     {
-        foreach ($this->buildSlots($date) as $s) {
-            if ($s['start'] === $startTime) return true;
-        }
-        return false;
-    }
-
-    private function computeEndTime(string $date, string $startTime): string
-    {
-        return Carbon::createFromFormat('Y-m-d H:i', "{$date} {$startTime}", self::TIMEZONE)
-            ->addMinutes(self::SLOT_MINUTES)
-            ->format('H:i');
-    }
-
-    private function isPastSlot(string $date, string $startTime): bool
-    {
-        $now = Carbon::now(self::TIMEZONE);
-
-        $start = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$startTime}", self::TIMEZONE);
-        $end   = $start->copy()->addMinutes(self::SLOT_MINUTES);
-
-        // "Passed" only when NOW is at/after the END time
-        return $start->isSameDay($now) && $end->lte($now);
-    }
-
-    private function slotBookedCount(string $date, string $startTime, ?int $excludeId = null): int
-    {
-        return Appointment::where('appointment_date', $date)
-            ->where('start_time', $startTime)
+        return Appointment::where('appointment_slot_id', $slotId)
             ->whereIn('status', ['pending', 'approved'])
-            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->when($excludeAppointmentId, fn ($q) => $q->where('id', '!=', $excludeAppointmentId))
             ->count();
     }
 
-    // -------------------------
-    // GET /admin/appointments/availability?date=YYYY-MM-DD
-    // -------------------------
+    private function isPastSlot(string $date, string $startTime, ?string $endTime = null): bool
+    {
+        $now = Carbon::now(self::TIMEZONE);
+
+        $normalizedStart = substr($startTime, 0, 5);
+        $normalizedEnd = $endTime ? substr($endTime, 0, 5) : $normalizedStart;
+
+        $start = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$normalizedStart}", self::TIMEZONE);
+        $end = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$normalizedEnd}", self::TIMEZONE);
+
+        return $start->isSameDay($now) && $end->lte($now);
+    }
+
     public function availability(Request $request)
     {
         $data = $request->validate([
@@ -103,48 +68,129 @@ class AppointmentManagementController extends Controller
         if ($this->isWeekend($date)) {
             return response()->json([
                 'date' => $date,
-                'slot_minutes' => self::SLOT_MINUTES,
-                'capacity' => self::SLOT_CAPACITY,
                 'slots' => [],
                 'message' => 'No slots on weekends.',
             ]);
         }
 
-        $slots = $this->buildSlots($date);
+        $slots = AppointmentSlot::query()
+            ->whereDate('appointment_date', $date)
+            ->whereRaw('is_active = true')
+            ->orderBy('start_time')
+            ->get();
 
-        $counts = Appointment::selectRaw("to_char(start_time, 'HH24:MI') as start_key, COUNT(*) as cnt")
-            ->where('appointment_date', $date)
+        $bookedCounts = Appointment::query()
+            ->select('appointment_slot_id', DB::raw('COUNT(*) as booked_count'))
             ->whereIn('status', ['pending', 'approved'])
-            ->groupBy('start_key')
-            ->pluck('cnt', 'start_key');
+            ->whereNotNull('appointment_slot_id')
+            ->groupBy('appointment_slot_id')
+            ->pluck('booked_count', 'appointment_slot_id');
 
-        $mapped = array_map(function ($s) use ($counts) {
-            $booked = (int)($counts[$s['start']] ?? 0);
-            $available = max(self::SLOT_CAPACITY - $booked, 0);
+        $mapped = $slots->map(function ($slot) use ($bookedCounts) {
+            $booked = (int) ($bookedCounts[$slot->id] ?? 0);
+            $available = max((int) $slot->capacity - $booked, 0);
 
             return [
-                'start' => $s['start'],
-                'end' => $s['end'],
+                'id' => $slot->id,
+                'start' => substr((string) $slot->start_time, 0, 5),
+                'end' => substr((string) $slot->end_time, 0, 5),
                 'booked' => $booked,
                 'available' => $available,
-                'is_full' => $available === 0,
+                'capacity' => (int) $slot->capacity,
+                'is_full' => $available <= 0,
             ];
-        }, $slots);
+        })->values();
 
         return response()->json([
             'date' => $date,
-            'slot_minutes' => self::SLOT_MINUTES,
-            'capacity' => self::SLOT_CAPACITY,
             'slots' => $mapped,
         ]);
     }
 
-    // -------------------------
-    // PATCH /admin/appointments/{appointment}/schedule
-    // -------------------------
+    public function monthAvailability(Request $request)
+    {
+        $data = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $month = $data['month'];
+
+        $startDate = Carbon::createFromFormat('Y-m-d', "{$month}-01", self::TIMEZONE)->startOfMonth();
+        $endDate = $startDate->copy()->endOfMonth();
+
+        $slots = AppointmentSlot::query()
+            ->whereBetween('appointment_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
+            ->whereRaw('is_active = true')
+            ->orderBy('appointment_date')
+            ->orderBy('start_time')
+            ->get();
+
+        $bookedCounts = Appointment::query()
+            ->select('appointment_slot_id', DB::raw('COUNT(*) as booked_count'))
+            ->whereIn('status', ['pending', 'approved'])
+            ->whereNotNull('appointment_slot_id')
+            ->groupBy('appointment_slot_id')
+            ->pluck('booked_count', 'appointment_slot_id');
+
+        $grouped = $slots->groupBy(function ($slot) {
+            return Carbon::parse($slot->appointment_date)->toDateString();
+        });
+
+        $days = [];
+        $cursor = $startDate->copy();
+
+        while ($cursor->lte($endDate)) {
+            $date = $cursor->toDateString();
+
+            if ($this->isWeekend($date)) {
+                $days[] = [
+                    'date' => $date,
+                    'status' => 'closed',
+                    'available_total' => 0,
+                    'capacity_total' => 0,
+                ];
+                $cursor->addDay();
+                continue;
+            }
+
+            $daySlots = $grouped->get($date, collect());
+
+            $capacityTotal = 0;
+            $bookedTotal = 0;
+
+            foreach ($daySlots as $slot) {
+                $capacityTotal += (int) $slot->capacity;
+                $bookedTotal += (int) ($bookedCounts[$slot->id] ?? 0);
+            }
+
+            $availableTotal = max($capacityTotal - $bookedTotal, 0);
+
+            $status = $daySlots->isEmpty()
+                ? 'closed'
+                : ($availableTotal === 0 ? 'full' : 'available');
+
+            $days[] = [
+                'date' => $date,
+                'status' => $status,
+                'available_total' => $availableTotal,
+                'capacity_total' => $capacityTotal,
+            ];
+
+            $cursor->addDay();
+        }
+
+        return response()->json([
+            'month' => $month,
+            'days' => $days,
+        ]);
+    }
+
     public function updateSchedule(Request $request, Appointment $appointment)
     {
-        abort_if($appointment->status !== 'approved', 403, 'Only approved appointments can be edited.');
+        abort_if(!in_array($appointment->status, ['pending', 'approved'], true), 403, 'Only pending or approved appointments can be edited.');
 
         $data = $request->validate([
             'appointment_date' => [
@@ -156,119 +202,90 @@ class AppointmentManagementController extends Controller
                     }
                 },
             ],
-            'start_time' => [
-                'required',
-                'date_format:H:i',
-                function ($attribute, $value, $fail) use ($request, $appointment) {
-                    $date = $request->input('appointment_date');
-                    if (!$date) return;
-
-                    if (!$this->isValidSlot($date, $value)) $fail('Invalid time slot.');
-
-                    $overridePast = filter_var($request->input('override_past'), FILTER_VALIDATE_BOOLEAN);
-                    if ($this->isPastSlot($date, $value) && !$overridePast) {
-                        $fail('That time slot has already passed.');
-                    }
-
-                    $overrideFull = filter_var($request->input('override_full'), FILTER_VALIDATE_BOOLEAN);
-
-                    if (!$overrideFull) {
-                        $booked = $this->slotBookedCount($date, $value, $appointment->id);
-                        if ($booked >= self::SLOT_CAPACITY) {
-                            $fail('This slot is already full.');
-                        }
-                    }
-                },
-            ],
+            'start_time' => ['required', 'date_format:H:i'],
             'override_full' => ['nullable', 'boolean'],
             'override_past' => ['nullable', 'boolean'],
         ]);
 
         $date = $data['appointment_date'];
         $start = $data['start_time'];
-        $end = $this->computeEndTime($date, $start);
 
-        // ✅ If currently approved, prevent conflicts with OTHER approved appointments
-        if ($appointment->status === 'approved') {
-            $hasConflict = Appointment::where('appointment_date', $date)
-                ->where('status', 'approved')
-                ->where('id', '!=', $appointment->id)
-                ->where(function ($q) use ($start, $end) {
-                    $q->where('start_time', '<', $end)
-                      ->where('end_time', '>', $start);
-                })
-                ->exists();
+        $slot = $this->findSlot($date, $start);
 
-            if ($hasConflict) {
-                return back()->withErrors([
-                    'appointment' => 'This schedule conflicts with another approved appointment.',
-                ]);
-            }
+        if (!$slot) {
+            return back()->withErrors([
+                'start_time' => 'Invalid slot. Please select an available schedule.',
+            ]);
+        }
+
+        $overridePast = filter_var($request->input('override_past'), FILTER_VALIDATE_BOOLEAN);
+        $overrideFull = filter_var($request->input('override_full'), FILTER_VALIDATE_BOOLEAN);
+
+        if ($this->isPastSlot($date, $slot->start_time, $slot->end_time) && !$overridePast) {
+            return back()->withErrors([
+                'start_time' => 'That time slot has already passed.',
+            ]);
+        }
+
+        $booked = $this->slotBookedCountBySlot($slot->id, $appointment->id);
+
+        if ($booked >= $slot->capacity && !$overrideFull) {
+            return back()->withErrors([
+                'start_time' => 'This slot is already full.',
+            ]);
         }
 
         $appointment->update([
+            'appointment_slot_id' => $slot->id,
             'appointment_date' => $date,
-            'start_time' => $start,
-            'end_time' => $end,
+            'start_time' => substr((string) $slot->start_time, 0, 5),
+            'end_time' => substr((string) $slot->end_time, 0, 5),
         ]);
 
         return back()->with('success', 'Appointment schedule updated.');
     }
 
-    public function monthAvailability(Request $request)
+    public function complete(Appointment $appointment)
     {
-        $data = $request->validate([
-            'month' => ['required', 'date_format:Y-m'],
-        ]);
-
-        $month = $data['month']; // e.g. 2026-02
-
-        $start = Carbon::createFromFormat('Y-m-d', "{$month}-01", self::TIMEZONE)->startOfMonth();
-        $end   = $start->copy()->endOfMonth();
-
-        // total slots per day * capacity
-        $slotsPerDay = count($this->buildSlots($start->toDateString()));
-        $capacityPerDay = $slotsPerDay * self::SLOT_CAPACITY;
-
-        // booked per day (pending + approved)
-        $counts = Appointment::selectRaw("appointment_date, COUNT(*) as cnt")
-            ->whereBetween('appointment_date', [$start->toDateString(), $end->toDateString()])
-            ->whereIn('status', ['pending', 'approved'])
-            ->groupBy('appointment_date')
-            ->pluck('cnt', 'appointment_date');
-
-        $days = [];
-        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
-            $dateStr = $d->toDateString();
-
-            // closed on weekends
-            if ($this->isWeekend($dateStr)) {
-                $days[] = [
-                    'date' => $dateStr,
-                    'status' => 'closed',
-                    'available_total' => 0,
-                    'capacity_total' => 0,
-                ];
-                continue;
-            }
-
-            $booked = (int)($counts[$dateStr] ?? 0);
-            $available = max($capacityPerDay - $booked, 0);
-
-            $status = $available === 0 ? 'full' : 'available';
-
-            $days[] = [
-                'date' => $dateStr,
-                'status' => $status,
-                'available_total' => $available,
-                'capacity_total' => $capacityPerDay,
-            ];
+        if (!in_array($appointment->status, ['pending', 'approved'], true)) {
+            abort(400, 'Only pending or approved appointments can be completed.');
         }
 
-        return response()->json([
-            'month' => $month,
-            'days' => $days,
+        $appointment->update([
+            'status' => 'completed',
+            'approved_by' => $appointment->approved_by ?? Auth::id(),
+            'completed_at' => now(),
         ]);
+
+        return back()->with('success', 'Appointment marked as completed.');
+    }
+
+    public function approveAndComplete(Appointment $appointment)
+    {
+        if ($appointment->status !== 'pending') {
+            abort(400, 'Only pending appointments can be approved and completed.');
+        }
+
+        $appointment->update([
+            'status' => 'completed',
+            'approved_by' => Auth::id(),
+            'completed_at' => now(),
+        ]);
+
+        User::whereHas('userRole', fn ($q) => $q->whereIn('name', ['Admin', 'Nurse']))
+            ->each(function ($staff) use ($appointment) {
+                $staff->unreadNotifications()
+                    ->where('type', NewAppointmentRequested::class)
+                    ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
+                    ->update(['read_at' => now()]);
+
+                $staff->unreadNotifications()
+                    ->where('type', AppointmentRescheduledNotification::class)
+                    ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
+                    ->update(['read_at' => now()]);
+            });
+
+        return back()->with('success', 'Appointment approved and completed.');
     }
 
     public function index(Request $request)
@@ -278,6 +295,7 @@ class AppointmentManagementController extends Controller
         $appointments = Appointment::with([
                 'user:id,first_name,last_name',
                 'approver:id,first_name,last_name',
+                'slot:id,appointment_date,start_time,end_time,capacity,is_active',
             ])
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderByRaw("
@@ -293,17 +311,18 @@ class AppointmentManagementController extends Controller
             ->orderBy('start_time')
             ->paginate(10)
             ->withQueryString();
-        
+
         $calendarAppointments = Appointment::with([
             'user:id,first_name,last_name',
             'approver:id,first_name,last_name',
+            'slot:id,appointment_date,start_time,end_time,capacity,is_active',
         ])
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->get();
 
-        return inertia('admin/appointments/Index', [
+        return inertia('patients/appointments/Index', [
             'appointments' => $appointments,
             'calendarAppointments' => $calendarAppointments,
             'filters' => ['status' => $status],
@@ -316,16 +335,13 @@ class AppointmentManagementController extends Controller
             abort(400, 'Only pending appointments can be approved.');
         }
 
-        /* --------------------------------
-        ✅ PREVENT APPROVAL CONFLICTS (same user only)
-        -------------------------------- */
-        $hasConflict = Appointment::where('user_id', $appointment->user_id) // ✅ same user only
+        $hasConflict = Appointment::where('user_id', $appointment->user_id)
             ->where('appointment_date', $appointment->appointment_date)
-            ->whereIn('status', ['pending', 'approved']) // ✅ block if user already has one pending/approved
+            ->whereIn('status', ['pending', 'approved'])
             ->where('id', '!=', $appointment->id)
             ->where(function ($q) use ($appointment) {
                 $q->where('start_time', '<', $appointment->end_time)
-                ->where('end_time', '>', $appointment->start_time);
+                    ->where('end_time', '>', $appointment->start_time);
             })
             ->exists();
 
@@ -335,41 +351,24 @@ class AppointmentManagementController extends Controller
             ]);
         }
 
-        /* --------------------------------
-        ✅ APPROVE APPOINTMENT
-        -------------------------------- */
         $appointment->update([
             'status' => 'approved',
             'approved_by' => Auth::id(),
         ]);
 
-        /* --------------------------------
-         ✅ MARK ADMIN + NURSE NOTIFS AS READ
-        -------------------------------- */
-        User::whereHas('userRole', fn ($q) =>
-            $q->whereIn('name', ['Admin', 'Nurse'])
-        )->each(function ($staff) use ($appointment) {
-            $staff->unreadNotifications()
-                ->where('type', NewAppointmentRequested::class)
-                ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
-                ->update(['read_at' => now()]);
-        });
+        User::whereHas('userRole', fn ($q) => $q->whereIn('name', ['Admin', 'Nurse']))
+            ->each(function ($staff) use ($appointment) {
+                $staff->unreadNotifications()
+                    ->where('type', NewAppointmentRequested::class)
+                    ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
+                    ->update(['read_at' => now()]);
 
-        /* --------------------------------
-        ✅ MARK RESCHEDULE NOTIFS AS READ (Admin + Nurse)
-        -------------------------------- */
-        User::whereHas('userRole', fn ($q) =>
-            $q->whereIn('name', ['Admin', 'Nurse'])
-        )->each(function ($staff) use ($appointment) {
-            $staff->unreadNotifications()
-                ->where('type', AppointmentRescheduledNotification::class)
-                ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
-                ->update(['read_at' => now()]);
-        });
+                $staff->unreadNotifications()
+                    ->where('type', AppointmentRescheduledNotification::class)
+                    ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
+                    ->update(['read_at' => now()]);
+            });
 
-        /* -----------------------
-         ✅ NOTIFY THE USER
-        ----------------------- */
         $appointment->user->notify(
             new AppointmentApproved($appointment)
         );
@@ -393,38 +392,21 @@ class AppointmentManagementController extends Controller
             'approved_by' => Auth::id(),
         ]);
 
-        /* --------------------------------
-         ✅ MARK ADMIN + NURSE NOTIFS AS READ
-        -------------------------------- */
-        User::whereHas('userRole', fn ($q) =>
-            $q->whereIn('name', ['Admin', 'Nurse'])
-        )->each(function ($staff) use ($appointment) {
-            $staff->unreadNotifications()
-                ->where('type', NewAppointmentRequested::class)
-                ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
-                ->update(['read_at' => now()]);
-        });
+        User::whereHas('userRole', fn ($q) => $q->whereIn('name', ['Admin', 'Nurse']))
+            ->each(function ($staff) use ($appointment) {
+                $staff->unreadNotifications()
+                    ->where('type', NewAppointmentRequested::class)
+                    ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
+                    ->update(['read_at' => now()]);
 
-        /* --------------------------------
-        ✅ MARK RESCHEDULE NOTIFS AS READ (Admin + Nurse)
-        -------------------------------- */
-        User::whereHas('userRole', fn ($q) =>
-            $q->whereIn('name', ['Admin', 'Nurse'])
-        )->each(function ($staff) use ($appointment) {
-            $staff->unreadNotifications()
-                ->where('type', AppointmentRescheduledNotification::class)
-                ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
-                ->update(['read_at' => now()]);
-        });
+                $staff->unreadNotifications()
+                    ->where('type', AppointmentRescheduledNotification::class)
+                    ->whereRaw("data->>'appointment_id' = ?", [(string) $appointment->id])
+                    ->update(['read_at' => now()]);
+            });
 
-        /* -----------------------
-         ✅ NOTIFY THE USER
-        ----------------------- */
         $appointment->user->notify(
-            new AppointmentRejected(
-                $appointment,
-                $data['rejection_reason']
-            )
+            new AppointmentRejected($appointment, $data['rejection_reason'])
         );
 
         return back()->with('success', 'Appointment rejected.');

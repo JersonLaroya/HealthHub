@@ -52,9 +52,8 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn () => $request->session()->get('error'),
                 'bulkResult' => fn () => $request->session()->get('bulkResult'),
                 'bulkDeleteResult' => fn () => $request->session()->get('bulkDeleteResult'),
-                'bulkInactivateResult' => fn () => $request->session()->get('bulkInactivateResult'),
-            ],
-
+                'bulkArchiveResult' => fn () => $request->session()->get('bulkArchiveResult'),
+            ],  
             'quote' => ['message' => trim($message), 'author' => trim($author)],
 
             'system' => [

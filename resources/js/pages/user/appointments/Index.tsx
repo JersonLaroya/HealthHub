@@ -27,10 +27,12 @@ interface Appointment {
 }
 
 type Slot = {
+  id: number;
   start: string;
   end: string;
   booked: number;
   available: number;
+  capacity: number;
   is_full: boolean;
 };
 
@@ -394,6 +396,12 @@ export default function UserAppointments({
 
     const daysInMonth = monthEnd.getDate();
 
+    function isWeekend(dateStr: string) {
+      const d = new Date(`${dateStr}T00:00:00`);
+      const day = d.getDay();
+      return day === 0 || day === 6;
+    }
+
     const cells: Array<{ kind: "empty" } | { kind: "day"; dateStr: string; dayNum: number }> = [];
 
     for (let i = 0; i < startWeekday; i++) cells.push({ kind: "empty" });
@@ -449,10 +457,12 @@ export default function UserAppointments({
 
             const info = monthDays[c.dateStr];
             const isSelected = data.appointment_date === c.dateStr;
+            const weekend = isWeekend(c.dateStr);
 
-            const status = info?.status ?? (isPastDate(c.dateStr) ? "closed" : "available");
-            const isClosed = status === "closed" || isPastDate(c.dateStr);
+            const status = info?.status ?? "closed";
+            const isClosed = status === "closed" || isPastDate(c.dateStr) || weekend;
             const isFull = status === "full";
+            const isAvailable = status === "available";
 
             const disabled = isClosed || isFull;
             const availableTotal = info?.available_total ?? null;
@@ -474,21 +484,29 @@ export default function UserAppointments({
                   setData("start_time", "");
                 }}
                 className={[
-                  "h-10 rounded-md border text-sm relative transition",
+                  "h-14 rounded-md border text-sm relative transition",
                   "flex items-center justify-center",
                   disabled
-                    ? "opacity-50 cursor-not-allowed bg-neutral-50 dark:bg-neutral-900"
+                    ? "opacity-50 cursor-not-allowed bg-neutral-100 dark:bg-neutral-900"
                     : "hover:bg-neutral-50 dark:hover:bg-neutral-900",
+                  isAvailable && !disabled
+                    ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800"
+                    : "",
+                  isFull
+                    ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800"
+                    : "",
                   isSelected
                     ? "border-neutral-900 dark:border-neutral-100 ring-2 ring-neutral-400"
                     : "border-neutral-200 dark:border-neutral-700",
                 ].join(" ")}
                 title={
-                  status === "available"
-                    ? `${availableTotal ?? ""} slots available`
+                  weekend
+                    ? "Closed on weekends"
+                    : status === "available"
+                    ? `${availableTotal ?? 0} available`
                     : status === "full"
                     ? "Fully booked"
-                    : "Closed"
+                    : "No schedule available"
                 }
               >
                 <span>{c.dayNum}</span>
@@ -564,7 +582,7 @@ export default function UserAppointments({
             ? "Passed"
             : s.is_full
             ? "Full"
-            : `${s.available} left`;
+            : `${s.available} / ${s.capacity} left`;
 
           // red if full, gray if disabled, highlight if selected
           const rowClass = [
@@ -743,7 +761,7 @@ export default function UserAppointments({
 
                 <SlotPicker
                   selected={data.start_time}
-                  onSelect={(start) => setData("start_time", start)}
+                  onSelect={(start) => setData("start_time", start.slice(0, 5))}
                   disabled={processing}
                 />
 
@@ -804,7 +822,7 @@ export default function UserAppointments({
 
                 <SlotPicker
                   selected={data.start_time}
-                  onSelect={(start) => setData("start_time", start)}
+                  onSelect={(start) => setData("start_time", start.slice(0, 5))}
                   disabled={rescheduleProcessing}
                 />
 

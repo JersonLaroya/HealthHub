@@ -17,6 +17,19 @@ type VitalInputProps = {
   onChange: (value: string) => void;
 };
 
+type ActiveAppointment = {
+  id: number;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  purpose: string;
+  status: "pending" | "approved" | "completed" | "rejected";
+  approver?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+};
+
 const VitalInput = ({ value, unit, placeholder, onChange }: VitalInputProps) => {
   const cleanValue = value ? value.replace(/[^0-9./]/g, "") : "";
 
@@ -35,11 +48,69 @@ const VitalInput = ({ value, unit, placeholder, onChange }: VitalInputProps) => 
   );
 };
 
-export default function Show({ patient, consultations, breadcrumbs = [], schoolYear }) {
+export default function Show({
+  patient,
+  consultations,
+  breadcrumbs = [],
+  schoolYear,
+  activeAppointment,
+}: {
+  patient: any;
+  consultations: any;
+  breadcrumbs?: any[];
+  schoolYear: string;
+  activeAppointment?: ActiveAppointment | null;
+}) {
   console.log("FIRST CONSULTATION:", consultations?.data?.[0]);
   console.log("UPDATER:", consultations?.data?.[0]?.updater);
   console.log("CREATOR:", consultations?.data?.[0]?.creator);
   const [downloading, setDownloading] = useState(false);
+
+  const [appointmentProcessing, setAppointmentProcessing] = useState<number | null>(null);
+
+  function completePatientAppointment(id: number) {
+    setAppointmentProcessing(id);
+
+    router.patch(
+      `/${prefix}/appointments/${id}/complete`,
+      {},
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          toast.success("Appointment marked as completed.");
+          router.reload({ only: ["activeAppointment"] });
+        },
+        onError: () => {
+          toast.error("Failed to complete appointment.");
+        },
+        onFinish: () => {
+          setAppointmentProcessing(null);
+        },
+      }
+    );
+  }
+
+  function approveAndCompletePatientAppointment(id: number) {
+    setAppointmentProcessing(id);
+
+    router.patch(
+      `/${prefix}/appointments/${id}/approve-complete`,
+      {},
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          toast.success("Appointment approved and completed.");
+          router.reload({ only: ["activeAppointment"] });
+        },
+        onError: () => {
+          toast.error("Failed to approve and complete appointment.");
+        },
+        onFinish: () => {
+          setAppointmentProcessing(null);
+        },
+      }
+    );
+  }
 
   async function handleOpenPdf(patient, consultations) {
     try {
@@ -570,6 +641,91 @@ const handleApproveWithUpdate = () => {
             <div className="flex-1 py-2 lg:py-0"><label className="font-semibold block mb-0.5">O2 Sat</label><p>{patient.vital_sign?.o2_sat || "-"}</p></div>
           </div>
         </Card>
+
+        {/* Appointment */}
+        {activeAppointment && (
+          <Card className="p-4 bg-white dark:bg-neutral-800 shadow">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1 text-sm">
+                <div className="font-semibold text-base">Patient Appointment</div>
+
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {new Date(activeAppointment.appointment_date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+
+                <p>
+                  <strong>Time:</strong>{" "}
+                  {formatDateLong(activeAppointment.appointment_date) !== "-"
+                    ? `${new Date(`2000-01-01T${activeAppointment.start_time}`).toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })} – ${new Date(`2000-01-01T${activeAppointment.end_time}`).toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}`
+                    : "-"}
+                </p>
+
+                <p>
+                  <strong>Purpose:</strong> {activeAppointment.purpose || "-"}
+                </p>
+
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${
+                      activeAppointment.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : activeAppointment.status === "approved"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {activeAppointment.status}
+                  </span>
+                </p>
+
+                <p>
+                  <strong>Approved By:</strong>{" "}
+                  {activeAppointment.approver
+                    ? `${activeAppointment.approver.first_name} ${activeAppointment.approver.last_name}`
+                    : "—"}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {activeAppointment.status === "pending" && (
+                  <Button
+                    onClick={() => approveAndCompletePatientAppointment(activeAppointment.id)}
+                    disabled={appointmentProcessing === activeAppointment.id}
+                  >
+                    {appointmentProcessing === activeAppointment.id
+                      ? "Processing..."
+                      : "Approve & Complete"}
+                  </Button>
+                )}
+
+                {activeAppointment.status === "approved" && (
+                  <Button
+                    onClick={() => completePatientAppointment(activeAppointment.id)}
+                    disabled={appointmentProcessing === activeAppointment.id}
+                  >
+                    {appointmentProcessing === activeAppointment.id
+                      ? "Processing..."
+                      : "Complete Appointment"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Consultation Table */}
         <Card className="p-4 bg-white dark:bg-neutral-800 shadow">

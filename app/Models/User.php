@@ -125,9 +125,19 @@ class User extends Authenticatable
         return $this->hasMany(Consultation::class, 'patient_id');
     }
 
+    public function createdAppointmentSlots()
+    {
+        return $this->hasMany(AppointmentSlot::class, 'created_by');
+    }
+
     public function appointments()
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    public function approvedAppointments()
+    {
+        return $this->hasMany(Appointment::class, 'approved_by');
     }
 
     // inquiries made for this patient

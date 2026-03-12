@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminDtrReportController;
 use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\AppointmentManagementController;
+use App\Http\Controllers\Admin\AppointmentSlotController;
 use App\Http\Controllers\Admin\DiseaseCategoryController;
 use App\Http\Controllers\Admin\DiseaseClusterAnalyticsController;
 use App\Http\Controllers\Admin\DiseaseClusteringController;
@@ -474,6 +475,16 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
             return Inertia::render('messages/Chat');
         })->name('admin.messages');
 
+        // Appointment Slots
+        Route::prefix('appointment-slots')->name('admin.appointment-slots.')->group(function () {
+            Route::get('/', [AppointmentSlotController::class, 'index'])->name('index');
+            Route::post('/', [AppointmentSlotController::class, 'store'])->name('store');
+            Route::post('/bulk', [AppointmentSlotController::class, 'bulkStore'])->name('bulk-store');
+            Route::put('/{slot}', [AppointmentSlotController::class, 'update'])->name('update');
+            Route::delete('/{slot}', [AppointmentSlotController::class, 'destroy'])->name('destroy');
+            Route::patch('/{slot}/toggle-active', [AppointmentSlotController::class, 'toggleActive'])->name('toggle-active');
+        });
+
         // Appointment
         Route::prefix('appointments')->name('admin.appointments.')->group(function () {
 
@@ -497,6 +508,15 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
             Route::patch('/{appointment}/schedule', [AppointmentManagementController::class, 'updateSchedule'])
                 ->name('schedule');
 
+            Route::patch('/{appointment}/complete', [AppointmentManagementController::class, 'complete'])
+                ->name('complete');
+
+            Route::patch('/{appointment}/approve-complete', [AppointmentManagementController::class, 'approveAndComplete'])
+                ->name('approve-complete');
+            
+            Route::delete('/{appointment}', [AppointmentManagementController::class, 'destroy'])
+                ->name('destroy');
+
         });
 
         Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate']);
@@ -506,6 +526,7 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
     Route::prefix('nurse')->group(function () {
         Route::get('/patients', [PatientController::class, 'index'])->name('nurse.patients.index');
         Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('nurse.patients.show');
+        Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('nurse.patients.update');
         Route::get('/patients/{patient}/download-pdf', [PatientPdfController::class, 'download'])->name('nurse.patients.downloadPdf');
         Route::post('/patients/{patient}/consultations', [ConsultationController::class, 'store'])->name('nurse.patients.consultations.store');
         Route::put('/patients/{patient}/consultations/{consultation}',[ConsultationController::class, 'update'])->name('nurse.patients.consultations.update');
@@ -522,12 +543,22 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
         Route::post(
             '/patients/{patient}/files/{slug}/records/{record}/sign',
             [PatientController::class, 'signLabRequest']
-        )->name('admin.patients.records.sign');
+        )->name('nurse.patients.records.sign');
 
         // Message
         Route::get('/messages', function () {
             return Inertia::render('messages/Chat');
         })->name('nurse.messages');
+
+        // Appointment Slots
+        Route::prefix('appointment-slots')->name('nurse.appointment-slots.')->group(function () {
+            Route::get('/', [AppointmentSlotController::class, 'index'])->name('index');
+            Route::post('/', [AppointmentSlotController::class, 'store'])->name('store');
+            Route::post('/bulk', [AppointmentSlotController::class, 'bulkStore'])->name('bulk-store');
+            Route::put('/{slot}', [AppointmentSlotController::class, 'update'])->name('update');
+            Route::delete('/{slot}', [AppointmentSlotController::class, 'destroy'])->name('destroy');
+            Route::patch('/{slot}/toggle-active', [AppointmentSlotController::class, 'toggleActive'])->name('toggle-active');
+        });
 
         // Appointment
         Route::prefix('appointments')->name('nurse.appointments.')->group(function () {
@@ -552,6 +583,14 @@ Route::middleware(['auth', 'role:Admin,Nurse'])->group(function () {
             Route::patch('/{appointment}/schedule', [AppointmentManagementController::class, 'updateSchedule'])
                 ->name('schedule');
 
+            Route::patch('/{appointment}/complete', [AppointmentManagementController::class, 'complete'])
+                ->name('complete');
+
+            Route::patch('/{appointment}/approve-complete', [AppointmentManagementController::class, 'approveAndComplete'])
+                ->name('approve-complete');
+            
+            Route::delete('/{appointment}', [AppointmentManagementController::class, 'destroy'])
+                ->name('destroy');
         });
 
         Route::get('/files/{slug}/template', [FileController::class, 'getFormTemplate']);
@@ -603,7 +642,7 @@ Route::middleware(['auth', 'role:Super Admin'])
         Route::post('/users/bulk-delete', [SuperAdminUserController::class, 'bulkDelete'])
             ->name('users.bulk.delete');
         
-        Route::post('/superadmin/users/bulk-archive', [SuperAdminUserController::class, 'bulkArchive'])
+        Route::post('/users/bulk-archive', [SuperAdminUserController::class, 'bulkArchive'])
             ->name('superadmin.users.bulk-archive');
 
         Route::patch('/users/{user}/archive', [SuperAdminUserController::class, 'archive'])
