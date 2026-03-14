@@ -644,6 +644,9 @@ Route::middleware(['auth', 'role:Super Admin'])
         
         Route::post('/users/bulk-archive', [SuperAdminUserController::class, 'bulkArchive'])
             ->name('superadmin.users.bulk-archive');
+        
+        Route::post('/users/bulk-unarchive', [SuperAdminUserController::class, 'bulkUnarchive'])
+            ->name('superadmin.users.bulk-unarchive');
 
         Route::patch('/users/{user}/archive', [SuperAdminUserController::class, 'archive'])
             ->name('superadmin.users.archive');

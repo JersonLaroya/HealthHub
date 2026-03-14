@@ -16,7 +16,6 @@ class Appointment extends Model
         'purpose',
         'status',
         'completed_at',
-        'notes',
         'rejection_reason',
     ];
 

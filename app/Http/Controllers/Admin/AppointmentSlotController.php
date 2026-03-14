@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class AppointmentSlotController extends Controller
 {
@@ -103,34 +104,8 @@ class AppointmentSlotController extends Controller
     public function update(Request $request, AppointmentSlot $slot)
     {
         $data = $request->validate([
-            'appointment_date' => [
-                'required',
-                'date',
-                function ($attribute, $value, $fail) {
-                    if ($this->isWeekend($value)) {
-                        $fail('Slots cannot be scheduled on Saturdays or Sundays.');
-                    }
-                },
-            ],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'capacity' => ['required', 'integer', 'min:1', 'max:100'],
-            'is_active' => ['required', 'boolean'],
         ]);
-
-        $hasConflict = AppointmentSlot::where('id', '!=', $slot->id)
-            ->where('appointment_date', $data['appointment_date'])
-            ->where(function ($query) use ($data) {
-                $query->where('start_time', '<', $data['end_time'])
-                    ->where('end_time', '>', $data['start_time']);
-            })
-            ->exists();
-
-        if ($hasConflict) {
-            return back()->withErrors([
-                'slot' => 'This slot overlaps with an existing schedule.',
-            ]);
-        }
 
         $bookedCount = $slot->appointments()
             ->whereIn('status', ['pending', 'approved'])
@@ -143,11 +118,7 @@ class AppointmentSlotController extends Controller
         }
 
         $slot->update([
-            'appointment_date' => $data['appointment_date'],
-            'start_time' => $data['start_time'],
-            'end_time' => $data['end_time'],
             'capacity' => $data['capacity'],
-            'is_active' => (bool) $data['is_active'],
         ]);
 
         return back()->with('success', 'Appointment slot updated successfully.');
@@ -230,11 +201,18 @@ class AppointmentSlotController extends Controller
 
     public function toggleActive(AppointmentSlot $slot)
     {
-        $newValue = !$slot->is_active;
+        $newValue = ! (bool) $slot->is_active;
 
-        $slot->update([
-            'is_active' => $newValue,
-        ]);
+        DB::update(
+            'UPDATE appointment_slots
+            SET is_active = ?::boolean, updated_at = ?
+            WHERE id = ?',
+            [
+                $newValue ? 'true' : 'false',
+                now(),
+                $slot->id,
+            ]
+        );
 
         return back()->with(
             'success',

@@ -291,13 +291,22 @@ class AppointmentManagementController extends Controller
     public function index(Request $request)
     {
         $status = $request->query('status');
+        $search = trim((string) $request->query('search'));
 
         $appointments = Appointment::with([
-                'user:id,first_name,last_name',
+                'user:id,first_name,last_name,email',
                 'approver:id,first_name,last_name',
                 'slot:id,appointment_date,start_time,end_time,capacity,is_active',
             ])
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('first_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('last_name', 'ILIKE', "%{$search}%")
+                        ->orWhereRaw("(first_name || ' ' || last_name) ILIKE ?", ["%{$search}%"])
+                        ->orWhere('email', 'ILIKE', "%{$search}%");
+                });
+            })
             ->orderByRaw("
                 CASE status
                     WHEN 'pending' THEN 1
@@ -313,11 +322,19 @@ class AppointmentManagementController extends Controller
             ->withQueryString();
 
         $calendarAppointments = Appointment::with([
-            'user:id,first_name,last_name',
+            'user:id,first_name,last_name,email',
             'approver:id,first_name,last_name',
             'slot:id,appointment_date,start_time,end_time,capacity,is_active',
         ])
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->get();
@@ -325,7 +342,10 @@ class AppointmentManagementController extends Controller
         return inertia('patients/appointments/Index', [
             'appointments' => $appointments,
             'calendarAppointments' => $calendarAppointments,
-            'filters' => ['status' => $status],
+            'filters' => [
+                'status' => $status,
+                'search' => $search,
+            ],
         ]);
     }
 

@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                 'bulkResult' => fn () => $request->session()->get('bulkResult'),
                 'bulkDeleteResult' => fn () => $request->session()->get('bulkDeleteResult'),
                 'bulkArchiveResult' => fn () => $request->session()->get('bulkArchiveResult'),
+                'bulkUnarchiveResult' => fn () => $request->session()->get('bulkUnarchiveResult'),
             ],  
             'quote' => ['message' => trim($message), 'author' => trim($author)],
 

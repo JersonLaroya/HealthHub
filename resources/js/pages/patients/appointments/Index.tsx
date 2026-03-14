@@ -19,6 +19,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { Input } from "@/components/ui/input";
 
 type Slot = {
   start: string;
@@ -116,12 +117,13 @@ export default function AppointmentsIndex({ appointments, calendarAppointments, 
   const [monthCursor, setMonthCursor] = useState<Date>(() => startOfMonth(new Date()));
 
   const [overrideFull, setOverrideFull] = useState(false);
-  const [overridePast, setOverridePast] = useState(false); // ✅ add
+  const [overridePast, setOverridePast] = useState(false);
 
   const [monthLoading, setMonthLoading] = useState(false);
   const [monthDays, setMonthDays] = useState<Record<string, MonthDay>>({});
+  const [search, setSearch] = useState(filters?.search || "");
 
-  /* ✅ realtime updates — unchanged */
+  /* realtime updates — unchanged */
   useEffect(() => {
     const echo = (window as any).Echo;
     if (!echo) return;
@@ -193,13 +195,51 @@ export default function AppointmentsIndex({ appointments, calendarAppointments, 
   );
 }
 
-  function filter(status?: string) {
-    router.get(
+  function filter(status?: string, searchValue?: string) {
+  router.get(
     `${basePath}/appointments`,
-      status ? { status } : {},
-      { preserveState: true }
-    );
-  }
+    {
+      status: status ?? filters?.status ?? "",
+      search: searchValue ?? search ?? "",
+    },
+    {
+      preserveState: true,
+      preserveScroll: true,
+    }
+  );
+}
+
+function submitSearch(e: React.FormEvent) {
+  e.preventDefault();
+
+  router.get(
+    `${basePath}/appointments`,
+    {
+      status: filters?.status || "",
+      search,
+    },
+    {
+      preserveState: true,
+      preserveScroll: true,
+    }
+  );
+}
+
+function clearSearch() {
+  setSearch("");
+
+  router.get(
+    `${basePath}/appointments`,
+    {
+      status: filters?.status || "",
+      search: "",
+    },
+    {
+      preserveState: true,
+      preserveScroll: true,
+    }
+  );
+}
 
   function formatDate(date: string) {
     return new Date(date).toLocaleDateString("en-US", {
@@ -605,12 +645,12 @@ function approveAndComplete(id: number) {
         </div>
 
         {/* FILTERS + VIEW TOGGLE */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant={!filters?.status ? "default" : "outline"}
               size="sm"
-              onClick={() => filter()}
+              onClick={() => filter("")}
             >
               All
             </Button>
@@ -644,22 +684,40 @@ function approveAndComplete(id: number) {
             </Button>
           </div>
 
-          {/* ✅ View toggle (added) */}
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={view === "table" ? "default" : "outline"}
-              onClick={() => setView("table")}
-            >
-              Table
-            </Button>
-            <Button
-              size="sm"
-              variant={view === "calendar" ? "default" : "outline"}
-              onClick={() => setView("calendar")}
-            >
-              Calendar
-            </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <form onSubmit={submitSearch} className="flex gap-2">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search requester name or email"
+                className="w-full sm:w-64"
+              />
+              <Button type="submit" size="sm">
+                Search
+              </Button>
+              {search && (
+                <Button type="button" size="sm" variant="outline" onClick={clearSearch}>
+                  Clear
+                </Button>
+              )}
+            </form>
+
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={view === "table" ? "default" : "outline"}
+                onClick={() => setView("table")}
+              >
+                Table
+              </Button>
+              <Button
+                size="sm"
+                variant={view === "calendar" ? "default" : "outline"}
+                onClick={() => setView("calendar")}
+              >
+                Calendar
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -717,13 +775,20 @@ function approveAndComplete(id: number) {
                     </thead>
 
                     <tbody>
-                        {appointments.data.map((a: any) => (
-                        <tr
-                        key={a.id}
-                        className="border-b hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
-                        >
+                      {appointments.data.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-6 text-center text-neutral-500">
+                            No appointments found.
+                          </td>
+                        </tr>
+                      ) : (
+                        appointments.data.map((a: any) => (
+                          <tr
+                            key={a.id}
+                            className="border-b hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                          >
                             <td className="p-3 font-medium">
-                            {a.user.first_name} {a.user.last_name}
+                              {a.user.first_name} {a.user.last_name}
                             </td>
 
                             <td className="p-3 text-neutral-600">
@@ -740,9 +805,9 @@ function approveAndComplete(id: number) {
                             </td>
 
                             <td className="p-3">
-                            <span
+                              <span
                                 className={`text-xs px-2 py-1 rounded capitalize ${
-                                a.status === "pending"
+                                  a.status === "pending"
                                     ? "bg-yellow-100 text-yellow-800"
                                     : a.status === "approved"
                                     ? "bg-blue-100 text-blue-800"
@@ -750,9 +815,9 @@ function approveAndComplete(id: number) {
                                     ? "bg-green-100 text-green-800"
                                     : "bg-red-100 text-red-800"
                                 }`}
-                            >
+                              >
                                 {a.status}
-                            </span>
+                              </span>
                             </td>
 
                             <td className="p-3 text-right">
@@ -765,24 +830,6 @@ function approveAndComplete(id: number) {
                                   >
                                     {processingId === a.id ? "Processing..." : "Approve"}
                                   </Button>
-
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={processingId === a.id}
-                                    onClick={() => approveAndComplete(a.id)}
-                                  >
-                                    Approve & Complete
-                                  </Button>
-
-                                  {/* <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openEditSchedule(a)}
-                                    disabled={processingId === a.id}
-                                  >
-                                    Edit
-                                  </Button> */}
 
                                   <Button
                                     size="sm"
@@ -804,15 +851,6 @@ function approveAndComplete(id: number) {
                                   >
                                     {processingId === a.id ? "Processing..." : "Complete"}
                                   </Button>
-
-                                  {/* <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openEditSchedule(a)}
-                                    disabled={processingId === a.id}
-                                  >
-                                    Edit
-                                  </Button> */}
 
                                   <Button
                                     size="sm"
@@ -838,8 +876,9 @@ function approveAndComplete(id: number) {
                                 </div>
                               )}
                             </td>
-                        </tr>
-                        ))}
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                 </table>
                 {appointments.links && (

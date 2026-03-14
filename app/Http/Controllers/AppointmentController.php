@@ -20,20 +20,20 @@ class AppointmentController extends Controller
     {
         return AppointmentSlot::query()
             ->whereDate('appointment_date', $date)
-            ->whereRaw('is_active = true')
+            ->whereRaw('is_active IS TRUE')
             ->orderBy('start_time');
     }
 
     private function findSlot(string $date, string $startTime): ?AppointmentSlot
-{
-    $normalizedStart = substr($startTime, 0, 5);
+    {
+        $normalizedStart = substr($startTime, 0, 5);
 
-    return AppointmentSlot::query()
-        ->whereDate('appointment_date', $date)
-        ->whereRaw("to_char(start_time, 'HH24:MI') = ?", [$normalizedStart])
-        ->whereRaw('is_active = true')
-        ->first();
-}
+        return AppointmentSlot::query()
+            ->whereDate('appointment_date', $date)
+            ->whereRaw("to_char(start_time, 'HH24:MI') = ?", [$normalizedStart])
+            ->whereRaw('is_active IS TRUE')
+            ->first();
+    }
 
     private function slotBookedCountBySlot(int $slotId, ?int $excludeAppointmentId = null): int
     {
@@ -84,7 +84,7 @@ public function availabilityMonth(Request $request)
             $startDate->toDateString(),
             $endDate->toDateString(),
         ])
-        ->whereRaw('is_active = true')
+        ->whereRaw('is_active IS TRUE')
         ->orderBy('appointment_date')
         ->orderBy('start_time')
         ->get();
@@ -199,7 +199,7 @@ public function availability(Request $request)
 
     $slots = AppointmentSlot::query()
         ->where('appointment_date', $date)
-        ->whereRaw('is_active = true')
+        ->whereRaw('is_active IS TRUE')
         ->orderBy('start_time')
         ->get();
 

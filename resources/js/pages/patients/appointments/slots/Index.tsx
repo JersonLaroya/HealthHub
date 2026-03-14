@@ -172,8 +172,6 @@ function applyDefaultClinicSchedule() {
   const merged = mergeSlots(generatedSlots, [...morning, ...afternoon]);
   setGeneratedSlots(merged);
   syncSelectedSlots(merged);
-
-  toast.success("Default clinic schedule generated.");
 }
 
 function toggleGeneratedSlot(index: number) {
@@ -197,8 +195,7 @@ function toggleGeneratedSlot(index: number) {
     start_time: "",
     end_time: "",
     capacity: 3,
-    is_active: true,
-    });
+  });
 
   function goBack() {
     router.get(`${basePath}/appointments`);
@@ -307,11 +304,10 @@ useEffect(() => {
   function openEdit(slot: Slot) {
   setEditingSlot(slot);
   editForm.setData({
-    appointment_date: slot.appointment_date,
-    start_time: slot.start_time,
-    end_time: slot.end_time,
+    appointment_date: String(slot.appointment_date).slice(0, 10),
+    start_time: String(slot.start_time).slice(0, 5),
+    end_time: String(slot.end_time).slice(0, 5),
     capacity: slot.capacity,
-    is_active: slot.is_active,
   });
   editForm.clearErrors();
 }
@@ -323,20 +319,20 @@ useEffect(() => {
   }
 
   function submitEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editingSlot) return;
+  e.preventDefault();
+  if (!editingSlot) return;
 
-    editForm.put(`${basePath}/appointment-slots/${editingSlot.id}`, {
-      preserveScroll: true,
-      onSuccess: () => {
-        toast.success("Appointment slot updated.");
-        closeEdit();
-      },
-      onError: () => {
-        toast.error("Failed to update appointment slot.");
-      },
-    });
-  }
+  editForm.put(`${basePath}/appointment-slots/${editingSlot.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Appointment slot updated.");
+      closeEdit();
+    },
+    onError: () => {
+      toast.error("Failed to update appointment slot.");
+    },
+  });
+}
 
   function toggleActive(slot: Slot) {
     router.patch(
@@ -345,6 +341,7 @@ useEffect(() => {
       {
         preserveScroll: true,
         onSuccess: () => {
+          router.reload({ only: ["slots"] });
           toast.success(slot.is_active ? "Slot deactivated." : "Slot activated.");
         },
         onError: () => {
@@ -643,8 +640,15 @@ useEffect(() => {
             <h1 className="text-2xl font-semibold">Appointment Slots</h1>
           </div>
 
-          <Button onClick={() => setOpenCreate(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
+          <Button
+            onClick={() => {
+              if (selectedDate) {
+                createForm.setData("appointment_date", selectedDate);
+              }
+              setOpenCreate(true);
+            }}
+            className="gap-2"
+          >
             Add Slot
           </Button>
         </div>
@@ -671,34 +675,28 @@ useEffect(() => {
             <form onSubmit={submitCreate} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="text-sm">Date</label>
-                    <Input
-                        type="date"
-                        value={createForm.data.appointment_date}
-                        onChange={(e) => {
-                        const value = e.target.value;
+                  <label className="text-sm">Date</label>
+                  <Input
+                    type="date"
+                    value={createForm.data.appointment_date}
+                    onChange={(e) => {
+                      const value = e.target.value;
 
-                        if (value && isWeekend(value)) {
-                            toast.error("Saturday and Sunday cannot be scheduled.");
-                            createForm.setData("appointment_date", "");
-                            return;
-                        }
+                      if (value && isWeekend(value)) {
+                        toast.error("Saturday and Sunday cannot be scheduled.");
+                        createForm.setData("appointment_date", "");
+                        return;
+                      }
 
-                        createForm.setData("appointment_date", value);
-                        }}
-                    />
-                    {createForm.errors.appointment_date && (
-                        <div className="text-xs text-red-500 mt-1">
-                        {createForm.errors.appointment_date}
-                        </div>
-                    )}
-
-                    {createForm.data.appointment_date && isWeekend(createForm.data.appointment_date) && (
-                        <div className="text-xs text-red-500 mt-1">
-                        Saturday and Sunday are not allowed.
-                        </div>
-                    )}
+                      createForm.setData("appointment_date", value);
+                    }}
+                  />
+                  {createForm.errors.appointment_date && (
+                    <div className="text-xs text-red-500 mt-1">
+                      {createForm.errors.appointment_date}
                     </div>
+                  )}
+                </div>
 
                 <div>
                 <label className="text-sm">Slot Duration</label>
@@ -855,52 +853,35 @@ useEffect(() => {
 
           <form onSubmit={submitEdit} className="space-y-4">
             <div>
-                <label className="text-sm">Date</label>
-                <Input
+              <label className="text-sm">Date</label>
+              <Input
                 type="date"
                 value={editForm.data.appointment_date}
-                onChange={(e) => {
-                    const value = e.target.value;
-
-                    if (value && isWeekend(value)) {
-                    toast.error("Saturday and Sunday cannot be scheduled.");
-                    return;
-                    }
-
-                    editForm.setData("appointment_date", value);
-                }}
-                />
-                {editForm.errors.appointment_date && (
-                <div className="text-xs text-red-500 mt-1">
-                    {editForm.errors.appointment_date}
-                </div>
-                )}
+                readOnly
+                disabled
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div>
                 <label className="text-sm">Start Time</label>
                 <Input
-                    type="time"
-                    value={editForm.data.start_time}
-                    onChange={(e) => editForm.setData("start_time", e.target.value)}
+                  type="time"
+                  value={editForm.data.start_time}
+                  readOnly
+                  disabled
                 />
-                {editForm.errors.start_time && (
-                    <div className="text-xs text-red-500 mt-1">{editForm.errors.start_time}</div>
-                )}
-                </div>
+              </div>
 
-                <div>
+              <div>
                 <label className="text-sm">End Time</label>
                 <Input
-                    type="time"
-                    value={editForm.data.end_time}
-                    onChange={(e) => editForm.setData("end_time", e.target.value)}
+                  type="time"
+                  value={editForm.data.end_time}
+                  readOnly
+                  disabled
                 />
-                {editForm.errors.end_time && (
-                    <div className="text-xs text-red-500 mt-1">{editForm.errors.end_time}</div>
-                )}
-                </div>
+              </div>
             </div>
 
             <div>
@@ -915,15 +896,6 @@ useEffect(() => {
                 <div className="text-xs text-red-500 mt-1">{editForm.errors.capacity}</div>
                 )}
             </div>
-
-            <label className="flex items-center gap-2 text-sm">
-                <input
-                type="checkbox"
-                checked={editForm.data.is_active}
-                onChange={(e) => editForm.setData("is_active", e.target.checked)}
-                />
-                Active
-            </label>
 
             {(editForm.errors.slot || editForm.errors.capacity) && (
                 <div className="text-sm text-red-600">

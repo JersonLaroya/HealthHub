@@ -746,4 +746,116 @@ class SuperAdminUserController extends Controller
         'skipped' => $skippedUsers,
     ]);
 }
+
+public function bulkUnarchive(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:csv,txt',
+        'role' => 'required|exists:user_roles,name',
+    ]);
+
+    $role = UserRole::where('name', $request->role)->firstOrFail();
+
+    $unarchivedUsers = [];
+    $alreadyActiveUsers = [];
+    $skippedUsers = [];
+    $notFoundUsers = [];
+
+    $file = fopen($request->file('file')->getRealPath(), 'r');
+
+    $header = fgetcsv($file);
+
+    if (!$header) {
+        return back()->with('error', 'Empty or invalid CSV file.');
+    }
+
+    $emailIndex = collect($header)->search(
+        fn ($h) => strtolower(trim($h)) === 'email'
+    );
+
+    if ($emailIndex === false) {
+        fclose($file);
+        return back()->with('error', 'CSV must contain an "email" column.');
+    }
+
+    $rowCount = 0;
+
+    while (($row = fgetcsv($file)) !== false) {
+        if (!array_filter($row)) {
+            continue;
+        }
+
+        $rowCount++;
+
+        if ($rowCount > 500) {
+            fclose($file);
+            return back()->with('error', 'Maximum of 500 rows per bulk unarchive.');
+        }
+
+        $email = trim($row[$emailIndex] ?? '');
+
+        if (!$email) {
+            $skippedUsers[] = [
+                'email' => null,
+                'reason' => 'Missing email',
+            ];
+            continue;
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $notFoundUsers[] = [
+                'email' => $email,
+                'reason' => 'User not found',
+            ];
+            continue;
+        }
+
+        if ($user->userRole?->name === 'Super Admin') {
+            $skippedUsers[] = [
+                'email' => $email,
+                'reason' => 'Super Admin cannot be unarchived',
+            ];
+            continue;
+        }
+
+        if ($user->user_role_id !== $role->id) {
+            $skippedUsers[] = [
+                'email' => $email,
+                'reason' => 'Role mismatch',
+            ];
+            continue;
+        }
+
+        if ($user->status === 'active' && is_null($user->archived_at)) {
+            $alreadyActiveUsers[] = [
+                'id' => $user->id,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'email' => $user->email,
+            ];
+            continue;
+        }
+
+        $user->update([
+            'status' => 'active',
+            'archived_at' => null,
+        ]);
+
+        $unarchivedUsers[] = [
+            'id' => $user->id,
+            'name' => $user->first_name . ' ' . $user->last_name,
+            'email' => $user->email,
+        ];
+    }
+
+    fclose($file);
+
+    return back()->with('bulkUnarchiveResult', [
+        'unarchived' => $unarchivedUsers,
+        'already_active' => $alreadyActiveUsers,
+        'not_found' => $notFoundUsers,
+        'skipped' => $skippedUsers,
+    ]);
+}
 }

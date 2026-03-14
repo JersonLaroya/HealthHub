@@ -131,23 +131,22 @@ export default function Bulk() {
   const archiveForm = useForm<{
   file: File | null;
   role: string;
+  action: "archive" | "unarchive" | "";
 }>({
   file: null,
   role: "",
+  action: "",
 });
 
   const { flash } = usePage().props as any;
-  const bulkResult = flash?.bulkResult;
-
-  console.log("FLASH:", flash);
-  console.log("BULK RESULT:", bulkResult);
 
   useEffect(() => {
-    if (bulkResult) {
-      setShowResult(true);
-      resetBulkForm();
-    }
-  }, [bulkResult]);
+  if (flash?.bulkResult) {
+    setBulkResultData(flash.bulkResult);
+    setShowResult(true);
+    resetBulkForm();
+  }
+}, [flash?.bulkResult]);
 
   const [showResult, setShowResult] = useState(false);
   const [previewUsers, setPreviewUsers] = useState<any[]>([]);
@@ -163,7 +162,6 @@ export default function Bulk() {
 
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [deletePreview, setDeletePreview] = useState<any[]>([]);
-  const bulkDeleteResult = flash?.bulkDeleteResult;
   const [showDeleteResult, setShowDeleteResult] = useState(false);
   const deleteFileInputRef = useRef<HTMLInputElement | null>(null);
   const [deleteFileInputKey, setDeleteFileInputKey] = useState(Date.now());
@@ -176,7 +174,12 @@ export default function Bulk() {
   const archiveFileInputRef = useRef<HTMLInputElement | null>(null);
   const [archiveFileInputKey, setArchiveFileInputKey] = useState(Date.now());
 
-  const bulkArchiveResult = flash?.bulkArchiveResult;
+  const [bulkResultData, setBulkResultData] = useState<any>(null);
+  const [bulkDeleteResultData, setBulkDeleteResultData] = useState<any>(null);
+  const [bulkArchiveResultData, setBulkArchiveResultData] = useState<any>(null);
+
+  const [bulkUnarchiveResultData, setBulkUnarchiveResultData] = useState<any>(null);
+  const [showUnarchiveResult, setShowUnarchiveResult] = useState(false);
 
   function parseCsv(file: File) {
     const reader = new FileReader();
@@ -367,13 +370,13 @@ export default function Bulk() {
 }
 
   function downloadSkippedCsv() {
-    if (!bulkResult?.skipped?.length) {
+    if (!bulkResultData?.skipped?.length) {
       toast.error("No skipped users to export.");
       return;
     }
 
     const headers = ["Name", "Email", "Reason"];
-    const rows = bulkResult.skipped.map((u: any) => [
+    const rows = bulkResultData.skipped.map((u: any) => [
       `"${u.name ?? ""}"`,
       `"${u.email ?? ""}"`,
       `"${u.reason ?? ""}"`,
@@ -409,25 +412,29 @@ export default function Bulk() {
   }
 
   useEffect(() => {
-    if (bulkDeleteResult) {
-      setShowDeleteResult(true);
-    }
-  }, [bulkDeleteResult]);
+  if (flash?.bulkDeleteResult) {
+    setBulkDeleteResultData(flash.bulkDeleteResult);
+    setShowDeleteResult(true);
+    resetBulkDeleteForm();
+  }
+}, [flash?.bulkDeleteResult]);
 
   useEffect(() => {
-  if (bulkArchiveResult) {
+  if (flash?.bulkArchiveResult) {
+    setBulkArchiveResultData(flash.bulkArchiveResult);
     setShowArchiveResult(true);
+    resetBulkArchiveForm();
   }
-}, [bulkArchiveResult]);
+}, [flash?.bulkArchiveResult]);
 
   function downloadDeleteSkippedCsv() {
-    if (!bulkDeleteResult?.skipped?.length) {
+    if (!bulkDeleteResultData?.skipped?.length) {
       toast.error("No skipped users to export.");
       return;
     }
 
     const headers = ["Email", "Reason"];
-    const rows = bulkDeleteResult.skipped.map((u: any) => [
+    const rows = bulkDeleteResultData.skipped.map((u: any) => [
       `"${u.email ?? ""}"`,
       `"${u.reason ?? ""}"`,
     ]);
@@ -458,6 +465,14 @@ export default function Bulk() {
 
     setDeleteFileInputKey(Date.now()); // force remount
   }
+
+  useEffect(() => {
+  if (flash?.bulkUnarchiveResult) {
+    setBulkUnarchiveResultData(flash.bulkUnarchiveResult);
+    setShowUnarchiveResult(true);
+    resetBulkArchiveForm();
+  }
+}, [flash?.bulkUnarchiveResult]);
 
   useEffect(() => {
     if (flash?.success) toast.success(flash.success);
@@ -714,28 +729,28 @@ export default function Bulk() {
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Created</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {bulkResult?.created?.length || 0}
+                  {bulkResultData?.created?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Updated</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {bulkResult?.updated?.length || 0}
+                  {bulkResultData?.updated?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Unchanged</p>
                 <p className="text-2xl font-bold text-gray-600">
-                  {bulkResult?.unchanged?.length || 0}
+                  {bulkResultData?.unchanged?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Skipped</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {bulkResult?.skipped?.length || 0}
+                  {bulkResultData?.skipped?.length || 0}
                 </p>
               </div>
             </div>
@@ -746,14 +761,14 @@ export default function Bulk() {
               <ResultSection
                 title="Created"
                 color="green"
-                items={bulkResult?.created || []}
+                items={bulkResultData?.created || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
               <ResultSection
                 title="Updated"
                 color="blue"
-                items={bulkResult?.updated || []}
+                items={bulkResultData?.updated || []}
                 render={(u: any) =>
                   `${u.name} (${u.email}) — updated: ${u.changes?.join(", ")}`
                 }
@@ -762,11 +777,11 @@ export default function Bulk() {
               <ResultSection
                 title="Unchanged"
                 color="black"
-                items={bulkResult?.unchanged || []}
+                items={bulkResultData?.unchanged || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
-              {bulkResult?.skipped?.length > 0 && (
+              {bulkResultData?.skipped?.length > 0 && (
                 <div className="flex justify-end">
                   <Button
                     variant="outline"
@@ -782,7 +797,7 @@ export default function Bulk() {
               <ResultSection
                 title="Skipped"
                 color="red"
-                items={bulkResult?.skipped || []}
+                items={bulkResultData?.skipped || []}
                 render={(u: any) =>
                   `${u.name ?? "Unknown"}${u.email ? ` (${u.email})` : ""} — ${u.reason}`
                 }
@@ -818,21 +833,21 @@ export default function Bulk() {
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Deleted</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {bulkDeleteResult?.deleted?.length || 0}
+                  {bulkDeleteResultData?.deleted?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Not found</p>
                 <p className="text-2xl font-bold text-gray-600">
-                  {bulkDeleteResult?.not_found?.length || 0}
+                  {bulkDeleteResultData?.not_found?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Skipped</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {bulkDeleteResult?.skipped?.length || 0}
+                  {bulkDeleteResultData?.skipped?.length || 0}
                 </p>
               </div>
             </div>
@@ -843,18 +858,18 @@ export default function Bulk() {
               <ResultSection
                 title="Deleted"
                 color="green"
-                items={bulkDeleteResult?.deleted || []}
+                items={bulkDeleteResultData?.deleted || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
               <ResultSection
                 title="Not found"
                 color="black"
-                items={bulkDeleteResult?.not_found || []}
+                items={bulkDeleteResultData?.not_found || []}
                 render={(u: any) => `${u.email} — ${u.reason}`}
               />
 
-              {bulkDeleteResult?.skipped?.length > 0 && (
+              {bulkDeleteResultData?.skipped?.length > 0 && (
                 <div className="flex justify-end">
                   <Button
                     variant="outline"
@@ -870,7 +885,7 @@ export default function Bulk() {
               <ResultSection
                 title="Skipped"
                 color="red"
-                items={bulkDeleteResult?.skipped || []}
+                items={bulkDeleteResultData?.skipped || []}
                 render={(u: any) => `${u.email ?? "Unknown"} — ${u.reason}`}
               />
             </div>
@@ -945,14 +960,14 @@ export default function Bulk() {
         </Card> */}
 
         <Card className="p-6 space-y-4 border-amber-200">
-          <h2 className="text-lg font-semibold text-amber-600">Bulk Archive Users</h2>
+          <h2 className="text-lg font-semibold text-amber-600">Bulk Archive / Unarchive Users</h2>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
 
-              if (!archiveForm.data.file || !archiveForm.data.role) {
-                toast.error("Please select role and CSV file.");
+              if (!archiveForm.data.file || !archiveForm.data.role || !archiveForm.data.action) {
+                toast.error("Please select action, role, and CSV file.");
                 return;
               }
 
@@ -960,6 +975,21 @@ export default function Bulk() {
             }}
             className="space-y-4"
           >
+            <div>
+              <Label>Action</Label>
+              <Select
+                value={archiveForm.data.action}
+                onValueChange={(v: "archive" | "unarchive") => archiveForm.setData("action", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="archive">Archive</SelectItem>
+                  <SelectItem value="unarchive">Unarchive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label>Role</Label>
               <Select
@@ -998,7 +1028,11 @@ export default function Bulk() {
                 variant="outline"
                 disabled={archiveForm.processing}
               >
-                {archiveForm.processing ? "Processing..." : "Bulk Archive"}
+                {archiveForm.processing
+                  ? "Processing..."
+                  : archiveForm.data.action === "unarchive"
+                    ? "Bulk Unarchive"
+                    : "Bulk Archive"}
               </Button>
             </div>
           </form>
@@ -1014,7 +1048,7 @@ export default function Bulk() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-amber-600">
-                Confirm Bulk Archive
+                Confirm Bulk {archiveForm.data.action === "unarchive" ? "Unarchive" : "Archive"}
               </DialogTitle>
             </DialogHeader>
 
@@ -1034,7 +1068,7 @@ export default function Bulk() {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              You are about to archive{" "}
+              You are about to {archiveForm.data.action === "unarchive" ? "unarchive" : "archive"}{" "}
               <span className="font-semibold text-amber-600">
                 {archiveCount}
               </span>{" "}
@@ -1053,18 +1087,24 @@ export default function Bulk() {
                 onClick={() => {
                   setShowArchiveConfirm(false);
 
-                  archiveForm.post("/superadmin/users/bulk-archive", {
-                    forceFormData: true,
-                    onSuccess: () => {
-                      resetBulkArchiveForm();
-                    },
-                    onError: () => {
-                      toast.error("Bulk archive failed.");
-                    },
-                  });
+                  archiveForm.post(
+                    archiveForm.data.action === "unarchive"
+                      ? "/superadmin/users/bulk-unarchive"
+                      : "/superadmin/users/bulk-archive",
+                    {
+                      forceFormData: true,
+                      onError: () => {
+                        toast.error(
+                          archiveForm.data.action === "unarchive"
+                            ? "Bulk unarchive failed."
+                            : "Bulk archive failed."
+                        );
+                      },
+                    }
+                  );
                 }}
               >
-                Yes, archive users
+                Yes, {archiveForm.data.action === "unarchive" ? "unarchive" : "archive"} users
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1089,28 +1129,28 @@ export default function Bulk() {
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Archived</p>
                 <p className="text-2xl font-bold text-amber-600">
-                  {bulkArchiveResult?.archived?.length || 0}
+                  {bulkArchiveResultData?.archived?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Already archived</p>
                 <p className="text-2xl font-bold text-gray-600">
-                  {bulkArchiveResult?.already_archived?.length || 0}
+                  {bulkArchiveResultData?.already_archived?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Not found</p>
                 <p className="text-2xl font-bold text-gray-600">
-                  {bulkArchiveResult?.not_found?.length || 0}
+                  {bulkArchiveResultData?.not_found?.length || 0}
                 </p>
               </div>
 
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Skipped</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {bulkArchiveResult?.skipped?.length || 0}
+                  {bulkArchiveResultData?.skipped?.length || 0}
                 </p>
               </div>
             </div>
@@ -1119,34 +1159,117 @@ export default function Bulk() {
               <ResultSection
                 title="Archived"
                 color="blue"
-                items={bulkArchiveResult?.archived || []}
+                items={bulkArchiveResultData?.archived || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
               <ResultSection
                 title="Already archived"
                 color="black"
-                items={bulkArchiveResult?.already_archived || []}
+                items={bulkArchiveResultData?.already_archived || []}
                 render={(u: any) => `${u.name} (${u.email})`}
               />
 
               <ResultSection
                 title="Not found"
                 color="black"
-                items={bulkArchiveResult?.not_found || []}
+                items={bulkArchiveResultData?.not_found || []}
                 render={(u: any) => `${u.email} — ${u.reason}`}
               />
 
               <ResultSection
                 title="Skipped"
                 color="red"
-                items={bulkArchiveResult?.skipped || []}
+                items={bulkArchiveResultData?.skipped || []}
                 render={(u: any) => `${u.email ?? "Unknown"} — ${u.reason}`}
               />
             </div>
 
             <DialogFooter>
               <Button onClick={() => setShowArchiveResult(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={showUnarchiveResult}
+          onOpenChange={(open) => {
+            setShowUnarchiveResult(open);
+
+            if (!open) {
+              resetBulkArchiveForm();
+            }
+          }}
+        >
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Bulk Unarchive Result</DialogTitle>
+            </DialogHeader>
+
+            <div className="grid grid-cols-4 gap-3 text-center mt-2">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Unarchived</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {bulkUnarchiveResultData?.unarchived?.length || 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Already active</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {bulkUnarchiveResultData?.already_active?.length || 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Not found</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {bulkUnarchiveResultData?.not_found?.length || 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Skipped</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {bulkUnarchiveResultData?.skipped?.length || 0}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mt-4">
+              <ResultSection
+                title="Unarchived"
+                color="green"
+                items={bulkUnarchiveResultData?.unarchived || []}
+                render={(u: any) => `${u.name} (${u.email})`}
+              />
+
+              <ResultSection
+                title="Already active"
+                color="black"
+                items={bulkUnarchiveResultData?.already_active || []}
+                render={(u: any) => `${u.name} (${u.email})`}
+              />
+
+              <ResultSection
+                title="Not found"
+                color="black"
+                items={bulkUnarchiveResultData?.not_found || []}
+                render={(u: any) => `${u.email} — ${u.reason}`}
+              />
+
+              <ResultSection
+                title="Skipped"
+                color="red"
+                items={bulkUnarchiveResultData?.skipped || []}
+                render={(u: any) => `${u.email ?? "Unknown"} — ${u.reason}`}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setShowUnarchiveResult(false)}>
                 Close
               </Button>
             </DialogFooter>
