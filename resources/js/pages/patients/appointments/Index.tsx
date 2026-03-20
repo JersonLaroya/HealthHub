@@ -735,15 +735,15 @@ function approveAndComplete(id: number) {
                 right: "dayGridMonth,timeGridWeek,timeGridDay",
               }}
               events={calendarAppointments
-                .filter((a: any) => a.slot)
-                .map((a: any) => ({
-                  id: a.id,
-                  title: `${a.user.first_name} ${a.user.last_name}`,
-                  start: `${a.slot.appointment_date}T${a.slot.start_time}`,
-                  end: `${a.slot.appointment_date}T${a.slot.end_time}`,
+              .filter((a: any) => a.slot_start && a.slot_end)
+              .map((a: any) => ({
+                id: String(a.id),
+                title: `${a.user.first_name} ${a.user.last_name}`,
+                start: a.slot_start,
+                end: a.slot_end,
                 classNames: ["cursor-pointer"],
                 backgroundColor:
-                    a.status === "pending"
+                  a.status === "pending"
                     ? "#facc15"
                     : a.status === "approved"
                     ? "#60a5fa"
@@ -751,7 +751,7 @@ function approveAndComplete(id: number) {
                     ? "#22c55e"
                     : "#ef4444",
                 extendedProps: a,
-                }))}
+              }))}
 
                 eventClick={(info) => {
                     setSelectedAppointment(info.event.extendedProps);

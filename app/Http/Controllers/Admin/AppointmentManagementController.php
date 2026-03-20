@@ -340,6 +340,31 @@ class AppointmentManagementController extends Controller
             ->select('appointments.*')
             ->get();
 
+        $calendarAppointments->transform(function ($appointment) {
+            if ($appointment->slot) {
+                $date = $appointment->slot->appointment_date instanceof \Carbon\CarbonInterface
+                    ? $appointment->slot->appointment_date->toDateString()
+                    : Carbon::parse($appointment->slot->appointment_date)->toDateString();
+
+                $startTime = substr((string) $appointment->slot->start_time, 0, 5);
+                $endTime = substr((string) $appointment->slot->end_time, 0, 5);
+
+                $appointment->slot_start = Carbon::createFromFormat(
+                    'Y-m-d H:i',
+                    "{$date} {$startTime}",
+                    self::TIMEZONE
+                )->toIso8601String();
+
+                $appointment->slot_end = Carbon::createFromFormat(
+                    'Y-m-d H:i',
+                    "{$date} {$endTime}",
+                    self::TIMEZONE
+                )->toIso8601String();
+            }
+
+            return $appointment;
+        });
+
         return inertia('patients/appointments/Index', [
             'appointments' => $appointments,
             'calendarAppointments' => $calendarAppointments,
