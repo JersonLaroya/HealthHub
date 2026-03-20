@@ -161,21 +161,24 @@ class PatientController extends Controller
         $diseases = Disease::orderBy('name')->get();
         $treatments = Treatment::orderBy('name')->get();
 
-        $activeAppointment = Appointment::with([
-            'approver:id,first_name,last_name',
-            'slot:id,appointment_date,start_time,end_time,capacity,is_active',
-        ])
-            ->where('user_id', $patient->id)
-            ->whereIn('status', ['pending', 'approved'])
+        $activeAppointment = Appointment::query()
+            ->with([
+                'approver:id,first_name,last_name',
+                'slot:id,appointment_date,start_time,end_time,capacity,is_active',
+            ])
+            ->join('appointment_slots', 'appointment_slots.id', '=', 'appointments.appointment_slot_id')
+            ->where('appointments.user_id', $patient->id)
+            ->whereIn('appointments.status', ['pending', 'approved'])
             ->orderByRaw("
                 CASE
-                    WHEN status = 'approved' THEN 0
-                    WHEN status = 'pending' THEN 1
+                    WHEN appointments.status = 'approved' THEN 0
+                    WHEN appointments.status = 'pending' THEN 1
                     ELSE 2
                 END
             ")
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
+            ->orderBy('appointment_slots.appointment_date', 'asc')
+            ->orderBy('appointment_slots.start_time', 'asc')
+            ->select('appointments.*')
             ->first();
 
         return inertia('patients/Show', [

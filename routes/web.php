@@ -699,14 +699,14 @@ Route::middleware(['auth', 'role:Super Admin'])
     });
 
 //
-Route::get('/test-chat/{a}/{b}', function ($a, $b) {
-    $u1 = User::findOrFail($a);
-    $u2 = User::findOrFail($b);
+// Route::get('/test-chat/{a}/{b}', function ($a, $b) {
+//     $u1 = User::findOrFail($a);
+//     $u2 = User::findOrFail($b);
 
-    return ChatService::canMessage($u1, $u2)
-        ? 'ALLOWED'
-        : 'BLOCKED';
-});
+//     return ChatService::canMessage($u1, $u2)
+//         ? 'ALLOWED'
+//         : 'BLOCKED';
+// });
 
 // Message
 Route::middleware(['auth', 'active'])->group(function () {

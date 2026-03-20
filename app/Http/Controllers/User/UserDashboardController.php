@@ -21,47 +21,75 @@ class UserDashboardController extends Controller
         $totalVisits = $totalConsultations + $totalInquiries;
 
         // ---- EVENTS ----
-        // Ongoing: start_at <= now <= end_at
         $ongoingEvents = Event::where('start_at', '<=', now())
             ->where('end_at', '>=', now())
             ->orderBy('start_at', 'asc')
             ->take(5)
             ->get();
 
-        // Upcoming: start_at > now
         $upcomingEvents = Event::where('start_at', '>', now())
             ->orderBy('start_at', 'asc')
             ->take(5)
             ->get();
 
-        // ---- APPOINTMENTS (approved only) ----
-        // Postgres-safe timestamp building:
-        // (appointment_date::text || ' ' || start_time::text)::timestamp
-        // and same for end_time
-        $baseAppointments = $user->appointments()->where('status', 'approved');
+        // ---- APPOINTMENTS ----
+        $baseAppointments = $user->appointments()
+            ->with('slot:id,appointment_date,start_time,end_time')
+            ->where('status', 'approved')
+            ->whereNotNull('appointment_slot_id')
+            ->join('appointment_slots', 'appointments.appointment_slot_id', '=', 'appointment_slots.id')
+            ->select('appointments.*');
 
         $ongoingAppointments = (clone $baseAppointments)
-            ->whereRaw("((appointment_date::text || ' ' || start_time::text)::timestamp) <= NOW()")
-            ->whereRaw("((appointment_date::text || ' ' || end_time::text)::timestamp) >= NOW()")
-            ->orderBy('appointment_date', 'asc')
-            ->orderBy('start_time', 'asc')
+            ->whereRaw("((appointment_slots.appointment_date::text || ' ' || appointment_slots.start_time::text)::timestamp) <= NOW()")
+            ->whereRaw("((appointment_slots.appointment_date::text || ' ' || appointment_slots.end_time::text)::timestamp) >= NOW()")
+            ->orderBy('appointment_slots.appointment_date', 'asc')
+            ->orderBy('appointment_slots.start_time', 'asc')
             ->limit(3)
             ->get();
 
         $upcomingAppointments = (clone $baseAppointments)
-            ->whereRaw("((appointment_date::text || ' ' || start_time::text)::timestamp) > NOW()")
-            ->orderBy('appointment_date', 'asc')
-            ->orderBy('start_time', 'asc')
+            ->whereRaw("((appointment_slots.appointment_date::text || ' ' || appointment_slots.start_time::text)::timestamp) > NOW()")
+            ->orderBy('appointment_slots.appointment_date', 'asc')
+            ->orderBy('appointment_slots.start_time', 'asc')
             ->limit(3)
             ->get();
+
+        $formatAppointments = function ($appointments) {
+            return $appointments->transform(function ($appointment) {
+                if ($appointment->slot) {
+                    $date = $appointment->slot->appointment_date instanceof \Carbon\CarbonInterface
+                        ? $appointment->slot->appointment_date->toDateString()
+                        : Carbon::parse($appointment->slot->appointment_date)->toDateString();
+
+                    $startTime = substr((string) $appointment->slot->start_time, 0, 8);
+                    $endTime = substr((string) $appointment->slot->end_time, 0, 8);
+
+                    $appointment->slot_start = Carbon::createFromFormat(
+                        'Y-m-d H:i:s',
+                        "{$date} {$startTime}",
+                        'Asia/Manila'
+                    )->toIso8601String();
+
+                    $appointment->slot_end = Carbon::createFromFormat(
+                        'Y-m-d H:i:s',
+                        "{$date} {$endTime}",
+                        'Asia/Manila'
+                    )->toIso8601String();
+                }
+
+                return $appointment;
+            });
+        };
+
+        $ongoingAppointments = $formatAppointments($ongoingAppointments);
+        $upcomingAppointments = $formatAppointments($upcomingAppointments);
 
         $settings = Setting::first();
 
         return Inertia::render('user/dashboard/index', [
             'user' => $user,
             'totalConsultations' => $totalVisits,
-
-            // send both buckets
             'events' => [
                 'ongoing' => $ongoingEvents,
                 'upcoming' => $upcomingEvents,
@@ -70,7 +98,6 @@ class UserDashboardController extends Controller
                 'ongoing' => $ongoingAppointments,
                 'upcoming' => $upcomingAppointments,
             ],
-
             'schoolYear' => $settings?->school_year,
         ]);
     }

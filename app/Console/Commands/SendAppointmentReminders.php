@@ -11,38 +11,44 @@ class SendAppointmentReminders extends Command
 {
     protected $signature = 'appointments:send-reminders';
 
-    protected $description = 'Send email reminders for upcoming appointments';
+    protected $description = 'Send email reminders for upcoming approved appointments';
 
-public function handle()
-{
-    $nowManila = now()->timezone('Asia/Manila');
+    public function handle()
+    {
+        $nowManila = now()->timezone('Asia/Manila');
+        $oneHourLater = $nowManila->copy()->addHour();
 
-    $this->info('Now Manila: ' . $nowManila);
+        $this->info('Now Manila: ' . $nowManila->format('Y-m-d H:i:s'));
 
-    $appointments = Appointment::where('status', 'approved')
-        ->with('user')
-        ->get();
+        $appointments = Appointment::query()
+            ->where('status', 'approved')
+            ->whereNotNull('appointment_slot_id')
+            ->with(['user', 'slot'])
+            ->get();
 
-    foreach ($appointments as $appointment) {
+        $sent = 0;
 
-        $appointmentDateTime = \Carbon\Carbon::createFromFormat(
-            'Y-m-d H:i:s',
-            $appointment->appointment_date . ' ' . $appointment->start_time,
-            'Asia/Manila'
-        );
+        foreach ($appointments as $appointment) {
+            if (!$appointment->slot || !$appointment->user) {
+                continue;
+            }
 
-        $this->info('Checking appointment Manila: ' . $appointmentDateTime);
-
-        if ($appointmentDateTime->between(
-            $nowManila,
-            $nowManila->copy()->addHour()
-        )) {
-
-            $appointment->user->notify(
-                new AppointmentReminder($appointment)
+            $appointmentDateTime = Carbon::createFromFormat(
+                'Y-m-d H:i:s',
+                $appointment->slot->appointment_date->format('Y-m-d') . ' ' . substr($appointment->slot->start_time, 0, 8),
+                'Asia/Manila'
             );
-        }
-    }
-}
 
+            $this->info('Checking appointment Manila: ' . $appointmentDateTime->format('Y-m-d H:i:s'));
+
+            if ($appointmentDateTime->between($nowManila, $oneHourLater)) {
+                $appointment->user->notify(new AppointmentReminder($appointment));
+                $sent++;
+            }
+        }
+
+        $this->info("Sent {$sent} reminder(s).");
+
+        return Command::SUCCESS;
+    }
 }

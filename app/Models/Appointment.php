@@ -10,18 +10,20 @@ class Appointment extends Model
         'user_id',
         'appointment_slot_id',
         'approved_by',
-        'appointment_date',
-        'start_time',
-        'end_time',
         'purpose',
         'status',
         'completed_at',
         'rejection_reason',
     ];
 
-    protected $casts = [
-        'completed_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'completed_at' => 'datetime',
+            'purpose' => 'encrypted',
+            'rejection_reason' => 'encrypted',
+        ];
+    }
 
     public function user()
     {
@@ -34,11 +36,6 @@ class Appointment extends Model
     }
 
     public function slot()
-    {
-        return $this->belongsTo(AppointmentSlot::class, 'appointment_slot_id');
-    }
-
-    public function appointmentSlot()
     {
         return $this->belongsTo(AppointmentSlot::class, 'appointment_slot_id');
     }

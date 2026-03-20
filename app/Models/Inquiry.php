@@ -18,6 +18,14 @@ class Inquiry extends Model
         'status',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'description' => 'encrypted',
+            'response' => 'encrypted',
+        ];
+    }
+
     // patient
     public function user()
     {

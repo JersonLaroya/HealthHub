@@ -104,7 +104,7 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
         }
 
   return (
-    <AppLayout breadcrumbs={breadcrumbs}>
+    <AppLayout>
       <Head title="Patient Inquiries" />
 
       <div className="p-6 space-y-6">

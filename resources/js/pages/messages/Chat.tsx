@@ -713,15 +713,25 @@ useEffect(() => {
       formData.append("image", file);
       formData.append("image_batch_id", batchId);
 
-      const res = await csrfFetch("/messages", {
-  method: "POST",
-  body: formData,
-});
+     const res = await csrfFetch("/messages", {
+        method: "POST",
+        body: formData,
+      });
 
       if (!res.ok) {
-  console.error("Message send failed", res.status);
-  throw new Error("Message send failed");
-}
+        const errorData = await res.json().catch(() => null);
+        console.error("Message send failed", res.status, errorData);
+        throw new Error(
+          errorData?.message ||
+          errorData?.errors?.image?.[0] ||
+          "Message send failed"
+        );
+      }
+
+      if (!res.ok) {
+        console.error("Message send failed", res.status);
+        throw new Error("Message send failed");
+      }
 
       const realMsg: Message = await res.json();
 
@@ -753,6 +763,7 @@ useEffect(() => {
 
     } catch (e) {
       console.error(e);
+      toast.error(e.message || "Failed to send image");
       setMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setSendingCount(c => Math.max(0, c - 1));

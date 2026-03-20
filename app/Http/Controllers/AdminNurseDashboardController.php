@@ -179,17 +179,22 @@ class AdminNurseDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $upcomingAppointments = Appointment::with('user')
-            ->where('appointment_date', '>=', now()->toDateString())
+        $upcomingAppointments = Appointment::with([
+            'user',
+            'slot:id,appointment_date,start_time,end_time',
+        ])
             ->where('status', 'approved')
+            ->whereNotNull('appointment_slot_id')
+            ->whereHas('slot', function ($q) use ($now) {
+                $q->whereRaw("
+                    (appointment_date::text || ' ' || start_time::text)::timestamp >= ?
+                ", [$now->format('Y-m-d H:i:s')]);
+            })
+            ->join('appointment_slots', 'appointment_slots.id', '=', 'appointments.appointment_slot_id')
             ->orderByRaw("
-                CASE 
-                    WHEN appointment_date = CURRENT_DATE THEN 0
-                    ELSE 1
-                END
+                (appointment_slots.appointment_date::text || ' ' || appointment_slots.start_time::text)::timestamp asc
             ")
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
+            ->select('appointments.*')
             ->limit(5)
             ->get();
 

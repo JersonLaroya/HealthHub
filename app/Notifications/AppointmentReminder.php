@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Appointment;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -14,7 +15,9 @@ class AppointmentReminder extends Notification implements ShouldQueue
 
     public function __construct(
         public Appointment $appointment
-    ) {}
+    ) {
+        $this->appointment->loadMissing('slot');
+    }
 
     public function via(object $notifiable): array
     {
@@ -23,14 +26,19 @@ class AppointmentReminder extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $date = \Carbon\Carbon::parse($this->appointment->appointment_date)
-            ->format('M d, Y');
+        $slot = $this->appointment->slot;
 
-        $start = \Carbon\Carbon::parse($this->appointment->start_time)
-            ->format('g:i A');
+        $date = $slot
+            ? Carbon::parse($slot->appointment_date)->format('M d, Y')
+            : 'No date available';
 
-        $end = \Carbon\Carbon::parse($this->appointment->end_time)
-            ->format('g:i A');
+        $start = $slot
+            ? Carbon::parse($slot->start_time)->format('g:i A')
+            : '--';
+
+        $end = $slot
+            ? Carbon::parse($slot->end_time)->format('g:i A')
+            : '--';
 
         return (new MailMessage)
             ->subject('Appointment Reminder')
@@ -38,7 +46,7 @@ class AppointmentReminder extends Notification implements ShouldQueue
             ->line('This is a reminder for your upcoming appointment.')
             ->line('Date: ' . $date)
             ->line("Time: {$start} - {$end}")
-            ->line('Purpose: ' . $this->appointment->purpose)
+            ->line('Purpose: ' . ($this->appointment->purpose ?? 'N/A'))
             ->line('Please arrive on time.')
             ->salutation('Thank you.');
     }

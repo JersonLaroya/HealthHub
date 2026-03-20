@@ -18,12 +18,15 @@ type AppointmentStatus = "pending" | "approved" | "completed" | "rejected";
 
 interface Appointment {
   id: number;
-  appointment_date: string;
-  start_time: string;
-  end_time: string;
   purpose: string;
   status: AppointmentStatus;
   rejection_reason?: string | null;
+  slot?: {
+    id: number;
+    appointment_date: string;
+    start_time: string;
+    end_time: string;
+  } | null;
 }
 
 type Slot = {
@@ -304,15 +307,20 @@ export default function UserAppointments({
 }
 
   function openReschedule(appt: Appointment) {
+    if (!appt.slot) {
+      toast.error("This appointment has no slot assigned.");
+      return;
+    }
+
     setRescheduling(appt);
     clearErrors();
     setAvailability(null);
 
-    setMonthCursor(startOfMonth(new Date(appt.appointment_date)));
+    setMonthCursor(startOfMonth(new Date(appt.slot.appointment_date)));
 
     setData({
-      appointment_date: appt.appointment_date,
-      start_time: appt.start_time,
+      appointment_date: appt.slot.appointment_date,
+      start_time: appt.slot.start_time.slice(0, 5),
       purpose: appt.purpose,
     });
   }
@@ -526,14 +534,16 @@ export default function UserAppointments({
   }
 
   const mySlotsByKey = useMemo(() => {
-      const map = new Map<string, number>(); // key => appointmentId
-      for (const a of appointments) {
-        if (a.status === "pending" || a.status === "approved") {
-          map.set(`${a.appointment_date}|${a.start_time}`, a.id);
-        }
+    const map = new Map<string, number>();
+
+    for (const a of appointments) {
+      if ((a.status === "pending" || a.status === "approved") && a.slot) {
+        map.set(`${a.slot.appointment_date}|${a.slot.start_time}`, a.id);
       }
-      return map;
-    }, [appointments]);
+    }
+
+    return map;
+  }, [appointments]);
 
     function isMineSlot(date: string, start: string) {
       const key = `${date}|${start}`;
@@ -693,7 +703,9 @@ export default function UserAppointments({
                   <div className="min-w-0">
                     <div className="font-medium truncate">{appt.purpose}</div>
                     <div className="text-sm text-neutral-500">
-                      {formatDate(appt.appointment_date)} • {formatTime(appt.start_time)} – {formatTime(appt.end_time)}
+                      {appt.slot
+                        ? `${formatDate(appt.slot.appointment_date)} • ${formatTime(appt.slot.start_time)} – ${formatTime(appt.slot.end_time)}`
+                        : "No slot assigned"}
                     </div>
 
                     {appt.status === "rejected" && appt.rejection_reason && (

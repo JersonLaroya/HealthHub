@@ -353,7 +353,7 @@ export default function Dashboard() {
                                 </p>
 
                                 <span className="text-xs text-muted-foreground sm:whitespace-nowrap">
-                                {formatDate(appt.appointment_date)} • {formatTime(appt.start_time)}
+                                {formatDate(appt.slot?.appointment_date)} • {formatTime(appt.slot?.start_time)}
                                 </span>
                             </div>
                             </div>
@@ -633,7 +633,7 @@ export default function Dashboard() {
                                 <div className="flex items-center gap-2">
                                     <Clock className="w-4 h-4" />
                                     <span>
-                                        {formatTime(selectedAppointment.start_time)} - {formatTime(selectedAppointment.end_time)}
+                                        {formatTime(selectedAppointment.slot?.start_time)} - {formatTime(selectedAppointment.slot?.end_time)}
                                     </span>
                                 </div>
 

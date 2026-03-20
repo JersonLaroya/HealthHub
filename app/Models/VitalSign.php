@@ -24,6 +24,21 @@ class VitalSign extends Model
         'bmi',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'bp' => 'encrypted',
+            'rr' => 'encrypted',
+            'pr' => 'encrypted',
+            'temp' => 'encrypted',
+            'o2_sat' => 'encrypted',
+            'blood_type' => 'encrypted',
+            'height' => 'encrypted',
+            'weight' => 'encrypted',
+            'bmi' => 'encrypted',
+        ];
+    }
+
     /**
      * Vital signs belong to a user (the patient).
      */

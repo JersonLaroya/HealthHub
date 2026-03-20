@@ -118,7 +118,7 @@ class MessageController extends Controller
         $request->validate([
             'receiver_id' => 'required|exists:users,id',
             'body' => 'nullable|string',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|max:10240',
             'file' => 'nullable|file|max:10240', // ⬅ 10MB files
             'image_batch_id' => 'nullable|string|max:100',
             

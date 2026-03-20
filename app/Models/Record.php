@@ -34,9 +34,12 @@ class Record extends Model
         'status',
     ];
 
-    protected $casts = [
-        'response_data' => 'array',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'response_data' => 'encrypted:array',
+        ];
+    }
 
     // Relationships
     public function user()

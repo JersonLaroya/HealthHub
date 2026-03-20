@@ -330,11 +330,13 @@ function clearSearch() {
 
   function openEditSchedule(appt: any) {
     setEditing(appt);
-    setEditDate(appt.appointment_date);
-    setEditStart(appt.start_time);
+    setEditDate(appt.slot?.appointment_date ?? "");
+    setEditStart(appt.slot?.start_time?.slice(0, 5) ?? "");
     setOverrideFull(false);
-    setOverridePast(false); // ✅ reset
-    setMonthCursor(startOfMonth(new Date(appt.appointment_date)));
+    setOverridePast(false);
+    setMonthCursor(
+      startOfMonth(new Date(appt.slot?.appointment_date ?? new Date()))
+    );
     setEditAvailability(null);
   }
 
@@ -732,11 +734,13 @@ function approveAndComplete(id: number) {
                 center: "title",
                 right: "dayGridMonth,timeGridWeek,timeGridDay",
               }}
-              events={calendarAppointments.map((a: any) => ({
-                id: a.id,
-                title: `${a.user.first_name} ${a.user.last_name}`,
-                start: `${a.appointment_date}T${a.start_time}`,
-                end: `${a.appointment_date}T${a.end_time}`,
+              events={calendarAppointments
+                .filter((a: any) => a.slot)
+                .map((a: any) => ({
+                  id: a.id,
+                  title: `${a.user.first_name} ${a.user.last_name}`,
+                  start: `${a.slot.appointment_date}T${a.slot.start_time}`,
+                  end: `${a.slot.appointment_date}T${a.slot.end_time}`,
                 classNames: ["cursor-pointer"],
                 backgroundColor:
                     a.status === "pending"
@@ -792,8 +796,14 @@ function approveAndComplete(id: number) {
                             </td>
 
                             <td className="p-3 text-neutral-600">
-                              {formatDate(a.appointment_date)} <br />
-                              {formatTime(a.start_time)} – {formatTime(a.end_time)}
+                              {a.slot ? (
+                                <>
+                                  {formatDate(a.slot.appointment_date)} <br />
+                                  {formatTime(a.slot.start_time)} – {formatTime(a.slot.end_time)}
+                                </>
+                              ) : (
+                                "—"
+                              )}
                             </td>
 
                             <td className="p-3">{a.purpose}</td>
@@ -1025,13 +1035,17 @@ function approveAndComplete(id: number) {
                     </div>
 
                     <div>
-                    <strong>Date:</strong> {selectedAppointment.appointment_date}
+                      <strong>Date:</strong>{" "}
+                      {selectedAppointment.slot
+                        ? formatDate(selectedAppointment.slot.appointment_date)
+                        : "—"}
                     </div>
 
                     <div>
                       <strong>Time:</strong>{" "}
-                      {formatTime(selectedAppointment.start_time)} –{" "}
-                      {formatTime(selectedAppointment.end_time)}
+                      {selectedAppointment.slot
+                        ? `${formatTime(selectedAppointment.slot.start_time)} – ${formatTime(selectedAppointment.slot.end_time)}`
+                        : "—"}
                     </div>
 
                     <div>

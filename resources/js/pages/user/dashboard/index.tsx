@@ -72,6 +72,10 @@ export default function Dashboard() {
     });
   }
 
+  function hasSlot(appointment: any) {
+    return !!appointment?.slot;
+  }
+
   function isToday(dateString: string) {
     const today = new Date();
     const date = new Date(dateString);
@@ -105,9 +109,13 @@ export default function Dashboard() {
   }
 
   function apptStart(appointment: any) {
-    return new Date(
-      `${appointment.appointment_date} ${appointment.start_time}`
-    ).toLocaleString(undefined, {
+    if (!appointment.slot_start) return "No slot assigned";
+
+    const date = new Date(appointment.slot_start);
+
+    if (isNaN(date.getTime())) return "Invalid date";
+
+    return date.toLocaleString(undefined, {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -117,12 +125,13 @@ export default function Dashboard() {
   }
 
   function apptEndTime(appointment: any) {
-    // If you don’t have end_time in DB, remove this or compute it in backend.
-    if (!appointment.end_time) return null;
+    if (!appointment.slot_end) return null;
 
-    return new Date(
-      `${appointment.appointment_date} ${appointment.end_time}`
-    ).toLocaleTimeString(undefined, {
+    const date = new Date(appointment.slot_end);
+
+    if (isNaN(date.getTime())) return null;
+
+    return date.toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -273,7 +282,7 @@ export default function Dashboard() {
                         <div>
                           <p className="font-medium text-sm sm:text-base flex items-center">
                             {appointment.purpose || "Clinic Appointment"}
-                            {isToday(appointment.appointment_date) && (
+                            {appointment.slot?.appointment_date && isToday(appointment.slot.appointment_date) && (
                               <TodayBadge />
                             )}
                           </p>

@@ -32,7 +32,7 @@ class AppointmentManagementController extends Controller
         return AppointmentSlot::query()
             ->whereDate('appointment_date', $date)
             ->whereRaw("to_char(start_time, 'HH24:MI') = ?", [$normalizedStart])
-            ->whereRaw('is_active = true')
+            ->where('is_active', true)
             ->first();
     }
 
@@ -75,7 +75,7 @@ class AppointmentManagementController extends Controller
 
         $slots = AppointmentSlot::query()
             ->whereDate('appointment_date', $date)
-            ->whereRaw('is_active = true')
+            ->where('is_active', true)
             ->orderBy('start_time')
             ->get();
 
@@ -123,7 +123,7 @@ class AppointmentManagementController extends Controller
                 $startDate->toDateString(),
                 $endDate->toDateString(),
             ])
-            ->whereRaw('is_active = true')
+            ->where('is_active', true)
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->get();
@@ -237,9 +237,6 @@ class AppointmentManagementController extends Controller
 
         $appointment->update([
             'appointment_slot_id' => $slot->id,
-            'appointment_date' => $date,
-            'start_time' => substr((string) $slot->start_time, 0, 5),
-            'end_time' => substr((string) $slot->end_time, 0, 5),
         ]);
 
         return back()->with('success', 'Appointment schedule updated.');
@@ -294,32 +291,34 @@ class AppointmentManagementController extends Controller
         $search = trim((string) $request->query('search'));
 
         $appointments = Appointment::with([
-                'user:id,first_name,last_name,email',
-                'approver:id,first_name,last_name',
-                'slot:id,appointment_date,start_time,end_time,capacity,is_active',
-            ])
-            ->when($status, fn ($q) => $q->where('status', $status))
-            ->when($search, function ($q) use ($search) {
-                $q->whereHas('user', function ($userQuery) use ($search) {
-                    $userQuery->where('first_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('last_name', 'ILIKE', "%{$search}%")
-                        ->orWhereRaw("(first_name || ' ' || last_name) ILIKE ?", ["%{$search}%"])
-                        ->orWhere('email', 'ILIKE', "%{$search}%");
-                });
-            })
-            ->orderByRaw("
-                CASE status
-                    WHEN 'pending' THEN 1
-                    WHEN 'approved' THEN 2
-                    WHEN 'completed' THEN 3
-                    WHEN 'rejected' THEN 4
-                    ELSE 5
-                END
-            ")
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
-            ->paginate(10)
-            ->withQueryString();
+            'user:id,first_name,last_name,email',
+            'approver:id,first_name,last_name',
+            'slot:id,appointment_date,start_time,end_time,capacity,is_active',
+        ])
+        ->when($status, fn ($q) => $q->where('status', $status))
+        ->when($search, function ($q) use ($search) {
+            $q->whereHas('user', function ($userQuery) use ($search) {
+                $userQuery->where('first_name', 'ILIKE', "%{$search}%")
+                    ->orWhere('last_name', 'ILIKE', "%{$search}%")
+                    ->orWhereRaw("(first_name || ' ' || last_name) ILIKE ?", ["%{$search}%"])
+                    ->orWhere('email', 'ILIKE', "%{$search}%");
+            });
+        })
+        ->leftJoin('appointment_slots', 'appointment_slots.id', '=', 'appointments.appointment_slot_id')
+        ->orderByRaw("
+            CASE appointments.status
+                WHEN 'pending' THEN 1
+                WHEN 'approved' THEN 2
+                WHEN 'completed' THEN 3
+                WHEN 'rejected' THEN 4
+                ELSE 5
+            END
+        ")
+        ->orderBy('appointment_slots.appointment_date')
+        ->orderBy('appointment_slots.start_time')
+        ->select('appointments.*')
+        ->paginate(10)
+        ->withQueryString();
 
         $calendarAppointments = Appointment::with([
             'user:id,first_name,last_name,email',
@@ -329,14 +328,16 @@ class AppointmentManagementController extends Controller
             ->when($status, fn ($q) => $q->where('status', $status))
             ->when($search, function ($q) use ($search) {
                 $q->whereHas('user', function ($userQuery) use ($search) {
-                    $userQuery->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
-                        ->orWhere('email', 'like', "%{$search}%");
+                    $userQuery->where('first_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('last_name', 'ILIKE', "%{$search}%")
+                        ->orWhereRaw("(first_name || ' ' || last_name) ILIKE ?", ["%{$search}%"])
+                        ->orWhere('email', 'ILIKE', "%{$search}%");
                 });
             })
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
+            ->leftJoin('appointment_slots', 'appointment_slots.id', '=', 'appointments.appointment_slot_id')
+            ->orderBy('appointment_slots.appointment_date')
+            ->orderBy('appointment_slots.start_time')
+            ->select('appointments.*')
             ->get();
 
         return inertia('patients/appointments/Index', [
@@ -355,13 +356,21 @@ class AppointmentManagementController extends Controller
             abort(400, 'Only pending appointments can be approved.');
         }
 
+        $appointment->loadMissing('slot');
+
+        abort_if(!$appointment->slot, 400, 'This appointment has no assigned slot.');
+
+        $slotDate = $appointment->slot->appointment_date;
+        $slotStart = $appointment->slot->start_time;
+        $slotEnd = $appointment->slot->end_time;
+
         $hasConflict = Appointment::where('user_id', $appointment->user_id)
-            ->where('appointment_date', $appointment->appointment_date)
             ->whereIn('status', ['pending', 'approved'])
             ->where('id', '!=', $appointment->id)
-            ->where(function ($q) use ($appointment) {
-                $q->where('start_time', '<', $appointment->end_time)
-                    ->where('end_time', '>', $appointment->start_time);
+            ->whereHas('slot', function ($q) use ($slotDate, $slotStart, $slotEnd) {
+                $q->whereDate('appointment_date', $slotDate)
+                    ->where('start_time', '<', $slotEnd)
+                    ->where('end_time', '>', $slotStart);
             })
             ->exists();
 

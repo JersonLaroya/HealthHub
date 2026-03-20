@@ -15,7 +15,9 @@ class AppointmentApproved extends Notification implements ShouldQueue
 
     public function __construct(
         public Appointment $appointment
-    ) {}
+    ) {
+        $this->appointment->loadMissing('slot');
+    }
 
     public function via(object $notifiable): array
     {
@@ -24,14 +26,19 @@ class AppointmentApproved extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $date = Carbon::parse($this->appointment->appointment_date)
-            ->format('M d, Y');
+        $slot = $this->appointment->slot;
 
-        $start = Carbon::parse($this->appointment->start_time)
-            ->format('g:i A');
+        $date = $slot
+            ? Carbon::parse($slot->appointment_date)->format('M d, Y')
+            : 'No date available';
 
-        $end = Carbon::parse($this->appointment->end_time)
-            ->format('g:i A');
+        $start = $slot
+            ? Carbon::parse($slot->start_time)->format('g:i A')
+            : '--';
+
+        $end = $slot
+            ? Carbon::parse($slot->end_time)->format('g:i A')
+            : '--';
 
         return (new MailMessage)
             ->subject('Appointment Approved')
@@ -43,10 +50,15 @@ class AppointmentApproved extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
+        $slot = $this->appointment->slot;
+
         return [
             'title' => 'Appointment Approved',
             'message' => 'Your appointment has been approved.',
             'appointment_id' => $this->appointment->id,
+            'date' => $slot ? Carbon::parse($slot->appointment_date)->format('M d, Y') : null,
+            'start_time' => $slot ? Carbon::parse($slot->start_time)->format('g:i A') : null,
+            'end_time' => $slot ? Carbon::parse($slot->end_time)->format('g:i A') : null,
             'url' => '/user/appointments',
         ];
     }

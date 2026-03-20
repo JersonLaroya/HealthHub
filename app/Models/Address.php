@@ -11,6 +11,13 @@ class Address extends Model
         'purok',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'purok' => 'encrypted',
+        ];
+    }
+
     public $timestamps = false;
 
     public function homeUser()
@@ -30,7 +37,7 @@ class Address extends Model
 
     public function getFullAddressAttribute()
     {
-        return "{$this->street}, {$this->barangay->name}, {$this->barangay->municipality->name}, {$this->barangay->municipality->province->name}";
+        return "{$this->purok}, {$this->barangay->name}, {$this->barangay->municipality->name}, {$this->barangay->municipality->province->name}";
     }
 
 }

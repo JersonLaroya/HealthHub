@@ -56,11 +56,16 @@ class AppointmentController extends Controller
 
     private function userHasSlot(int $userId, string $date, string $startTime, ?int $excludeId = null): bool
     {
-        return Appointment::where('user_id', $userId)
-            ->where('appointment_date', $date)
-            ->where('start_time', $startTime)
+        $normalizedStart = substr($startTime, 0, 5);
+
+        return Appointment::query()
+            ->where('user_id', $userId)
             ->whereIn('status', ['pending', 'approved'])
             ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->whereHas('slot', function ($q) use ($date, $normalizedStart) {
+                $q->whereDate('appointment_date', $date)
+                ->whereRaw("to_char(start_time, 'HH24:MI') = ?", [$normalizedStart]);
+            })
             ->exists();
     }
 
@@ -154,10 +159,13 @@ public function availabilityMonth(Request $request)
     {
         $status = $request->query('status');
 
-        $appointments = Appointment::where('user_id', Auth::id())
+        $appointments = Appointment::query()
+            ->with('slot:id,appointment_date,start_time,end_time')
+            ->where('user_id', Auth::id())
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->leftJoin('appointment_slots', 'appointments.appointment_slot_id', '=', 'appointment_slots.id')
             ->orderByRaw("
-                CASE status
+                CASE appointments.status
                     WHEN 'pending' THEN 1
                     WHEN 'approved' THEN 2
                     WHEN 'completed' THEN 3
@@ -165,8 +173,9 @@ public function availabilityMonth(Request $request)
                     ELSE 5
                 END
             ")
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
+            ->orderBy('appointment_slots.appointment_date')
+            ->orderBy('appointment_slots.start_time')
+            ->select('appointments.*')
             ->get();
 
         return inertia('user/appointments/Index', [
@@ -297,9 +306,6 @@ public function availability(Request $request)
         $appointment = Appointment::create([
             'user_id' => Auth::id(),
             'appointment_slot_id' => $slot->id,
-            'appointment_date' => $date,
-            'start_time' => $slot->start_time,
-            'end_time' => $slot->end_time,
             'purpose' => $data['purpose'],
             'status' => 'pending',
         ]);
@@ -371,12 +377,8 @@ public function availability(Request $request)
 
         $appointment->update([
             'appointment_slot_id' => $slot->id,
-            'appointment_date' => $date,
-            'start_time' => $slot->start_time,
-            'end_time' => $slot->end_time,
             'status' => 'pending',
             'rejection_reason' => null,
-            'assigned_to' => null,
         ]);
 
         event(new \App\Events\AppointmentRescheduled($appointment));

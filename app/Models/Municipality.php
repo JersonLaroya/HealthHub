@@ -10,6 +10,13 @@ class Municipality extends Model
 {
     protected $fillable = ['name', 'code', 'province_id'];
 
+    protected function casts(): array
+    {
+        return [
+            'name' => 'encrypted',
+        ];
+    }
+
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);

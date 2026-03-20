@@ -9,6 +9,13 @@ class Barangay extends Model
 {
     protected $fillable = ['name', 'code', 'municipality_id'];
 
+    protected function casts(): array
+    {
+        return [
+            'name' => 'encrypted',
+        ];
+    }
+
     public function municipality(): BelongsTo
     {
         return $this->belongsTo(Municipality::class);

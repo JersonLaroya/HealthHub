@@ -25,6 +25,14 @@ class Consultation extends Model
         //'status',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'medical_complaint' => 'encrypted',
+            'management_and_treatment' => 'encrypted',
+        ];
+    }
+
     /* ======================
        Relationships
     ====================== */

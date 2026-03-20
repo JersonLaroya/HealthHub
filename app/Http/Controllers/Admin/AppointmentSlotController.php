@@ -59,47 +59,46 @@ class AppointmentSlotController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'appointment_date' => [
-                'required',
-                'date',
-                function ($attribute, $value, $fail) {
-                    if ($this->isWeekend($value)) {
-                        $fail('Slots cannot be created on Saturdays or Sundays.');
-                    }
-                },
-            ],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'capacity' => ['required', 'integer', 'min:1', 'max:100'],
+   public function store(Request $request)
+{
+    $data = $request->validate([
+        'appointment_date' => [
+            'required',
+            'date',
+            function ($attribute, $value, $fail) {
+                if ($this->isWeekend($value)) {
+                    $fail('Slots cannot be created on Saturdays or Sundays.');
+                }
+            },
+        ],
+        'start_time' => ['required', 'date_format:H:i'],
+        'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+        'capacity' => ['required', 'integer', 'min:1', 'max:100'],
+    ]);
+
+    $hasConflict = AppointmentSlot::where('appointment_date', $data['appointment_date'])
+        ->where(function ($query) use ($data) {
+            $query->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time']);
+        })
+        ->exists();
+
+    if ($hasConflict) {
+        return back()->withErrors([
+            'slot' => 'This slot overlaps with an existing schedule.',
         ]);
-
-        $hasConflict = AppointmentSlot::where('appointment_date', $data['appointment_date'])
-            ->where(function ($query) use ($data) {
-                $query->where('start_time', '<', $data['end_time'])
-                    ->where('end_time', '>', $data['start_time']);
-            })
-            ->exists();
-
-        if ($hasConflict) {
-            return back()->withErrors([
-                'slot' => 'This slot overlaps with an existing schedule.',
-            ]);
-        }
-
-        AppointmentSlot::create([
-            'appointment_date' => $data['appointment_date'],
-            'start_time' => $data['start_time'],
-            'end_time' => $data['end_time'],
-            'capacity' => $data['capacity'],
-            'is_active' => true,
-            'created_by' => Auth::id(),
-        ]);
-
-        return back()->with('success', 'Appointment slot created successfully.');
     }
+
+    AppointmentSlot::create([
+        'appointment_date' => $data['appointment_date'],
+        'start_time' => $data['start_time'],
+        'end_time' => $data['end_time'],
+        'capacity' => $data['capacity'],
+        'created_by' => Auth::id(),
+    ]);
+
+    return back()->with('success', 'Appointment slot created successfully.');
+}
 
     public function update(Request $request, AppointmentSlot $slot)
     {
@@ -125,62 +124,61 @@ class AppointmentSlotController extends Controller
     }
 
     public function bulkStore(Request $request)
-    {
-        $data = $request->validate([
-            'appointment_date' => [
-                'required',
-                'date',
-                function ($attribute, $value, $fail) {
-                    if ($this->isWeekend($value)) {
-                        $fail('Slots cannot be created on Saturdays or Sundays.');
-                    }
-                },
-            ],
-            'capacity' => ['required', 'integer', 'min:1', 'max:100'],
-            'slots' => ['required', 'array', 'min:1'],
-            'slots.*.start_time' => ['required', 'date_format:H:i'],
-            'slots.*.end_time' => ['required', 'date_format:H:i'],
+{
+    $data = $request->validate([
+        'appointment_date' => [
+            'required',
+            'date',
+            function ($attribute, $value, $fail) {
+                if ($this->isWeekend($value)) {
+                    $fail('Slots cannot be created on Saturdays or Sundays.');
+                }
+            },
+        ],
+        'capacity' => ['required', 'integer', 'min:1', 'max:100'],
+        'slots' => ['required', 'array', 'min:1'],
+        'slots.*.start_time' => ['required', 'date_format:H:i'],
+        'slots.*.end_time' => ['required', 'date_format:H:i'],
+    ]);
+
+    $created = 0;
+    $skipped = 0;
+
+    foreach ($data['slots'] as $slotData) {
+        $hasConflict = AppointmentSlot::where('appointment_date', $data['appointment_date'])
+            ->where(function ($query) use ($slotData) {
+                $query->where('start_time', '<', $slotData['end_time'])
+                    ->where('end_time', '>', $slotData['start_time']);
+            })
+            ->exists();
+
+        if ($hasConflict) {
+            $skipped++;
+            continue;
+        }
+
+        AppointmentSlot::create([
+            'appointment_date' => $data['appointment_date'],
+            'start_time' => $slotData['start_time'],
+            'end_time' => $slotData['end_time'],
+            'capacity' => $data['capacity'],
+            'created_by' => Auth::id(),
         ]);
 
-        $created = 0;
-        $skipped = 0;
-
-        foreach ($data['slots'] as $slotData) {
-            $hasConflict = AppointmentSlot::where('appointment_date', $data['appointment_date'])
-                ->where(function ($query) use ($slotData) {
-                    $query->where('start_time', '<', $slotData['end_time'])
-                        ->where('end_time', '>', $slotData['start_time']);
-                })
-                ->exists();
-
-            if ($hasConflict) {
-                $skipped++;
-                continue;
-            }
-
-            AppointmentSlot::create([
-                'appointment_date' => $data['appointment_date'],
-                'start_time' => $slotData['start_time'],
-                'end_time' => $slotData['end_time'],
-                'capacity' => $data['capacity'],
-                'is_active' => true,
-                'created_by' => Auth::id(),
-            ]);
-
-            $created++;
-        }
-
-        if ($created === 0) {
-            return back()->withErrors([
-                'slot' => 'No slots were created. All generated slots conflict with existing schedules.',
-            ]);
-        }
-
-        return back()->with(
-            'success',
-            "{$created} slot(s) created successfully." . ($skipped > 0 ? " {$skipped} conflicting slot(s) were skipped." : "")
-        );
+        $created++;
     }
+
+    if ($created === 0) {
+        return back()->withErrors([
+            'slot' => 'No slots were created. All generated slots conflict with existing schedules.',
+        ]);
+    }
+
+    return back()->with(
+        'success',
+        "{$created} slot(s) created successfully." . ($skipped > 0 ? " {$skipped} conflicting slot(s) were skipped." : "")
+    );
+}
 
     public function destroy(AppointmentSlot $slot)
     {
@@ -201,18 +199,14 @@ class AppointmentSlotController extends Controller
 
     public function toggleActive(AppointmentSlot $slot)
     {
-        $newValue = ! (bool) $slot->is_active;
+        $newValue = ! $slot->is_active;
 
-        DB::update(
-            'UPDATE appointment_slots
-            SET is_active = ?::boolean, updated_at = ?
-            WHERE id = ?',
-            [
-                $newValue ? 'true' : 'false',
-                now(),
-                $slot->id,
-            ]
-        );
+        DB::table('appointment_slots')
+            ->where('id', $slot->id)
+            ->update([
+                'is_active' => DB::raw($newValue ? 'true' : 'false'),
+                'updated_at' => now(),
+            ]);
 
         return back()->with(
             'success',

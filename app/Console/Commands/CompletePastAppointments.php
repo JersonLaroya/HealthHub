@@ -4,8 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\Appointment;
 use Illuminate\Console\Command;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class CompletePastAppointments extends Command
 {
@@ -21,27 +19,28 @@ class CompletePastAppointments extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Mark approved appointments as completed once their slot end time has passed';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        // Convert "now" to Manila time manually
         $now = now()->setTimezone('Asia/Manila');
 
-        $updated = Appointment::where('status', 'approved')
+        $updated = Appointment::query()
+            ->join('appointment_slots', 'appointments.appointment_slot_id', '=', 'appointment_slots.id')
+            ->where('appointments.status', 'approved')
             ->whereRaw("
-                (appointment_date || ' ' || end_time)::timestamp <= ?
+                ((appointment_slots.appointment_date::text || ' ' || appointment_slots.end_time::text)::timestamp) <= ?
             ", [$now->format('Y-m-d H:i:s')])
             ->update([
-                'status' => 'completed'
+                'appointments.status' => 'completed',
+                'appointments.completed_at' => $now,
             ]);
 
         $this->info("Completed {$updated} appointments.");
 
         return Command::SUCCESS;
     }
-
 }

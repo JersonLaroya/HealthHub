@@ -9,10 +9,14 @@ class Message extends Model
 {
     use HasFactory;
 
-    protected $casts = [
-        'is_seen' => 'boolean',
-        'file_size' => 'integer',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'is_seen' => 'boolean',
+            'file_size' => 'integer',
+            'body' => 'encrypted',
+        ];
+    }
 
     protected $fillable = [
         'sender_id',

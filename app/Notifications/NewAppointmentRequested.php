@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Appointment;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -14,53 +15,53 @@ class NewAppointmentRequested extends Notification implements ShouldQueue
 
     public function __construct(
         public Appointment $appointment
-    ) {}
+    ) {
+        $this->appointment->loadMissing(['user', 'slot']);
+    }
 
-    /**
-     * Channels
-     */
     public function via(object $notifiable): array
     {
         return ['database', 'broadcast', 'mail'];
     }
 
-    /**
-     * Email notification
-     */
     public function toMail(object $notifiable): MailMessage
     {
         $user = $this->appointment->user;
+        $slot = $this->appointment->slot;
+
+        $date = $slot
+            ? Carbon::parse($slot->appointment_date)->format('M d, Y')
+            : 'No date available';
+
+        $start = $slot
+            ? Carbon::parse($slot->start_time)->format('g:i A')
+            : '--';
+
+        $end = $slot
+            ? Carbon::parse($slot->end_time)->format('g:i A')
+            : '--';
 
         return (new MailMessage)
             ->subject('New Appointment Request')
             ->greeting('Hello!')
             ->line("{$user->first_name} {$user->last_name} has requested an appointment.")
-            ->line(
-                'Date: ' .
-                $this->appointment->appointment_date .
-                ' | ' .
-                $this->appointment->start_time .
-                ' - ' .
-                $this->appointment->end_time
-            )
-            ->action(
-                'View Appointments',
-                url('/admin/appointments')
-            )
+            ->line("Date: {$date} | {$start} - {$end}")
+            ->action('View Appointments', url('/admin/appointments'))
             ->line('Please review and take action.');
     }
 
-    /**
-     * In-app + broadcast payload
-     */
     public function toArray(object $notifiable): array
     {
         $user = $this->appointment->user;
+        $slot = $this->appointment->slot;
 
         return [
             'title' => 'New Appointment Request',
             'message' => "{$user->first_name} {$user->last_name} requested an appointment.",
             'appointment_id' => $this->appointment->id,
+            'date' => $slot ? Carbon::parse($slot->appointment_date)->format('M d, Y') : null,
+            'start_time' => $slot ? Carbon::parse($slot->start_time)->format('g:i A') : null,
+            'end_time' => $slot ? Carbon::parse($slot->end_time)->format('g:i A') : null,
             'url' => '/admin/appointments',
         ];
     }

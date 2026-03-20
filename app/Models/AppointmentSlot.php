@@ -21,9 +21,9 @@ class AppointmentSlot extends Model
         'capacity' => 'integer',
     ];
 
-    protected $attributes = [
-        'is_active' => true,
-    ];
+    // protected $attributes = [
+    //     'is_active' => true,
+    // ];
 
     public function creator()
     {

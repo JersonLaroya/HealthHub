@@ -19,14 +19,16 @@ type VitalInputProps = {
 
 type ActiveAppointment = {
   id: number;
-  appointment_date: string;
-  start_time: string;
-  end_time: string;
   purpose: string;
   status: "pending" | "approved" | "completed" | "rejected";
   approver?: {
     first_name: string;
     last_name: string;
+  } | null;
+  slot?: {
+    appointment_date: string;
+    start_time: string;
+    end_time: string;
   } | null;
 };
 
@@ -651,21 +653,23 @@ const handleApproveWithUpdate = () => {
 
                 <p>
                   <strong>Date:</strong>{" "}
-                  {new Date(activeAppointment.appointment_date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {activeAppointment.slot?.appointment_date
+                    ? new Date(activeAppointment.slot.appointment_date).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "-"}
                 </p>
 
                 <p>
                   <strong>Time:</strong>{" "}
-                  {formatDateLong(activeAppointment.appointment_date) !== "-"
-                    ? `${new Date(`2000-01-01T${activeAppointment.start_time}`).toLocaleTimeString("en-US", {
+                  {activeAppointment.slot?.start_time && activeAppointment.slot?.end_time
+                    ? `${new Date(`2000-01-01T${activeAppointment.slot.start_time}`).toLocaleTimeString("en-US", {
                         hour: "numeric",
                         minute: "2-digit",
                         hour12: true,
-                      })} – ${new Date(`2000-01-01T${activeAppointment.end_time}`).toLocaleTimeString("en-US", {
+                      })} – ${new Date(`2000-01-01T${activeAppointment.slot.end_time}`).toLocaleTimeString("en-US", {
                         hour: "numeric",
                         minute: "2-digit",
                         hour12: true,
