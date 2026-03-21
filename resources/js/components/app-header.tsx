@@ -305,25 +305,46 @@ function fmtNotifTime(t: string) {
     const [unreadCount, setUnreadCount] = useState(0);
 
     async function loadUnreadCount() {
+  try {
     const res = await fetch("/messages/unread-count");
     const data = await res.json();
-    setUnreadCount(data.count);
+
+    if (!res.ok) {
+      console.error("loadUnreadCount failed:", data);
+      setUnreadCount(0);
+      return;
     }
+
+    setUnreadCount(typeof data.count === "number" ? data.count : 0);
+  } catch (error) {
+    console.error("loadUnreadCount crashed:", error);
+    setUnreadCount(0);
+  }
+}
     
 
     useEffect(() => {
         if (!auth?.user?.id) return;
 
+        const isMessagesPage = page.url.startsWith("/messages");
+
+        // On the messages page, let chat.tsx handle chat updates
+        if (isMessagesPage) {
+            loadUnreadCount();
+            return;
+        }
+
         loadUnreadCount();
 
         const refresh = () => loadUnreadCount();
 
-        // listen for manual "seen" event from Chat page
         window.addEventListener("messages-seen", refresh);
 
-        const channel = window.Echo.private(`chat.${auth.user.id}`);
+        const echo = (window as any).Echo;
+        if (!echo) return;
 
-        // STEP 3 — always resync from DB when message arrives
+        const channel = echo.private(`chat.${auth.user.id}`);
+
         channel.listen(".MessageSent", (e: any) => {
             const msg = e.message;
 
@@ -334,15 +355,15 @@ function fmtNotifTime(t: string) {
 
         return () => {
             window.removeEventListener("messages-seen", refresh);
-            window.Echo.leave(`chat.${auth.user.id}`);
+            echo.leave(`chat.${auth.user.id}`);
         };
-    }, [auth?.user?.id]);
+    }, [auth?.user?.id, page.url]);
 
-    useEffect(() => {
-    if (page.url.startsWith("/messages")) {
-        loadUnreadCount();
-    }
-    }, [page.url]);
+    // useEffect(() => {
+    // if (page.url.startsWith("/messages")) {
+    //     loadUnreadCount();
+    // }
+    // }, [page.url]);
 
 
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});

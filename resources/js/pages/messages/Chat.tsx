@@ -177,19 +177,19 @@ function FileIcon({ name }: { name?: string }) {
   return <File className="w-4 h-4" />;
 }
 
-useEffect(() => {
-  // reset list when filter changes
-  setContactsPage(1);
-  setContactsHasMore(true);
-  loadContacts(1, search, contactRoleFilter);
-}, [contactRoleFilter]);
+// useEffect(() => {
+//   // reset list when filter changes
+//   setContactsPage(1);
+//   setContactsHasMore(true);
+//   loadContacts(1, search, contactRoleFilter);
+// }, [contactRoleFilter]);
 
 async function loadContacts(
   page = 1,
   searchText = "",
   roleFilter: ContactRoleFilter = contactRoleFilter
 ) {
-  if (loadingMoreContacts && page > 1) return;
+  if (page > 1 && (loadingMoreContacts || isSearchingContacts)) return;
 
   const seq = ++contactsReqSeq.current;
 
@@ -218,7 +218,9 @@ async function loadContacts(
 
     setContactsPage(data.current_page);
     setContactsHasMore(data.current_page < data.last_page);
-  } finally {
+  } catch (error) {
+    console.error("loadContacts failed:", error);
+  }  finally {
     if (seq === contactsReqSeq.current) {
       setLoadingMoreContacts(false);
       if (page === 1) setIsSearchingContacts(false);
@@ -291,15 +293,22 @@ async function loadContacts(
       Fetch inbox
   ================================= */
   async function loadInbox() {
-    setLoadingInbox(true);
-    try {
-      const res = await fetch("/messages", { credentials: "same-origin" });
-      const data = await res.json();
-      setInbox(data);
-    } finally {
-      setLoadingInbox(false);
+  try {
+    const res = await fetch("/messages", { credentials: "same-origin" });
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("loadInbox failed:", data);
+      setInbox([]);
+      return;
     }
+
+    setInbox(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error("loadInbox crashed:", error);
+    setInbox([]);
   }
+}
 
   const boxRef = useRef<HTMLDivElement>(null);
   const firstLoadRef = useRef(true);
@@ -339,9 +348,18 @@ async function openConversation(user: User) {
   setShowInbox(false);
   setHasMore(true);
 
-  csrfFetch(`/messages/conversation/${user.id}/seen`, {
-    method: "POST",
-  });
+  try {
+    const seenRes = await csrfFetch(`/messages/conversation/${user.id}/seen`, {
+      method: "POST",
+    });
+
+    if (!seenRes.ok) {
+      const err = await seenRes.json().catch(() => null);
+      console.error("mark conversation seen failed:", err);
+    }
+  } catch (error) {
+    console.error("mark conversation seen crashed:", error);
+  }
 
   window.dispatchEvent(new Event("messages-seen"));
 
@@ -353,11 +371,10 @@ async function openConversation(user: User) {
     )
   );
 
-  // ⭐ SHOW CACHE INSTANTLY
   if (conversationCache[user.id]) {
     setMessages(conversationCache[user.id]);
   } else {
-    setMessages([]); // only clear if no cache
+    setMessages([]);
   }
 
   setLoadingConversation(true);
@@ -430,16 +447,8 @@ function otherUserWithRole(m: any) {
   const newContacts = contacts.filter(
     u => !inboxUserIds.includes(u.id)
   );
-  const filteredNewContacts = newContacts.filter(u => {
-  const q = search.toLowerCase();
-  const matchesSearch =
-    u.first_name.toLowerCase().includes(q) ||
-    u.last_name.toLowerCase().includes(q);
 
-  const matchesRole = matchesRoleFilter(u, contactRoleFilter);
-
-  return matchesSearch && matchesRole;
-});
+  const filteredNewContacts = newContacts;
 
   function isUserOnline(userId: number) {
     return onlineUsers.includes(userId);
@@ -452,8 +461,8 @@ useEffect(() => {
   if (!authId) return;
 
   loadInbox();
-  loadContacts();
 }, [authId]);
+
 useEffect(() => {
   if (!authId) return;
 
@@ -462,75 +471,80 @@ useEffect(() => {
 
   const channel = echo.private(`chat.${authId}`);
 
-  channel.listen(".MessageSent", (e: any) => {
+channel.listen(".MessageSent", (e: any) => {
 
-    window.dispatchEvent(new Event("new-message"));
+  window.dispatchEvent(new Event("new-message"));
 
-    let msg: Message = e.message;
+  let msg: Message = e.message;
 
-    // sender should not trust seen from broadcast
-    if (msg.sender.id === authId) {
-      msg = { ...msg, is_seen: false };
-    }
+  if (!msg?.sender?.id || !msg?.receiver?.id) {
+    console.error("Invalid realtime message payload:", msg);
+    return;
+  }
 
-    const isActiveChat =
-      activeUser &&
-      (
-        (msg.sender.id === activeUser.id && msg.receiver.id === authId) || // incoming
-        (msg.sender.id === authId && msg.receiver.id === activeUser.id)   // outgoing
-      );
+  // sender should not trust seen from broadcast
+  if (msg.sender.id === authId) {
+    msg = { ...msg, is_seen: false };
+  }
 
-    // Receiver has chat open → mark seen
-    if (isActiveChat && msg.receiver.id === authId) {
-      msg = { ...msg, is_seen: true, has_unread: false };
+  const isActiveChat =
+    activeUser &&
+    (
+      (msg.sender.id === activeUser.id && msg.receiver.id === authId) ||
+      (msg.sender.id === authId && msg.receiver.id === activeUser.id)
+    );
 
-      csrfFetch(`/messages/${msg.id}/seen`, {
-        method: "POST",
-      });
-    }
+  // Receiver has chat open → mark seen
+  if (isActiveChat && msg.receiver.id === authId) {
+    msg = { ...msg, is_seen: true, has_unread: false };
 
-    // Receiver but chat NOT open → unread
-    if (!isActiveChat && msg.receiver.id === authId) {
-      msg = { ...msg, has_unread: true };
-    }
-
-    if (isActiveChat) {
-      setMessages(prev => {
-        if (prev.some(p => p.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-    }
-
-    setConversationCache(prev => {
-      const partnerId =
-        msg.sender.id === authId
-          ? msg.receiver.id
-          : msg.sender.id;
-
-      const list = prev[partnerId] || [];
-
-      if (list.some(m => m.id === msg.id)) return prev;
-
-      return {
-        ...prev,
-        [partnerId]: [...list, msg],
-      };
+    csrfFetch(`/messages/${msg.id}/seen`, {
+      method: "POST",
     });
+  }
 
-    setInbox(prev => {
-      const filtered = prev.filter(
-        m =>
-          !(
-            (m.sender.id === msg.sender.id &&
-              m.receiver.id === msg.receiver.id) ||
-            (m.sender.id === msg.receiver.id &&
-              m.receiver.id === msg.sender.id)
-          )
-      );
+  // Receiver but chat NOT open → unread
+  if (!isActiveChat && msg.receiver.id === authId) {
+    msg = { ...msg, has_unread: true };
+  }
 
-      return [msg, ...filtered];
+  if (isActiveChat) {
+    setMessages(prev => {
+      if (prev.some(p => p.id === msg.id)) return prev;
+      return [...prev, msg];
     });
+  }
+
+  setConversationCache(prev => {
+    const partnerId =
+      msg.sender.id === authId
+        ? msg.receiver.id
+        : msg.sender.id;
+
+    const list = prev[partnerId] || [];
+
+    if (list.some(m => m.id === msg.id)) return prev;
+
+    return {
+      ...prev,
+      [partnerId]: [...list, msg],
+    };
   });
+
+  setInbox(prev => {
+    const filtered = prev.filter(
+      m =>
+        !(
+          (m.sender.id === msg.sender.id &&
+            m.receiver.id === msg.receiver.id) ||
+          (m.sender.id === msg.receiver.id &&
+            m.receiver.id === msg.sender.id)
+        )
+    );
+
+    return [msg, ...filtered];
+  });
+});
 
   return () => {
     echo.leave(`chat.${authId}`);
@@ -656,20 +670,20 @@ useEffect(() => {
   }, [messages])
 
 useEffect(() => {
+  if (!authId) return;
+
   const searchText = search.trim();
   latestContactsQueryRef.current = { search: searchText, role: contactRoleFilter };
 
-  // when user types/clears, show searching indicator right away
-  setIsSearchingContacts(true);
-
   const delay = setTimeout(() => {
+    setIsSearchingContacts(true);
     setContactsPage(1);
     setContactsHasMore(true);
     loadContacts(1, searchText, contactRoleFilter);
   }, 300);
 
   return () => clearTimeout(delay);
-}, [search, contactRoleFilter]);
+}, [authId, search, contactRoleFilter]);
 
   async function sendImage(file: File, batchId: string) {
     if (!activeUser ) return;

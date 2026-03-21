@@ -74,6 +74,15 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
     }
   }
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    router.get("/admin/reports");
+  };
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -83,7 +92,7 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.visit("/admin/reports")}
+            onClick={handleBack}
           >
             Back
           </Button>

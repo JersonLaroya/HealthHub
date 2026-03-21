@@ -19,50 +19,76 @@ class MessageController extends Controller
      */
     public function index()
 {
-    $userId = Auth::id();
+    try {
+        $userId = Auth::id();
 
-    $latestMessages = Message::selectRaw('MAX(id) as id')
-        ->where(function ($q) use ($userId) {
-            $q->where('sender_id', $userId)
-              ->orWhere('receiver_id', $userId);
-        })
-        ->groupBy('conversation_key');
+        // $latestMessageIds = Message::query()
+        //     ->where(function ($q) use ($userId) {
+        //         $q->where('sender_id', $userId)
+        //           ->orWhere('receiver_id', $userId);
+        //     })
+        //     ->selectRaw('MAX(id) as id')
+        //     ->groupBy('conversation_key');
 
-    $messages = Message::whereIn('id', $latestMessages)
-        ->select(
-            'id',
-            'sender_id',
-            'receiver_id',
-            'conversation_key',
-            'body',
-            'image_path',
-            'image_batch_id',
-            'file_path',
-            'file_name',
-            'file_size',
-            'is_seen',
-            'created_at'
-        )
-        ->with([
-            'sender' => function ($q) {
-                $q->select('id', 'first_name', 'last_name', 'user_role_id')
-                  ->with('userRole:id,name,category');
-            },
-            'receiver' => function ($q) {
-                $q->select('id', 'first_name', 'last_name', 'user_role_id')
-                  ->with('userRole:id,name,category');
-            },
-        ])
-        ->withExists([
-            'conversation as has_unread' => function ($q) use ($userId) {
-                $q->where('receiver_id', $userId)
-                  ->whereRaw('is_seen = false');
-            }
-        ])
-        ->orderByDesc('created_at')
-        ->get();
+        $messages = Message::query()
+            ->whereIn('id', function ($q) use ($userId) {
+                $q->from('messages')
+                ->selectRaw('MAX(id)')
+                ->where(function ($q2) use ($userId) {
+                    $q2->where('sender_id', $userId)
+                        ->orWhere('receiver_id', $userId);
+                })
+                ->groupBy('conversation_key');
+            })
+            ->select(
+                'id',
+                'sender_id',
+                'receiver_id',
+                'conversation_key',
+                'body',
+                'image_path',
+                'image_batch_id',
+                'file_path',
+                'file_name',
+                'file_size',
+                'is_seen',
+                'created_at'
+            )
+            ->with([
+                'sender:id,first_name,last_name,user_role_id',
+                'sender.userRole:id,name,category',
+                'receiver:id,first_name,last_name,user_role_id',
+                'receiver.userRole:id,name,category',
+            ])
+            ->orderByDesc('id')
+            ->get();
 
-    return response()->json($messages);
+        $messages->transform(function ($message) use ($userId) {
+            $message->has_unread = Message::query()
+                ->where('conversation_key', $message->conversation_key)
+                ->where('receiver_id', $userId)
+                ->whereRaw('is_seen = false')
+                ->exists();
+
+            return $message;
+        });
+
+        return response()->json($messages->sortByDesc('created_at')->values());
+
+    } catch (\Throwable $e) {
+        Log::error('messages.index failed', [
+            'user_id' => Auth::id(),
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'error' => 'Failed to load inbox',
+            'debug' => $e->getMessage(),
+        ], 500);
+    }
 }
 
     /**
@@ -160,22 +186,16 @@ class MessageController extends Controller
             'is_seen' => DB::raw('false'),
         ]);
 
-        // broadcast(new MessageSent($message))->toOthers();
-        broadcast(new MessageSent($message))->toOthers();
-        // broadcast(new MessageSent($message))->toOthers();
+        $message->load([
+            'sender:id,first_name,last_name,user_role_id',
+            'sender.userRole:id,name,category',
+            'receiver:id,first_name,last_name,user_role_id',
+            'receiver.userRole:id,name,category',
+        ]);
 
-        return response()->json(
-    $message->load([
-        'sender' => function ($q) {
-            $q->select('id', 'first_name', 'last_name', 'user_role_id')
-              ->with('userRole:id,name,category');
-        },
-        'receiver' => function ($q) {
-            $q->select('id', 'first_name', 'last_name', 'user_role_id')
-              ->with('userRole:id,name,category');
-        },
-    ])
-);
+        broadcast(new MessageSent($message))->toOthers();
+
+        return response()->json($message);
     }
 
     public function contacts(Request $request)
@@ -183,63 +203,74 @@ class MessageController extends Controller
     $auth = Auth::user();
 
     $search = trim((string) $request->query('search', ''));
-    $roleFilter = strtolower($request->query('role_filter', 'all'));
+    $roleFilter = strtolower((string) $request->query('role_filter', 'all'));
 
-    $senderRole     = strtolower($auth->userRole->name ?? '');
-    $senderCategory = strtolower($auth->userRole->category ?? '');
+    $senderRole = strtolower((string) optional($auth->userRole)->name);
+    $senderCategory = strtolower((string) optional($auth->userRole)->category);
 
     $query = User::query()
+        ->join('user_roles', 'user_roles.id', '=', 'users.user_role_id')
         ->where('users.id', '!=', $auth->id)
-        ->leftJoin('user_roles', 'user_roles.id', '=', 'users.user_role_id')
         ->select(
             'users.id',
             'users.first_name',
             'users.last_name',
-            DB::raw("user_roles.name as user_role_name"),
-            DB::raw("user_roles.category as user_role_category")
-        )
-        ->whereHas('userRole', function ($q) use ($senderRole, $senderCategory) {
-            if ($senderRole === 'super admin') {
-                $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
-            } elseif ($senderRole === 'admin') {
-                $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
-                  ->orWhereIn(DB::raw('LOWER(category)'), ['user','rcy']);
-            } elseif ($senderRole === 'nurse') {
-                $q->whereIn(DB::raw('LOWER(name)'), ['super admin'])
-                  ->orWhereIn(DB::raw('LOWER(category)'), ['user','rcy']);
-            } elseif (in_array($senderCategory, ['user','rcy'])) {
-                $q->whereIn(DB::raw('LOWER(name)'), ['admin','nurse']);
+            DB::raw('user_roles.name as user_role_name'),
+            DB::raw('user_roles.category as user_role_category')
+        );
+
+    // allowed contacts based on current user role
+    $query->where(function ($q) use ($senderRole, $senderCategory) {
+        if ($senderRole === 'super admin') {
+            $q->where(function ($x) {
+                $x->where('user_roles.name', 'ilike', 'admin')
+                ->orWhere('user_roles.name', 'ilike', 'nurse');
+            });
+        } elseif ($senderRole === 'admin' || $senderRole === 'nurse') {
+            $q->where(function ($x) {
+                $x->where('user_roles.name', 'ilike', 'super admin')
+                    ->orWhere('user_roles.category', 'ilike', 'user')
+                    ->orWhere('user_roles.category', 'ilike', 'rcy');
+            });
+        } elseif (in_array($senderCategory, ['user', 'rcy'])) {
+            $q->where(function ($x) {
+                $x->where('user_roles.name', 'ilike', 'admin')
+                ->orWhere('user_roles.name', 'ilike', 'nurse');
+            });
+        } else {
+            $q->whereRaw('1 = 0');
+        }
+    });
+
+    // filter tabs
+    if ($roleFilter !== 'all') {
+        $query->where(function ($q) use ($roleFilter) {
+            if ($roleFilter === 'student') {
+               $q->where('user_roles.name', 'ilike', 'student')
+                 ->orWhere('user_roles.category', 'ilike', 'rcy');
+            } elseif ($roleFilter === 'employee') {
+                $q->where('user_roles.name', 'ilike', 'staff')
+                    ->orWhere('user_roles.name', 'ilike', 'faculty');
+            } elseif ($roleFilter === 'sa') {
+                $q->where('user_roles.name', 'ilike', 'super admin');
             }
-        })
-        ->when($roleFilter !== 'all', function ($q) use ($roleFilter) {
-            $q->where(function ($x) use ($roleFilter) {
-                if ($roleFilter === 'student') {
-                    $x->whereRaw("LOWER(user_roles.name) = 'student'")
-                      ->orWhereRaw("LOWER(user_roles.category) = 'rcy'");
-                }
+        });
+    }
 
-                if ($roleFilter === 'employee') {
-                    $x->whereRaw("LOWER(user_roles.name) IN ('staff','faculty')");
-                }
+    // search
+    if ($search !== '') {
+        $query->where(function ($q) use ($search) {
+            $q->where('users.first_name', 'ilike', "%{$search}%")
+            ->orWhere('users.last_name', 'ilike', "%{$search}%");
+        });
+    }
 
-                if ($roleFilter === 'sa') {
-                    $x->whereRaw("LOWER(user_roles.name) = 'super admin'");
-                }
-            });
-        })
-        ->when($search !== '', function ($q) use ($search) {
-            $q->where(function ($x) use ($search) {
-                $x->where('users.first_name', 'like', "%{$search}%")
-                  ->orWhere('users.last_name', 'like', "%{$search}%")
-                  ->orWhereRaw(
-                      "LOWER(CONCAT(users.first_name,' ',users.last_name)) LIKE ?",
-                      ['%' . strtolower($search) . '%']
-                  );
-            });
-        })
-        ->orderBy('users.first_name');
+    $contacts = $query
+        ->orderBy('users.first_name')
+        ->orderBy('users.last_name')
+        ->simplePaginate(20);
 
-    return response()->json($query->paginate(20));
+    return response()->json($contacts);
 }
 
     /**
@@ -264,7 +295,7 @@ class MessageController extends Controller
         try {
             Message::where('sender_id', $userId)
                 ->where('receiver_id', auth()->id())
-                ->whereRaw('is_seen IS FALSE')
+                ->whereRaw('is_seen = false')
                 ->update([
                     'is_seen' => DB::raw('true')
                 ]);
@@ -282,35 +313,42 @@ class MessageController extends Controller
         }
     }
 
-        public function unreadCount()
-    {
-        try {
-            Log::info("Unread count request", [
-                'user_id' => auth()->id()
-            ]);
+    public function unreadCount()
+{
+    try {
+        $userId = Auth::id();
 
-            $count = Message::where('receiver_id', auth()->id())
-                ->whereRaw('is_seen = false')
-                ->count();
+        Log::info('Unread count request', [
+            'user_id' => $userId,
+        ]);
 
-            Log::info("Unread count result", [
-                'count' => $count
-            ]);
+        $count = Message::query()
+            ->where('receiver_id', $userId)
+            ->whereRaw('is_seen = false')
+            ->count();
 
-            return response()->json(['count' => $count]);
+        Log::info('Unread count result', [
+            'user_id' => $userId,
+            'count' => $count,
+        ]);
 
-        } catch (\Throwable $e) {
+        return response()->json(['count' => $count]);
 
-            Log::error("Unread count failed", [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+    } catch (\Throwable $e) {
+        Log::error('Unread count failed', [
+            'user_id' => Auth::id(),
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+        ]);
 
-            return response()->json([
-                'error' => 'Unread count failed'
-            ], 500);
-        }
+        return response()->json([
+            'error' => 'Unread count failed',
+            'debug' => $e->getMessage(),
+        ], 500);
     }
+}
 
 
 }

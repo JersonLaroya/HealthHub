@@ -58,14 +58,12 @@ export default function Files({ patient, assignments, breadcrumbs = [] }: Props)
   const forms = [preForm, ...filteredDbForms, labResultsForm];
 
   const handleBack = () => {
-    router.get(
-      `/${prefix}/patients`,
-      {},
-      {
-        preserveState: true,
-        preserveScroll: true,
-      }
-    );
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    router.get(`/${prefix}/patients`);
   };
 
   return (

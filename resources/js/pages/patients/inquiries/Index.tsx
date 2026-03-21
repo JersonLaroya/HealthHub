@@ -103,6 +103,15 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
         );
         }
 
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        router.get(`/${prefix}/patients`);
+        };
+
   return (
     <AppLayout>
       <Head title="Patient Inquiries" />
@@ -117,7 +126,7 @@ export default function InquiriesIndex({ patient, inquiries = [], inquiryTypes =
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => router.visit(`/${prefix}/patients`, { preserveState: true })}
+              onClick={handleBack}
             >
               Back
             </Button>

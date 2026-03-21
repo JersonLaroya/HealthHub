@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Notifications\NewUserCreated;
 use App\Notifications\PasswordResetByAdmin;
+use Carbon\Carbon;
+use Carbon\Exceptions\InvalidFormatException;
 
 class SuperAdminUserController extends Controller
 {
@@ -326,52 +328,69 @@ class SuperAdminUserController extends Controller
         $rowCount = 0;
 
         while (($row = fgetcsv($file)) !== false) {
-    if (!array_filter($row)) {
-        continue;
-    }
+            if (!array_filter($row)) {
+                continue;
+            }
 
-    $rowCount++;
+            $rowCount++;
 
-    if ($rowCount > 500) {
-        fclose($file);
-        return back()->with('error', 'Maximum of 500 rows per bulk upload.');
-    }
+            if ($rowCount > 500) {
+                fclose($file);
+                return back()->with('error', 'Maximum of 500 rows per bulk upload.');
+            }
 
-    [
-        $ismis_id,
-        $first_name,
-        $middle_name,
-        $last_name,
-        $email,
-        $office_name,
-        $course_code,
-        $year_name,
-    ] = array_pad($row, 8, null);
-        
+            [
+                $ismis_id,
+                $first_name,
+                $middle_name,
+                $last_name,
+                $email,
+                $office_name,
+                $course_code,
+                $year_name,
+                $birthdate_raw,
+            ] = array_pad($row, 9, null);
+
             /* CLEAN CSV VALUES */
-            $ismis_id   = trim($ismis_id ?? '');
-            $email      = trim($email ?? '');
-            $first_name = trim($first_name ?? '');
-            $middle_name= trim($middle_name ?? '');
-            $last_name  = trim($last_name ?? '');
-            
+            $ismis_id      = trim($ismis_id ?? '');
+            $email         = trim($email ?? '');
+            $first_name    = trim($first_name ?? '');
+            $middle_name   = trim($middle_name ?? '');
+            $last_name     = trim($last_name ?? '');
+            $office_name   = trim($office_name ?? '');
+            $course_code   = trim($course_code ?? '');
+            $year_name     = trim($year_name ?? '');
+            $birthdate_raw = trim($birthdate_raw ?? '');
+
+            $birthdate = $this->normalizeBirthdate($birthdate_raw);
+
             $fullName = trim("{$first_name} {$middle_name} {$last_name}");
 
             if (!$email) {
                 $skippedUsers[] = [
-                    'name'  => $fullName ?: 'Unknown name',
-                    'email' => null,
-                    'type'  => 'missing_email',
-                    'reason'=> 'Missing email address',
+                    'name'   => $fullName ?: 'Unknown name',
+                    'email'  => null,
+                    'type'   => 'missing_email',
+                    'reason' => 'Missing email address',
+                ];
+                continue;
+            }
+
+            if ($birthdate_raw !== '' && !$birthdate) {
+                $skippedUsers[] = [
+                    'name'   => $fullName ?: 'Unknown name',
+                    'email'  => $email,
+                    'type'   => 'invalid_birthdate',
+                    'reason' => "Invalid birthdate: {$birthdate_raw}",
                 ];
                 continue;
             }
 
             $office = $office_name
-            ? Office::where('name', $office_name)
-                ->orWhere('code', $office_name)
-                ->first()
-            : null;
+                ? Office::where('name', $office_name)
+                    ->orWhere('code', $office_name)
+                    ->first()
+                : null;
 
             $course = $course_code
                 ? Course::where('code', $course_code)->first()
@@ -380,32 +399,36 @@ class SuperAdminUserController extends Controller
             $year = is_numeric($year_name)
                 ? YearLevel::where('level', $year_name)->first()
                 : null;
-            
+
             $user = User::where('email', $email)->first();
 
-            // ENFORCE RULES HERE (after fetching)
+            // ENFORCE RULES HERE
             if ($role->name === 'Student' && (!$course || !$year)) {
                 $skippedUsers[] = [
-                    'name'  => $fullName,
-                    'email' => $email,
-                    'type'  => 'student_requirement',
-                    'reason'=> 'Missing or invalid course/year',
+                    'name'   => $fullName,
+                    'email'  => $email,
+                    'type'   => 'student_requirement',
+                    'reason' => 'Missing or invalid course/year',
                 ];
                 continue;
             }
 
             if ($role->name !== 'Student' && !$office && !$course) {
                 $skippedUsers[] = [
-                    'name'  => $fullName,
-                    'email' => $email,
-                    'type'  => 'office_requirement',
-                    'reason'=> 'Missing or invalid office',
+                    'name'   => $fullName,
+                    'email'  => $email,
+                    'type'   => 'office_requirement',
+                    'reason' => 'Missing or invalid office',
                 ];
                 continue;
             }
 
-            // ISMIS ID already used by another user
-            if ($ismis_id && User::where('ismis_id', $ismis_id)->exists() && (!$user || $user->ismis_id !== $ismis_id)) {
+            // ISMIS duplicate check
+            if (
+                $ismis_id &&
+                User::where('ismis_id', $ismis_id)->exists() &&
+                (!$user || $user->ismis_id !== $ismis_id)
+            ) {
                 $skippedUsers[] = [
                     'name'   => $fullName,
                     'email'  => $email,
@@ -416,51 +439,48 @@ class SuperAdminUserController extends Controller
 
             if ($user && $user->user_role_id !== $role->id) {
                 $skippedUsers[] = [
-                    'name'  => $fullName,
-                    'email' => $email,
-                    'type'  => 'role_mismatch',
-                    'reason'=> 'Existing user with different role',
+                    'name'   => $fullName,
+                    'email'  => $email,
+                    'type'   => 'role_mismatch',
+                    'reason' => 'Existing user with different role',
                 ];
                 continue;
             }
 
             /* =========================
             IF USER EXISTS → UPDATE
-            (ROLE SAFE)
             ========================= */
             if ($user) {
-
                 $changes = [];
                 $updateData = [];
 
-                // ismis id
                 if ($ismis_id && $user->ismis_id !== $ismis_id) {
-                    // prevent duplicate ISMIS ID
                     if (!User::where('ismis_id', $ismis_id)->where('id', '!=', $user->id)->exists()) {
                         $updateData['ismis_id'] = $ismis_id;
                         $changes[] = 'ismis id';
                     }
                 }
 
-                // office
                 if ($office && $user->office_id !== $office->id) {
                     $updateData['office_id'] = $office->id;
                     $changes[] = 'office';
                 }
 
-                // course
                 if ($course && $user->course_id !== $course->id) {
                     $updateData['course_id'] = $course->id;
                     $changes[] = 'course';
                 }
 
-                // year level
                 if ($year && $user->year_level_id !== $year->id) {
                     $updateData['year_level_id'] = $year->id;
                     $changes[] = 'year level';
                 }
 
-                // auto office from course
+                if ($birthdate && $user->birthdate !== $birthdate) {
+                    $updateData['birthdate'] = $birthdate;
+                    $changes[] = 'birthdate';
+                }
+
                 if ($course?->office_id && $user->office_id !== $course->office_id) {
                     $updateData['office_id'] = $course->office_id;
                     if (!in_array('office', $changes)) {
@@ -468,7 +488,6 @@ class SuperAdminUserController extends Controller
                     }
                 }
 
-                // HAS REAL CHANGES
                 if (!empty($updateData)) {
                     $user->update($updateData);
 
@@ -478,9 +497,7 @@ class SuperAdminUserController extends Controller
                         'email'   => $user->email,
                         'changes' => $changes,
                     ];
-                } 
-                // NO CHANGES
-                else {
+                } else {
                     $unchangedUsers[] = [
                         'id'    => $user->id,
                         'name'  => $user->first_name . ' ' . $user->last_name,
@@ -494,15 +511,15 @@ class SuperAdminUserController extends Controller
             /* =========================
             IF NEW USER → CREATE
             ========================= */
-
             $plainPassword = Str::random(10);
 
             $data = [
-                'ismis_id'     => $ismis_id,
+                'ismis_id' => $ismis_id,
                 'first_name' => $first_name,
                 'middle_name' => $middle_name,
                 'last_name' => $last_name,
                 'email' => $email,
+                'birthdate' => $birthdate,
                 'password' => Hash::make($plainPassword),
                 'user_role_id' => $role->id,
                 'office_id' => $office?->id,
@@ -530,7 +547,7 @@ class SuperAdminUserController extends Controller
 
         fclose($file);
 
-       return back()->with('bulkResult', [
+        return back()->with('bulkResult', [
             'created' => $createdUsers,
             'updated' => $updatedUsers,
             'unchanged' => $unchangedUsers,
@@ -858,4 +875,135 @@ public function bulkUnarchive(Request $request)
         'skipped' => $skippedUsers,
     ]);
 }
+
+    private function normalizeBirthdate(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // Excel / CSV may give numeric serial dates
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric(trim($value)))) {
+            $numeric = (float) trim((string) $value);
+
+            // Excel serial date sanity check
+            if ($numeric > 20000 && $numeric < 80000) {
+                try {
+                    return Carbon::createFromDate(1899, 12, 30)
+                        ->addDays((int) floor($numeric))
+                        ->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // continue to string parsing
+                }
+            }
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        // remove wrapping quotes
+        $value = trim($value, "\"'");
+
+        // normalize separators
+        $normalized = preg_replace('/[.]/', '/', $value);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        $formats = [
+            'Y-m-d',
+            'Y/m/d',
+            'd/m/Y',
+            'm/d/Y',
+            'd-m-Y',
+            'm-d-Y',
+            'd.m.Y',
+            'm.d.Y',
+            'j/n/Y',
+            'n/j/Y',
+            'j-n-Y',
+            'n-j-Y',
+            'Y-m-d H:i:s',
+            'Y/m/d H:i:s',
+            'd/m/Y H:i:s',
+            'm/d/Y H:i:s',
+            'd-m-Y H:i:s',
+            'm-d-Y H:i:s',
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                $date = Carbon::createFromFormat($format, $value);
+
+                if ($date && $date->format($format) === $value) {
+                    if ($this->isReasonableBirthdate($date)) {
+                        return $date->format('Y-m-d');
+                    }
+
+                    return null;
+                }
+            } catch (\Throwable $e) {
+                // try next format
+            }
+        }
+
+        // second pass using normalized separators
+        if ($normalized !== $value) {
+            foreach ([
+                'Y/m/d',
+                'd/m/Y',
+                'm/d/Y',
+                'j/n/Y',
+                'n/j/Y',
+                'Y/m/d H:i:s',
+                'd/m/Y H:i:s',
+                'm/d/Y H:i:s',
+            ] as $format) {
+                try {
+                    $date = Carbon::createFromFormat($format, $normalized);
+
+                    if ($date && $date->format($format) === $normalized) {
+                        if ($this->isReasonableBirthdate($date)) {
+                            return $date->format('Y-m-d');
+                        }
+
+                        return null;
+                    }
+                } catch (\Throwable $e) {
+                    // try next format
+                }
+            }
+        }
+
+        // final fallback for things like "Feb 14 2007"
+        try {
+            $date = Carbon::parse($value);
+
+            if ($this->isReasonableBirthdate($date)) {
+                return $date->format('Y-m-d');
+            }
+        } catch (\Throwable $e) {
+            //
+        }
+
+        return null;
+    }
+
+    private function isReasonableBirthdate(Carbon $date): bool
+    {
+        $today = now()->startOfDay();
+
+        if ($date->gt($today)) {
+            return false;
+        }
+
+        // adjust this if needed
+        if ($date->lt($today->copy()->subYears(120))) {
+            return false;
+        }
+
+        return true;
+    }
+
 }

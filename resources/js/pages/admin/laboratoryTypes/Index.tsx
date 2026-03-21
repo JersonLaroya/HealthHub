@@ -56,6 +56,15 @@ export default function Index({ labTypes }) {
     reset();
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    router.get("/admin/lab-requests");
+  };
+
   return (
     <AppLayout>
       <Head title="Laboratory Types" />
@@ -72,7 +81,7 @@ export default function Index({ labTypes }) {
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.visit("/admin/lab-requests")}>
+            <Button variant="outline" onClick={handleBack}>
               Back
             </Button>
 

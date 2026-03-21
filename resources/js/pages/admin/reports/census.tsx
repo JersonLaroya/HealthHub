@@ -132,6 +132,15 @@ async function uploadChart(
 const campusLabel = "Candijay Campus";
 const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFilters.to)}`;
 
+const handleBack = () => {
+  if (window.history.length > 1) {
+    window.history.back();
+    return;
+  }
+
+  router.get("/admin/reports");
+};
+
 
   return (
     <AppLayout>
@@ -141,7 +150,7 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <Button
             variant="outline"
-            onClick={() => router.visit("/admin/reports")}
+            onClick={handleBack}
           >
             Back
           </Button>
@@ -219,20 +228,47 @@ const dateLabel = `${formatDate(appliedFilters.from)} – ${formatDate(appliedFi
                 variant="outline"
                 disabled={downloading}
                 onClick={async () => {
-                  setDownloading(true);
+                  try {
+                    setDownloading(true);
 
-                  await uploadChart(wellChartRef, "well");
-                  await uploadChart(sickChartRef, "sick");
-                  await uploadChart(treatmentChartRef, "treatment");
+                    await uploadChart(wellChartRef, "well");
+                    await uploadChart(sickChartRef, "sick");
+                    await uploadChart(treatmentChartRef, "treatment");
 
-                  const params = new URLSearchParams({
-                    from: appliedFilters.from,
-                    to: appliedFilters.to,
-                    group: appliedFilters.group,
-                  }).toString();
+                    const params = new URLSearchParams({
+                      from: appliedFilters.from,
+                      to: appliedFilters.to,
+                      group: appliedFilters.group,
+                    }).toString();
 
-                  window.location.href = `/admin/reports/census/download?${params}`;
-                  setDownloading(false);
+                    const response = await fetch(`/admin/reports/census/download?${params}`, {
+                      method: "GET",
+                      headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                      },
+                    });
+
+                    if (!response.ok) {
+                      throw new Error("Failed to download file.");
+                    }
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `census-report-${appliedFilters.from}-to-${appliedFilters.to}.xlsx`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+
+                    window.URL.revokeObjectURL(url);
+                  } catch (error) {
+                    console.error("Download failed:", error);
+                    alert("Failed to download Excel file.");
+                  } finally {
+                    setDownloading(false);
+                  }
                 }}
                 className="w-full"
               >

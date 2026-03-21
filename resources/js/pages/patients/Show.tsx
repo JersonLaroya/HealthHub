@@ -468,16 +468,25 @@ export default function Show({
     return !value || value.trim().length === 0;
   };
 
+  // const handleBack = () => {
+  //   router.get(
+  //     `/${prefix}/patients`,
+  //     {},
+  //     {
+  //       preserveState: true,
+  //       preserveScroll: true,
+  //     }
+  //   );
+  // };
+
   const handleBack = () => {
-    router.get(
-      `/${prefix}/patients`,
-      {},
-      {
-        preserveState: true,
-        preserveScroll: true,
-      }
-    );
-  };
+  if (window.history.length > 1) {
+    window.history.back();
+    return;
+  }
+
+  router.get(`/${prefix}/patients`);
+};
 
 const handleApproveWithUpdate = () => {
   if (!editingConsultation) return;
@@ -946,7 +955,7 @@ const handleApproveWithUpdate = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={9} className="p-4 text-center text-gray-500 dark:text-gray-400">
                       No records found.
                     </td>
                   </tr>

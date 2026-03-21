@@ -200,14 +200,12 @@ export default function ShowFile({ patient, service, records }: Props) {
   };
 
   const handleBack = () => {
-    router.get(
-        `/${prefix}/patients/${patient.id}/files`,
-        {},
-        {
-        preserveState: true,
-        preserveScroll: true,
-        }
-    );
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    router.get(`/${prefix}/patients`);
     };
 
     const isSigned = (record: Record) => {

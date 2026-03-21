@@ -126,15 +126,12 @@ export default function Index({
   }, [fullImage]);
 
   const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
 
-    router.get(
-      `/${prefix}/patients/${patient.id}/files`,
-      {},
-      {
-        preserveState: true,
-        preserveScroll: true,
-      }
-    );
+    router.get(`/${prefix}/patients`);
   };
 
   return (
