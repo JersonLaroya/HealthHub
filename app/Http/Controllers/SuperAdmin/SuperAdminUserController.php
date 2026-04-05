@@ -322,7 +322,13 @@ class SuperAdminUserController extends Controller
         $role = UserRole::where('name', $request->role)->firstOrFail();
 
         $file = fopen($request->file('file')->getRealPath(), 'r');
-        fgetcsv($file); // skip header
+        $header = fgetcsv($file);
+
+        if (!$header) {
+            return back()->with('error', 'Empty or invalid CSV file.');
+        }
+
+        $normalizedHeader = array_map(fn ($h) => $this->normalizeCsvHeader($h), $header);
 
         $created = 0;
         $rowCount = 0;
@@ -339,31 +345,22 @@ class SuperAdminUserController extends Controller
                 return back()->with('error', 'Maximum of 500 rows per bulk upload.');
             }
 
-            [
-                $ismis_id,
-                $first_name,
-                $middle_name,
-                $last_name,
-                $email,
-                $office_name,
-                $course_code,
-                $year_name,
-                $birthdate_raw,
-            ] = array_pad($row, 9, null);
+            $record = [];
+            foreach ($normalizedHeader as $index => $column) {
+                $record[$column] = trim($row[$index] ?? '');
+            }
 
-            /* CLEAN CSV VALUES */
-            $ismis_id      = trim($ismis_id ?? '');
-            $email         = trim($email ?? '');
-            $first_name    = trim($first_name ?? '');
-            $middle_name   = trim($middle_name ?? '');
-            $last_name     = trim($last_name ?? '');
-            $office_name   = trim($office_name ?? '');
-            $course_code   = trim($course_code ?? '');
-            $year_name     = trim($year_name ?? '');
-            $birthdate_raw = trim($birthdate_raw ?? '');
+            $ismis_id = $record['ismis_id'] ?? '';
+            $first_name = $record['first_name'] ?? '';
+            $middle_name = $record['middle_name'] ?? '';
+            $last_name = $record['last_name'] ?? '';
+            $email = $record['email'] ?? '';
+            $office_name = $record['office'] ?? ($record['office_name'] ?? '');
+            $course_code = $record['course_code'] ?? ($record['course'] ?? '');
+            $year_name = $record['year'] ?? ($record['year_level'] ?? '');
+            $birthdate_raw = $record['birthdate'] ?? '';
 
             $birthdate = $this->normalizeBirthdate($birthdate_raw);
-
             $fullName = trim("{$first_name} {$middle_name} {$last_name}");
 
             if (!$email) {
@@ -377,13 +374,7 @@ class SuperAdminUserController extends Controller
             }
 
             if ($birthdate_raw !== '' && !$birthdate) {
-                $skippedUsers[] = [
-                    'name'   => $fullName ?: 'Unknown name',
-                    'email'  => $email,
-                    'type'   => 'invalid_birthdate',
-                    'reason' => "Invalid birthdate: {$birthdate_raw}",
-                ];
-                continue;
+                $birthdate = null;
             }
 
             $office = $office_name
@@ -402,7 +393,6 @@ class SuperAdminUserController extends Controller
 
             $user = User::where('email', $email)->first();
 
-            // ENFORCE RULES HERE
             if ($role->name === 'Student' && (!$course || !$year)) {
                 $skippedUsers[] = [
                     'name'   => $fullName,
@@ -413,7 +403,7 @@ class SuperAdminUserController extends Controller
                 continue;
             }
 
-            if ($role->name !== 'Student' && !$office && !$course) {
+            if ($role->name !== 'Student' && !$office) {
                 $skippedUsers[] = [
                     'name'   => $fullName,
                     'email'  => $email,
@@ -423,7 +413,6 @@ class SuperAdminUserController extends Controller
                 continue;
             }
 
-            // ISMIS duplicate check
             if (
                 $ismis_id &&
                 User::where('ismis_id', $ismis_id)->exists() &&
@@ -447,9 +436,6 @@ class SuperAdminUserController extends Controller
                 continue;
             }
 
-            /* =========================
-            IF USER EXISTS → UPDATE
-            ========================= */
             if ($user) {
                 $changes = [];
                 $updateData = [];
@@ -508,9 +494,6 @@ class SuperAdminUserController extends Controller
                 continue;
             }
 
-            /* =========================
-            IF NEW USER → CREATE
-            ========================= */
             $plainPassword = Str::random(10);
 
             $data = [
@@ -541,7 +524,6 @@ class SuperAdminUserController extends Controller
             ];
 
             $newUser->notify(new NewUserCreated($plainPassword));
-
             $created++;
         }
 
@@ -1004,6 +986,25 @@ public function bulkUnarchive(Request $request)
         }
 
         return true;
+    }
+
+    private function normalizeCsvHeader(?string $header): string
+    {
+        $header = strtolower(trim((string) $header));
+        $header = preg_replace('/[^a-z0-9]+/', '_', $header);
+        $header = trim($header, '_');
+
+        return match ($header) {
+            'ismis', 'ismisid', 'ismis__id', 'ismis_id', 'ismis__id_' => 'ismis_id',
+            'firstname', 'first_name' => 'first_name',
+            'middlename', 'middle_name' => 'middle_name',
+            'lastname', 'last_name' => 'last_name',
+            'office', 'office_name' => 'office',
+            'course', 'course_code' => 'course_code',
+            'year', 'year_level', 'year_level_id' => 'year',
+            'birth_date', 'birthdate', 'date_of_birth', 'dob' => 'birthdate',
+            default => $header,
+        };
     }
 
 }

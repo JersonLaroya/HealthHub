@@ -626,7 +626,7 @@ export default function Dashboard() {
                                 <div className="flex items-center gap-2">
                                     <CalendarDays className="w-4 h-4" />
                                     <span>
-                                        {formatDate(selectedAppointment.appointment_date)}
+                                        {formatDate(selectedAppointment.slot?.appointment_date)}
                                     </span>
                                 </div>
 

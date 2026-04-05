@@ -438,7 +438,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse min-w-[520px]">
               <thead>
-                <tr className="bg-gray-50 dark:bg-neutral-700 text-left">
+                <tr className="bg-gray-50 dark:bg-neutral-700 text-center">
                     <th className="p-2 border-b">ISMIS ID</th>
                     <th className="p-2 border-b">Name</th>
                     <th className="p-2 border-b">Email</th>
@@ -446,7 +446,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     <th className="p-2 border-b">Course / Office</th>
                     <th className="p-2 border-b">Year</th>
                     <th className="p-2 border-b">Joined</th>
-                    <th className="p-2 border-b">Status</th>
+                    {/* <th className="p-2 border-b">Status</th> */}
                     <th className="p-2 border-b">Actions</th>
                 </tr>
                </thead>
@@ -458,17 +458,17 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     key={u.id}
                     className="hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
                     >
-                    <td className="p-2 border-b">
+                    <td className="p-2 border-b text-center">
                         {u.ismis_id ?? "—"}
                     </td>
                     <td className="p-2 border-b font-medium">{u.name}</td>
-                    <td className="p-2 border-b">{u.email}</td>
-                    <td className="p-2 border-b">
+                    <td className="p-2 border-b text-center">{u.email}</td>
+                    <td className="p-2 border-b text-center">
                     {u.user_role?.category === "rcy" ? "Student" : u.user_role?.name}
                     </td>
 
                     {/* Course or Office */}
-                    <td className="p-2 border-b">
+                    <td className="p-2 border-b text-center">
                         {u.course
                             ? u.course.code
                             : u.office
@@ -477,16 +477,16 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     </td>
 
                     {/* Year level (students only usually) */}
-                    <td className="p-2 border-b">
+                    <td className="p-2 border-b text-center">
                         {u.year_level?.name ?? "—"}
                     </td>
 
-                    <td className="p-2 border-b">
+                    <td className="p-2 border-b text-center">
                         {new Date(u.created_at).toLocaleDateString()}
                     </td>
 
-                    <td className="p-2 border-b">
-                    <span
+                    <td className="p-2 border-b text-center">
+                    {/* <span
                         className={
                         "text-xs font-semibold px-2 py-0.5 rounded-full " +
                         (u.status === "active"
@@ -495,7 +495,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                         }
                     >
                         {u.status === "active" ? "Active" : "Archived"}
-                    </span>
+                    </span> */}
 
                     {u.archived_at && (
                         <>
@@ -512,14 +512,14 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                     )}
                     </td>
 
-                    <td className="p-2 border-b">
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <td className="p-2 border-b text-center">
+                    <div className="flex flex-wrap justify-center items-center gap-2">
                         {view === "active" && (
                         <>
                             <Button
                             size="sm"
                             variant="outline"
-                            className="w-full sm:w-auto"
+                            className="w-auto whitespace-nowrap"
                             onClick={() => openEdit(u)}
                             >
                             Edit
@@ -528,7 +528,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                             <Button
                             size="sm"
                             variant="secondary"
-                            className="w-full sm:w-auto"
+                            className="w-auto whitespace-nowrap"
                             onClick={() => openResetPassword(u)}
                             >
                             Reset Password
@@ -537,7 +537,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                             <Button
                             size="sm"
                             variant="destructive"
-                            className="w-full sm:w-auto"
+                            className="w-auto whitespace-nowrap"
                             disabled={archivingId === u.id}
                             onClick={() => archiveUser(u)}
                             >
@@ -550,7 +550,7 @@ export default function SuperAdminUsers({ users, roles, yearLevels, courses, off
                         <Button
                             size="sm"
                             variant="default"
-                            className="w-full sm:w-auto"
+                            className="w-auto whitespace-nowrap"
                             disabled={restoringId === u.id}
                             onClick={() => restoreUser(u)}
                         >
