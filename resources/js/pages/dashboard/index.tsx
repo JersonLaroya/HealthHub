@@ -524,15 +524,20 @@ export default function Dashboard() {
                                 onClick={() => {
                                     const patientId = u.patient_id ?? u.user_id;
 
-                                    // convert laboratory request → lab results
+                                    // CASE 1: CONSULTATION → go to patient record (Show.tsx)
+                                    if (u.service_slug === "clinic-consultation-record-form") {
+                                        router.get(`/${roleSlug}/patients/${patientId}`);
+                                        return;
+                                    }
+
+                                    // CASE 2: LAB special mapping
                                     const slug =
-                                    u.service_slug === "laboratory-request-form"
-                                        ? "laboratory-results"
-                                        : u.service_slug;
+                                        u.service_slug === "laboratory-request-form"
+                                            ? "laboratory-results-form"
+                                            : u.service_slug;
 
-                                    router.visit(`/${roleSlug}/patients/${patientId}/files/${slug}`);
-
-                                    setOpenPending(false);
+                                    // DEFAULT: normal service form
+                                    router.get(`/${roleSlug}/${slug}/${patientId}`);
                                 }}
                                 >
                                 Go
