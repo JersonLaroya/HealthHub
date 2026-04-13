@@ -4,8 +4,22 @@ import { Card } from "@/components/ui/card";
 import { useForm, router } from "@inertiajs/react";
 import { fillDtrReport } from "@/utils/fillDtrReport";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function DtrReport({ consultations = [], filters, years = [] }) {
+
+  const [visibleColumns, setVisibleColumns] = useState({
+    complaint: false,
+    management: false,
+    signature: false,
+  });
+
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns((prev) => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
 
   const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -82,6 +96,51 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
 
     router.get("/admin/reports");
   };
+
+function ColumnToggleHeader({
+  label,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  onClick: () => void;
+  align?: "left" | "center";
+}) {
+  return (
+    <th
+      onClick={onClick}
+      title="Click to show/hide column"
+      className={`p-2 border-b cursor-pointer hover:underline ${
+        align === "center" ? "text-center" : "text-left"
+      }`}
+    >
+      {label}
+    </th>
+  );
+}
+
+function HiddenCell({
+  isVisible,
+  children,
+  align = "left",
+}: {
+  isVisible: boolean;
+  children: React.ReactNode;
+  align?: "left" | "center";
+}) {
+  return (
+    <td className={`p-2 ${align === "center" ? "text-center" : ""}`}>
+      {isVisible ? (
+        children
+      ) : (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <EyeOff size={14} />
+          Hidden
+        </span>
+      )}
+    </td>
+  );
+}
 
   return (
     <AppLayout>
@@ -175,9 +234,24 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
                   <th className="p-2 border-b text-left">Name</th>
                   <th className="p-2 border-b text-left">Sex</th>
                   <th className="p-2 border-b text-left">Course / Office</th>
-                  <th className="p-2 border-b text-left">Chief Complaint</th>
-                  <th className="p-2 border-b text-left">Management</th>
-                  <th className="p-2 border-b text-center">Signature</th>
+                  <ColumnToggleHeader
+                    label="Chief Complaint"
+                    isVisible={visibleColumns.complaint}
+                    onClick={() => toggleColumn("complaint")}
+                  />
+
+                  <ColumnToggleHeader
+                    label="Management"
+                    isVisible={visibleColumns.management}
+                    onClick={() => toggleColumn("management")}
+                  />
+
+                  <ColumnToggleHeader
+                    label="Signature"
+                    isVisible={visibleColumns.signature}
+                    onClick={() => toggleColumn("signature")}
+                    align="center"
+                  />
                 </tr>
               </thead>
 
@@ -194,15 +268,19 @@ export default function DtrReport({ consultations = [], filters, years = [] }) {
                           ? `${c.patient.course.code} ${c.patient.year_level?.level || ""}`
                           : c.patient?.office?.name || "-"}
                       </td>
-                      <td className="p-2">{c.medical_complaint}</td>
-                      <td className="p-2">{c.management_and_treatment}</td>
-                      <td className="p-2 text-center">
+                      <HiddenCell isVisible={visibleColumns.complaint}>
+                        {c.medical_complaint}
+                      </HiddenCell>
+                      <HiddenCell isVisible={visibleColumns.management}>
+                        {c.management_and_treatment}
+                      </HiddenCell>
+                      <HiddenCell isVisible={visibleColumns.signature} align="center">
                         {c.patient?.signature ? (
-                        <SignatureImage src={`/storage/${c.patient.signature}`} />
+                          <SignatureImage src={`/storage/${c.patient.signature}`} />
                         ) : (
-                        <span className="text-xs text-muted-foreground">No signature</span>
+                          <span className="text-xs text-muted-foreground">No signature</span>
                         )}
-                      </td>
+                      </HiddenCell>
                     </tr>
                   ))
                 ) : (

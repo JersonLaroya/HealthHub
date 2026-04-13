@@ -5,6 +5,13 @@ import { fillPreEnrollmentForm } from "@/utils/fillPreEnrollmentForm";
 import { useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Props {
   patient: {
@@ -17,6 +24,8 @@ interface Props {
 }
 
 export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Redirect immediately if already submitted
   useEffect(() => {
@@ -114,30 +123,33 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
   const [loading, setLoading] = useState(false); 
   const serviceSlug = 'pre-enrollment-health-form';
 
-  const submitPage = (e: React.FormEvent) => {
-      e.preventDefault();
-      setSubmitting(true);
+  const finalSubmit = () => {
+    setSubmitting(true);
 
-      if (!signatureLoaded) {
-        toast.error('Please wait for the signature to fully load.');
-        return;
-      }
+    form.post('/user/submit/pre-enrollment-health-form', {
+      onSuccess: () => {
+        sessionStorage.clear();
+        setConfirmOpen(false);
 
-      console.log('responses before post', form.data.responses);
-
-      // Post the form state
-      form.post('/user/submit/pre-enrollment-health-form', {
-        onSuccess: () => {
-          sessionStorage.clear(); // clear session if needed
-          // no window.location.href here
-        },
-        onFinish: () => setSubmitting(false),
-      });
-    };
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
+      },
+      onFinish: () => setSubmitting(false),
+    });
+  };
 
   // PREVIEW PDF
-  const previewPdf = async () => {
-    setLoading(true); // start spinner
+  const handleSubmitPreview = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!signatureLoaded) {
+      toast.error('Please wait for the signature to fully load.');
+      return;
+    }
+
+    setLoading(true);
 
     const allData = {
       page1: JSON.parse(sessionStorage.getItem('preenrollment_page_1') || '{}'),
@@ -165,14 +177,24 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
         'pre-enrollment-health-form',
         'user'
       );
+
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      window.open(url, '_blank'); // open PDF in new tab
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      setPreviewUrl(url);
+
+      window.open(url, '_blank'); // preview
+
+      setConfirmOpen(true); // show confirmation
     } catch (err) {
       console.error('Failed to generate PDF preview:', err);
+      toast.error('Failed to generate PDF preview.');
     } finally {
-      setLoading(false); // stop spinner
+      setLoading(false);
     }
   };
 
@@ -231,10 +253,6 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
           </div>
         </div>
 
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-center mt-4">
-          ⚠️ Please preview your response first to ensure all information is correct.
-        </div>
-
         <div className="flex justify-between mt-10">
           <Button
             variant="secondary"
@@ -248,22 +266,46 @@ export default function PreenrollmentPage7({ patient, alreadySubmitted  }: Props
           </Button>
 
           <div className="flex gap-3 items-center">
-            <Button variant="outline" onClick={previewPdf} disabled={loading || !signatureLoaded}>
-              {loading ? 'Previewing PDF…' : 'Preview PDF'}
-            </Button>
-
             <Button
-              onClick={(e) => {
-                setSubmitting(true);
-                submitPage(e);
-              }}
-              disabled={submitting || savingPrev || !signatureLoaded}
+              onClick={handleSubmitPreview}
+              disabled={submitting || savingPrev || loading || !signatureLoaded}
             >
-              {submitting ? 'Submitting…' : 'Submit'}
+              {loading ? 'Preparing Preview…' : 'Submit'}
             </Button>
           </div>
         </div>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Submit Pre-enrollment Form</DialogTitle>
+          </DialogHeader>
+
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+            <p>Your PDF preview has been opened in a new tab.</p>
+            <p>Please review it carefully before submitting.</p>
+            <p>Do you want to submit this form?</p>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              onClick={finalSubmit}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting…' : 'Yes, Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

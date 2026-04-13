@@ -181,6 +181,15 @@ export default function Bulk() {
   const [bulkUnarchiveResultData, setBulkUnarchiveResultData] = useState<any>(null);
   const [showUnarchiveResult, setShowUnarchiveResult] = useState(false);
 
+  const isCsvFile = (file: File | null) => {
+    if (!file) return false;
+
+    const name = file.name.toLowerCase();
+    const type = file.type.toLowerCase();
+
+    return name.endsWith(".csv") || type === "text/csv";
+  };
+
   function parseCsv(file: File) {
     const reader = new FileReader();
 
@@ -534,7 +543,23 @@ export default function Bulk() {
                 ref={fileInputRef}
                 type="file"
                 accept=".csv"
-                onChange={(e) => setData("file", e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+
+                  if (!file) {
+                    setData("file", null);
+                    return;
+                  }
+
+                  if (!isCsvFile(file)) {
+                    toast.error("Only CSV files are allowed.");
+                    e.target.value = "";
+                    setData("file", null);
+                    return;
+                  }
+
+                  setData("file", file);
+                }}
               />
               {errors.file && (
                 <p className="text-sm text-red-500 mt-1">{errors.file}</p>
@@ -1016,9 +1041,23 @@ export default function Bulk() {
                 ref={archiveFileInputRef}
                 type="file"
                 accept=".csv"
-                onChange={(e) =>
-                  archiveForm.setData("file", e.target.files?.[0] || null)
-                }
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+
+                  if (!file) {
+                    archiveForm.setData("file", null);
+                    return;
+                  }
+
+                  if (!isCsvFile(file)) {
+                    toast.error("Only CSV files are allowed.");
+                    e.target.value = "";
+                    archiveForm.setData("file", null);
+                    return;
+                  }
+
+                  archiveForm.setData("file", file);
+                }}
               />
             </div>
 

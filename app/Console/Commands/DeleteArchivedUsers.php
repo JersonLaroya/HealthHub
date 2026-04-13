@@ -12,6 +12,11 @@ class DeleteArchivedUsers extends Command
 
     public function handle(): int
     {
+        if (!$this->option('force')) {
+            $this->warn('Deletion skipped. Use --force to actually delete archived users.');
+            return self::SUCCESS;
+        }
+
         $deleted = User::where('status', 'inactive')
             ->whereNotNull('archived_at')
             ->where('archived_at', '<=', now()->subYears(5))

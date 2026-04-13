@@ -315,8 +315,10 @@ class SuperAdminUserController extends Controller
         $unchangedUsers = [];
 
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt',
+            'file' => 'required|file|mimes:csv',
             'role' => 'required|exists:user_roles,name',
+        ], [
+            'file.mimes' => 'Only CSV files are allowed.',
         ]);
 
         $role = UserRole::where('name', $request->role)->firstOrFail();
@@ -540,8 +542,10 @@ class SuperAdminUserController extends Controller
     public function bulkDelete(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt',
+            'file' => 'required|file|mimes:csv',
             'role' => 'required|exists:user_roles,name',
+        ], [
+            'file.mimes' => 'Only CSV files are allowed.',
         ]);
 
         $role = UserRole::where('name', $request->role)->firstOrFail();
@@ -637,8 +641,10 @@ class SuperAdminUserController extends Controller
     public function bulkArchive(Request $request)
 {
     $request->validate([
-        'file' => 'required|file|mimes:csv,txt',
+        'file' => 'required|file|mimes:csv',
         'role' => 'required|exists:user_roles,name',
+    ], [
+        'file.mimes' => 'Only CSV files are allowed.',
     ]);
 
     $role = UserRole::where('name', $request->role)->firstOrFail();

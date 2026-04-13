@@ -161,6 +161,14 @@ export default function Index({ settings }: any) {
     };
   }, []);
 
+  useEffect(() => {
+  if (!data.school_year) {
+    const current = new Date().getFullYear();
+    const defaultSY = `${current} - ${current + 1}`;
+    setData("school_year", defaultSY);
+  }
+}, []);
+
   function updateArrayItem(
     key:
       | "clinic_accomplishments"
@@ -343,6 +351,18 @@ export default function Index({ settings }: any) {
     Email: Mail,
   };
 
+  const generateSchoolYears = () => {
+  const currentYear = new Date().getFullYear();
+
+  return Array.from({ length: 10 }, (_, i) => {
+    const start = currentYear - 5 + i;
+    const end = start + 1;
+    return `${start} - ${end}`;
+  });
+};
+
+const schoolYears = generateSchoolYears();
+
   return (
     <AppLayout>
       <Head title="System Settings" />
@@ -438,11 +458,19 @@ export default function Index({ settings }: any) {
 
                 <div className="space-y-2">
                   <Label>School year</Label>
-                  <Input
-                    placeholder="2025 - 2026"
+                  <select
+                    className="w-full rounded-md border border-slate-300 p-2 text-sm"
                     value={data.school_year}
                     onChange={(e) => setData("school_year", e.target.value)}
-                  />
+                  >
+                    <option value="">Select school year</option>
+
+                    {schoolYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-3">

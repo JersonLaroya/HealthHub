@@ -20,9 +20,19 @@ use App\Notifications\FormSubmitted;
 
 class FileController extends Controller
 {
+    private function normalizeSchoolYear(?string $value): ?string
+    {
+        if (!$value) return null;
+
+        $value = str_replace('–', '-', $value);
+        $value = preg_replace('/\s*-\s*/', '-', trim($value));
+
+        return $value;
+    }
+
     private function currentSchoolYear(): ?string
     {
-        return str_replace('–', '-', Setting::value('school_year'));
+        return $this->normalizeSchoolYear(Setting::value('school_year'));
     }
 
     public function index(Request $request)
@@ -90,25 +100,28 @@ class FileController extends Controller
                             ->where('service_id', $service->id);
 
         // Only filter by current school year for pre-employment and athlete forms
-        if (in_array($slug, ['pre-employment-health-form', 'athlete-medical'])) {
-            $currentSchoolYear = $this->currentSchoolYear(); // ✅ normalize dash
-            $recordsQuery->where('school_year', $currentSchoolYear);
-        }
+        // if (in_array($slug, ['pre-employment-health-form', 'athlete-medical'])) {
+        //     $currentSchoolYear = $this->currentSchoolYear(); // ✅ normalize dash
+        //     $recordsQuery->where('school_year', $currentSchoolYear);
+        // }
 
         $records = $recordsQuery
             ->orderBy('created_at', 'asc') // or ->latest()
-            ->get(['id', 'service_id', 'created_at', 'status'])
+            ->get(['id', 'service_id', 'created_at', 'status', 'school_year'])
             ->map(function ($record) {
                 return [
                     'id'         => $record->id,
                     'service_id' => $record->service_id,
                     'slug'       => optional($record->service)->slug ?? null,
                     'status'     => $record->status,
+                    'school_year'=> $record->school_year,
                     'created_at' => $record->created_at
                         ->setTimezone('Asia/Manila')
                         ->toDateTimeString(),
                 ];
             });
+        
+        $currentSchoolYear = $this->currentSchoolYear();
 
         return Inertia::render('user/files/ShowForm', [
             'service' => $service,
@@ -121,6 +134,7 @@ class FileController extends Controller
                 'office' => $user->office,
             ],
             'records' => $records,
+            'currentSchoolYear' => $currentSchoolYear,
         ]);
     }
 

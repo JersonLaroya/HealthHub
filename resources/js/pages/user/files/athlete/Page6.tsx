@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { fillAthleteMedicalForm } from '@/utils/fillAthleteMedicalForm';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface Props {
   patient: {
@@ -20,6 +27,9 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
   const [savingPrev, setSavingPrev] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0';
 
@@ -95,20 +105,46 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
   });
 
   // Submit handler
-  const submitPage = (e: React.FormEvent) => {
-    e.preventDefault();
+  // const submitPage = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setSubmitting(true);
+
+  //   // Save current page in sessionStorage
+  //   sessionStorage.setItem('athlete_page_6', JSON.stringify(form.data.responses.page6));
+  //   sessionStorage.setItem('athlete_page_6_physical_exam', JSON.stringify(form.data.responses.physical_exam));
+
+  //   // Send data to server
+  //   form.post('/user/submit/athlete-medical', {
+  //     onSuccess: () => {
+  //       toast.success('Form submitted successfully!');
+  //       sessionStorage.clear();
+  //       setAlreadySubmitted(true);
+  //     },
+  //     onError: (errors) => {
+  //       console.error('Submission errors:', errors);
+  //       toast.error('Failed to submit form.');
+  //     },
+  //     onFinish: () => setSubmitting(false),
+  //   });
+  // };
+
+  const finalSubmit = () => {
     setSubmitting(true);
 
-    // Save current page in sessionStorage
     sessionStorage.setItem('athlete_page_6', JSON.stringify(form.data.responses.page6));
     sessionStorage.setItem('athlete_page_6_physical_exam', JSON.stringify(form.data.responses.physical_exam));
 
-    // Send data to server
     form.post('/user/submit/athlete-medical', {
       onSuccess: () => {
         toast.success('Form submitted successfully!');
         sessionStorage.clear();
         setAlreadySubmitted(true);
+        setConfirmOpen(false);
+
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
       },
       onError: (errors) => {
         console.error('Submission errors:', errors);
@@ -119,23 +155,58 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
   };
 
   // PDF preview
-  const previewPdf = async () => {
-    setLoading(true);
+  // const previewPdf = async () => {
+  //   setLoading(true);
+  //   try {
+  //     sessionStorage.setItem('athlete_page_6', JSON.stringify(form.data.responses.page6));
+  //     sessionStorage.setItem('athlete_page_6_physical_exam', JSON.stringify(form.data.responses.physical_exam));
+  //     const pdfBytes = await fillAthleteMedicalForm(
+  //       form.data.responses,
+  //       'athlete-medical',
+  //       'user'
+  //     );
+  //     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  //     window.open(URL.createObjectURL(blob), '_blank');
+  //   } catch (err) {
+  //     console.error('Failed to generate PDF preview:', err);
+  //     toast.error('Failed to generate PDF preview.');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const handleSubmitPreview = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!signatureLoaded) return;
+
+    setLoadingPreview(true);
+
     try {
       sessionStorage.setItem('athlete_page_6', JSON.stringify(form.data.responses.page6));
       sessionStorage.setItem('athlete_page_6_physical_exam', JSON.stringify(form.data.responses.physical_exam));
+
       const pdfBytes = await fillAthleteMedicalForm(
         form.data.responses,
         'athlete-medical',
         'user'
       );
+
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      window.open(URL.createObjectURL(blob), '_blank');
+      const url = URL.createObjectURL(blob);
+
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      setPreviewUrl(url);
+      window.open(url, '_blank');
+      setConfirmOpen(true);
     } catch (err) {
       console.error('Failed to generate PDF preview:', err);
       toast.error('Failed to generate PDF preview.');
     } finally {
-      setLoading(false);
+      setLoadingPreview(false);
     }
   };
 
@@ -193,9 +264,9 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
           </div>
         )}
 
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-center mt-4">
+        {/* <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-center mt-4">
           ⚠️ Please preview your response first to ensure all information is correct.
-        </div>
+        </div> */}
 
         {/* Buttons */}
         <div className="flex justify-between mt-6">
@@ -214,16 +285,43 @@ export default function AthletePage6({ patient, alreadySubmitted: initialSubmitt
           </Button>
 
           <div className="flex gap-3 items-center">
-            <Button variant="outline" onClick={previewPdf} disabled={loading || !signatureLoaded}>
-              {loading ? 'Previewing PDF…' : 'Preview PDF'}
-            </Button>
-
-            <Button onClick={submitPage} disabled={submitting || !signatureLoaded}>
-              {submitting ? 'Submitting…' : 'Submit'}
+            <Button onClick={handleSubmitPreview} disabled={loadingPreview || submitting || !signatureLoaded}>
+              {loadingPreview ? 'Preparing Preview…' : 'Submit'}
             </Button>
           </div>
         </div>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Submit Athlete / Performer Form</DialogTitle>
+          </DialogHeader>
+
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+            <p>Your PDF preview has been opened in a new tab.</p>
+            <p>Please review it carefully before final submission.</p>
+            <p>Do you want to submit this form now?</p>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              onClick={finalSubmit}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting…' : 'Yes, Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

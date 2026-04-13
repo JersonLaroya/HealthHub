@@ -5,6 +5,13 @@ import { useEffect, useState } from 'react';
 import { fillPreEmploymentForm } from "@/utils/fillPreEmploymentForm";
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Props {
   patient: {
@@ -18,6 +25,9 @@ interface Props {
 }
 
 export default function PreemploymentPage5({ patient, alreadySubmitted }: Props) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   // Redirect immediately if already submitted
   useEffect(() => {
     if (alreadySubmitted) {
@@ -106,8 +116,13 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
   const lineInput = 'w-full bg-transparent border-0 border-b border-black focus:outline-none focus:ring-0 text-sm';
 
   // Preview PDF
-  const previewPdf = async () => {
+  const handleSubmitPreview = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!isFormComplete() || !signatureLoaded) return;
+
     setLoadingPreview(true);
+
     const allData = {
       page1: JSON.parse(sessionStorage.getItem('preemployment_page_1') || '{}'),
       page2: JSON.parse(sessionStorage.getItem('preemployment_page_2') || '{}'),
@@ -122,41 +137,51 @@ export default function PreemploymentPage5({ patient, alreadySubmitted }: Props)
         'pre-employment-health-form',
         'user'
       );
+
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
+
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      setPreviewUrl(url);
+
+      // OPEN PDF
       window.open(url, '_blank');
+
+      // OPEN CONFIRM MODAL
+      setConfirmOpen(true);
     } catch (err) {
       console.error('Failed to generate PDF preview:', err);
+      toast.error('Failed to generate PDF preview.');
     } finally {
       setLoadingPreview(false);
     }
   };
 
   // Submit form
-    const submitPage = (e: React.FormEvent) => {
-    e.preventDefault();
+  const finalSubmit = () => {
     setSubmitting(true);
 
-    // Save last page only
     sessionStorage.setItem(
-        'preemployment_page_5',
-        JSON.stringify(form.data.responses.page5)
+      'preemployment_page_5',
+      JSON.stringify(form.data.responses.page5)
     );
 
-    console.log('responses before post', form.data.responses);
-
     form.post('/user/submit/pre-employment-health-form', {
-        onSuccess: () => {
+      onSuccess: () => {
         sessionStorage.clear();
-        // Redirect using router from @inertiajs/react
-        // router.visit('/user/medical-forms/pre-employment-health-form', {
-        //     replace: true,
-        //     preserveState: false,
-        // });
-        },
-        onFinish: () => setSubmitting(false),
+        setConfirmOpen(false);
+
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
+      },
+      onFinish: () => setSubmitting(false),
     });
-    };
+  };
 
     // Returns true if all required questions are answered
 const isFormComplete = () => {
@@ -187,7 +212,7 @@ const isFormComplete = () => {
           Please answer the following questions HONESTLY. For medical purposes only.
         </p>
 
-        <form onSubmit={submitPage} className="space-y-6">
+        <form onSubmit={handleSubmitPreview} className="space-y-6">
           {/* Question 1 */}
           <div className="space-y-2 text-sm">
             <label>1. Do you consume alcohol? If so, please specify the frequency and quantity. <span className="text-red-600">*</span></label>
@@ -421,10 +446,6 @@ const isFormComplete = () => {
             </div>
             </div>
 
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-center mt-4">
-            ⚠️ Please preview your response first to ensure all information is correct.
-          </div>
-
           <div className="flex justify-between mt-6">
             <Button
               variant="secondary"
@@ -445,23 +466,46 @@ const isFormComplete = () => {
 
             <div className="flex gap-3 items-center">
               <Button
-                variant="outline"
-                onClick={previewPdf}
-                disabled={loadingPreview || !isFormComplete() || !signatureLoaded}
-              >
-                {loadingPreview ? 'Previewing PDF…' : 'Preview PDF'}
-              </Button>
-
-              <Button
                 type="submit"
-                disabled={submitting || savingPrev || !isFormComplete() || !signatureLoaded}
+                disabled={submitting || savingPrev || loadingPreview || !isFormComplete() || !signatureLoaded}
               >
-                {submitting ? 'Submitting…' : 'Submit'}
+                {loadingPreview ? 'Preparing Preview…' : 'Submit'}
               </Button>
             </div>
           </div>
         </form>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Submit Pre-employment Form</DialogTitle>
+        </DialogHeader>
+
+        <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+          <p>Your PDF preview has been opened in a new tab.</p>
+          <p>Please review it carefully before submitting.</p>
+          <p>Do you want to submit this form?</p>
+        </div>
+
+        <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => setConfirmOpen(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            onClick={finalSubmit}
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting…' : 'Yes, Submit'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </AppLayout>
   );
 }

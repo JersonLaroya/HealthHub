@@ -9,6 +9,16 @@ use App\Notifications\MissingPersonalInfo;
 
 class MedicalNotificationService
 {
+    protected static function normalizeSchoolYear(?string $value): ?string
+    {
+        if (!$value) return null;
+
+        $value = str_replace('–', '-', $value);
+        $value = preg_replace('/\s*-\s*/', '-', trim($value));
+
+        return $value;
+    }
+
     public static function check($user): void
     {
         $roleCategory = $user->userRole?->category;
@@ -59,7 +69,7 @@ class MedicalNotificationService
                 ->delete();
         }
 
-                $currentSY = str_replace('–', '-', Setting::value('school_year'));
+                $currentSY = self::normalizeSchoolYear(Setting::value('school_year'));
                 if (! $currentSY) return;
 
                 $role = $user->userRole?->name;
@@ -83,17 +93,18 @@ class MedicalNotificationService
                 ->exists();
 
             if (! $exists) {
-
-                // always remove old first
                 $user->notifications()
                     ->where('data->slug', 'pre-enrollment')
                     ->delete();
 
-                // then notify again (forces broadcast)
                 $user->notify(new MissingRequiredRecord(
                     "You haven't submitted your Pre-Enrollment form for SY {$currentSY}.",
                     'pre-enrollment'
                 ));
+            } else {
+                $user->notifications()
+                    ->where('data->slug', 'pre-enrollment')
+                    ->delete();
             }
         }
 
@@ -110,7 +121,6 @@ class MedicalNotificationService
                 ->exists();
 
             if (! $exists) {
-
                 $user->notifications()
                     ->where('data->slug', 'pre-employment')
                     ->delete();
@@ -119,6 +129,10 @@ class MedicalNotificationService
                     "You haven't submitted your Pre-Employment form for SY {$currentSY}.",
                     'pre-employment'
                 ));
+            } else {
+                $user->notifications()
+                    ->where('data->slug', 'pre-employment')
+                    ->delete();
             }
         }
     }

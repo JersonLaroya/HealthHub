@@ -25,7 +25,7 @@ interface Props {
 }
 
 export default function ShowForm({ service, patient }: Props) {
-  const { auth, records } = usePage().props as any;
+  const { auth, records, currentSchoolYear } = usePage().props as any;
   const role = auth?.user?.user_role?.name?.toLowerCase();
 
   const prefix =
@@ -214,12 +214,28 @@ const authUserId = auth?.user?.id;
   };
 
   // Check if user already submitted this form
-  const latestRecord = records?.[records.length - 1];
+  const normalizeSchoolYear = (value?: string | null) => {
+    if (!value) return null;
+    return value.replace(/–/g, "-").replace(/\s*-\s*/g, "-").trim();
+  };
+
+  const currentSY = normalizeSchoolYear(currentSchoolYear);
+
+  const currentSchoolYearRecords = (records || []).filter((record: any) => {
+    return normalizeSchoolYear(record.school_year) === currentSY;
+  });
+
+  const latestRecordForCurrentSchoolYear =
+    currentSchoolYearRecords.length > 0
+      ? currentSchoolYearRecords[currentSchoolYearRecords.length - 1]
+      : null;
 
   const isBlocked =
-    latestRecord && (latestRecord.status === "pending" || latestRecord.status === "approved");
+    latestRecordForCurrentSchoolYear &&
+    (latestRecordForCurrentSchoolYear.status === "pending" ||
+      latestRecordForCurrentSchoolYear.status === "approved");
 
-  const canResubmit = latestRecord?.status === "rejected";
+  const canResubmit = latestRecordForCurrentSchoolYear?.status === "rejected";
 
   const handleBack = () => {
     router.get('/user/files', {}, {
@@ -315,6 +331,7 @@ const authUserId = auth?.user?.id;
                 <thead className="bg-gray-50 dark:bg-neutral-700">
                   <tr>
                     <th className="p-2 text-left border-b">Date Created</th>
+                    <th className="p-2 text-left border-b">School Year</th>
                     <th className="p-2 text-right border-b">Action</th>
                   </tr>
                 </thead>
@@ -334,6 +351,10 @@ const authUserId = auth?.user?.id;
                           })}
                         </td>
 
+                        <td className="p-2 border-b">
+                          {record.school_year || "-"}
+                        </td>
+
                         <td className="p-2 border-b text-right">
                           <Button
                             size="sm"
@@ -347,7 +368,7 @@ const authUserId = auth?.user?.id;
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="p-4 text-center text-gray-500">
+                      <td colSpan={3} className="p-4 text-center text-gray-500">
                         No pre-employment records found.
                       </td>
                     </tr>

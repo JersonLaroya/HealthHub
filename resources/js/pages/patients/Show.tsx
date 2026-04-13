@@ -70,6 +70,21 @@ export default function Show({
 
   const [appointmentProcessing, setAppointmentProcessing] = useState<number | null>(null);
 
+  const [visibleColumns, setVisibleColumns] = useState({
+    vitalSigns: false,
+    complaint: false,
+    disease: false,
+    management: false,
+    treatments: false,
+  });
+
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns((prev) => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
+
   function completePatientAppointment(id: number) {
     setAppointmentProcessing(id);
 
@@ -746,16 +761,62 @@ const handleApproveWithUpdate = () => {
             <table className="min-w-[900px] w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-300 dark:border-neutral-600">
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Date & Time</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Vital Signs</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Chief Complaint</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Disease</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Management & Treatment</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Treatments</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Updated by</th>
-                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Status</th>
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">
+                    Date & Time
+                  </th>
+
+                  <th
+                    onClick={() => toggleColumn("vitalSigns")}
+                    className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600 cursor-pointer hover:underline"
+                    title="Click to show/hide column"
+                  >
+                    Vital Signs
+                  </th>
+
+                  <th
+                    onClick={() => toggleColumn("complaint")}
+                    className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600 cursor-pointer hover:underline"
+                    title="Click to show/hide column"
+                  >
+                    Chief Complaint
+                  </th>
+
+                  <th
+                    onClick={() => toggleColumn("disease")}
+                    className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600 cursor-pointer hover:underline"
+                    title="Click to show/hide column"
+                  >
+                    Disease
+                  </th>
+
+                  <th
+                    onClick={() => toggleColumn("management")}
+                    className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600 cursor-pointer hover:underline"
+                    title="Click to show/hide column"
+                  >
+                    Management & Treatment
+                  </th>
+
+                  <th
+                    onClick={() => toggleColumn("treatments")}
+                    className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600 cursor-pointer hover:underline"
+                    title="Click to show/hide column"
+                  >
+                    Treatments
+                  </th>
+
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">
+                    Updated by
+                  </th>
+
+                  <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">
+                    Status
+                  </th>
+
                   {canApprove && (
-                    <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">Actions</th>
+                    <th className="p-2 text-center border-l border-r border-gray-300 dark:border-neutral-600">
+                      Actions
+                    </th>
                   )}
                 </tr>
               </thead>
@@ -780,40 +841,44 @@ const handleApproveWithUpdate = () => {
                         <td className="p-2 border-l border-r border-b border-gray-300 dark:border-neutral-600">{formattedDateTime}</td>
                         <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md text-sm space-y-1">
-                            {c.vital_signs ? (
-                              <>
-                                {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
-                                {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
-                                {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
-                                {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}</div>}
-                                {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
-                                {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
-                                {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
-                                {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
+                            {visibleColumns.vitalSigns ? (
+                              c.vital_signs ? (
+                                <>
+                                  {c.vital_signs.bp && <div><strong>BP:</strong> {c.vital_signs.bp}</div>}
+                                  {c.vital_signs.rr && <div><strong>RR:</strong> {c.vital_signs.rr}</div>}
+                                  {c.vital_signs.pr && <div><strong>PR:</strong> {c.vital_signs.pr}</div>}
+                                  {c.vital_signs.temp && <div><strong>Temp:</strong> {c.vital_signs.temp}</div>}
+                                  {c.vital_signs.o2_sat && <div><strong>O₂ Sat:</strong> {c.vital_signs.o2_sat}</div>}
+                                  {c.vital_signs.height && <div><strong>Height:</strong> {c.vital_signs.height}</div>}
+                                  {c.vital_signs.weight && <div><strong>Weight:</strong> {c.vital_signs.weight}</div>}
+                                  {c.vital_signs.bmi && <div><strong>BMI:</strong> {c.vital_signs.bmi}</div>}
 
-                                {/* if all empty */}
-                                {!c.vital_signs.bp &&
-                                !c.vital_signs.rr &&
-                                !c.vital_signs.pr &&
-                                !c.vital_signs.temp &&
-                                !c.vital_signs.o2_sat &&
-                                !c.vital_signs.height &&
-                                !c.vital_signs.weight &&
-                                !c.vital_signs.bmi && (
-                                  <div>-</div>
-                                )}
-                              </>
+                                  {!c.vital_signs.bp &&
+                                    !c.vital_signs.rr &&
+                                    !c.vital_signs.pr &&
+                                    !c.vital_signs.temp &&
+                                    !c.vital_signs.o2_sat &&
+                                    !c.vital_signs.height &&
+                                    !c.vital_signs.weight &&
+                                    !c.vital_signs.bmi && <div>-</div>}
+                                </>
+                              ) : (
+                                <div>-</div>
+                              )
                             ) : (
-                              <div>-</div>
+                              <span className="text-xs text-muted-foreground">Hidden</span>
                             )}
                           </div>
                         </td>
 
                         <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                            {c.medical_complaint ? (
-                              <>
-                                {(expandedComplaints[c.id] ? c.medical_complaint : c.medical_complaint.slice(0, 20))}
+                            {visibleColumns.complaint ? (
+                              c.medical_complaint ? (
+                                <>
+                                  {expandedComplaints[c.id]
+                                    ? c.medical_complaint
+                                    : c.medical_complaint.slice(0, 20)}
 
                                   {c.medical_complaint.length > 20 && (
                                     <button
@@ -828,53 +893,65 @@ const handleApproveWithUpdate = () => {
                                       {expandedComplaints[c.id] ? "See less" : "See more"}
                                     </button>
                                   )}
-                              </>
+                                </>
+                              ) : (
+                                "-"
+                              )
                             ) : (
-                              "-"
+                              <span className="text-xs text-muted-foreground">Hidden</span>
                             )}
                           </div>
                         </td>
 
                         <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                            {c.diseases?.length
-                              ? c.diseases.map(d => d.name).join(", ")
-                              : "-"}
+                            {visibleColumns.disease ? (
+                              c.diseases?.length ? c.diseases.map((d) => d.name).join(", ") : "-"
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Hidden</span>
+                            )}
                           </div>
                         </td>
 
                         <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="whitespace-pre-wrap bg-gray-50 dark:bg-neutral-700 p-2 rounded-md inline-block max-w-full overflow-hidden">
-                            {c.management_and_treatment ? (
-                              <>
-                                {expandedComplaints[`management_${c.id}`] 
-                                  ? c.management_and_treatment
-                                  : `${c.management_and_treatment.slice(0, 20)}`} {/* truncated to 20 chars */}
-                                {c.management_and_treatment.length > 20 && (
-                                  <button
-                                    className="ml-1 text-blue-600 text-sm underline"
-                                    onClick={() =>
-                                      setExpandedComplaints((prev) => ({
-                                        ...prev,
-                                        [`management_${c.id}`]: !prev[`management_${c.id}`],
-                                      }))
-                                    }
-                                  >
-                                    {expandedComplaints[`management_${c.id}`] ? "See less" : "See more"}
-                                  </button>
-                                )}
-                              </>
+                            {visibleColumns.management ? (
+                              c.management_and_treatment ? (
+                                <>
+                                  {expandedComplaints[`management_${c.id}`]
+                                    ? c.management_and_treatment
+                                    : c.management_and_treatment.slice(0, 20)}
+
+                                  {c.management_and_treatment.length > 20 && (
+                                    <button
+                                      className="ml-1 text-blue-600 text-sm underline"
+                                      onClick={() =>
+                                        setExpandedComplaints((prev) => ({
+                                          ...prev,
+                                          [`management_${c.id}`]: !prev[`management_${c.id}`],
+                                        }))
+                                      }
+                                    >
+                                      {expandedComplaints[`management_${c.id}`] ? "See less" : "See more"}
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                "-"
+                              )
                             ) : (
-                              "-"
+                              <span className="text-xs text-muted-foreground">Hidden</span>
                             )}
                           </div>
                         </td>
 
-                        <td className="p-2 align-top border">
+                        <td className="p-2 align-top border-l border-r border-b border-gray-300 dark:border-neutral-600">
                           <div className="bg-gray-50 dark:bg-neutral-700 p-2 rounded-md">
-                            {c.treatments?.length
-                              ? c.treatments.map(t => t.name).join(", ")
-                              : "-"}
+                            {visibleColumns.treatments ? (
+                              c.treatments?.length ? c.treatments.map((t) => t.name).join(", ") : "-"
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Hidden</span>
+                            )}
                           </div>
                         </td>
 

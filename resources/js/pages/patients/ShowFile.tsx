@@ -249,6 +249,14 @@ const handleSign = (recordId: number) => {
   );
 };
 
+const handleViewConsultationRecord = () => {
+  router.get(`/${prefix}/patients/${patient.id}`);
+};
+
+const handleViewLabResults = () => {
+  router.get(`/${prefix}/patients/${patient.id}/files/laboratory-results`);
+};
+
 
   return (
     <AppLayout>
@@ -257,13 +265,15 @@ const handleSign = (recordId: number) => {
       <div className="p-6 space-y-6">
         {/* Page Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  
+            {/* LEFT SIDE */}
             <div className="flex items-center gap-3">
                 <Button
                 variant="outline"
                 size="sm"
                 onClick={handleBack}
                 >
-                    Back
+                Back
                 </Button>
 
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -271,15 +281,34 @@ const handleSign = (recordId: number) => {
                 </h1>
             </div>
 
-            {/* Form Type Label */}
-            <span
-                className="self-start sm:self-auto px-3 py-1 rounded-full text-sm font-medium
+            {/* RIGHT SIDE (ALL ACTION BUTTONS HERE) */}
+            <div className="flex flex-wrap gap-2">
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewConsultationRecord}
+                >
+                Consultation Record
+                </Button>
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleViewLabResults}
+                >
+                    Laboratory Results
+                </Button>
+
+                {/* Form Type Label */}
+                {/* <span
+                className="px-3 py-1 rounded-full text-sm font-medium
                 bg-blue-100 text-blue-700
-                dark:bg-blue-900 dark:text-blue-300"
-            >
+                dark:bg-blue-900 dark:text-blue-300 flex items-center"
+                >
                 Medical Form
-            </span>
-        </div>
+                </span> */}
+            </div>
+            </div>
 
         {/* Patient Info */}
         <div className="text-sm text-gray-700 dark:text-gray-300 break-words">
