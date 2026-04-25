@@ -12,7 +12,7 @@ class DiseaseClusteringService
 {
     /**
      * @param int $k
-     * @param int|string $year  "all" or 2026, 2025, etc.
+     * @param int|string $year  
      */
     public function cluster(int $k = 3, $year = 'all')
     {
@@ -22,7 +22,7 @@ class DiseaseClusteringService
             ->whereHas('record', fn ($q) => $q->where('status', 'approved'))
             ->with(['diseases', 'patient.userRole']);
 
-        // ✅ Apply year filter only when not "all"
+        
         if ($year !== 'all') {
             $consultationsQuery->whereYear('date', (int) $year);
         }
@@ -36,7 +36,7 @@ class DiseaseClusteringService
 
             $patient = $consultation->patient;
 
-            // ✅ add birthdate check to avoid Carbon parse error
+            
             if (!$patient || !$patient->birthdate || !$consultation->date) {
                 continue;
             }
