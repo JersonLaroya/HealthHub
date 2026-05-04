@@ -18,10 +18,10 @@ class SecurityHeaders
         $response = $next($request);
 
         if (app()->environment('local')) {
-    $csp = "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 http://127.0.0.1:5173; style-src 'self' 'unsafe-inline' http://localhost:5173 https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; img-src 'self' data: blob: http://localhost:5173; connect-src 'self' ws://localhost:5173 ws://127.0.0.1:5173;";
-} else {
-    $csp = "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src-elem 'self'; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; img-src 'self' data: blob:;";
-}
+            $csp = "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 http://127.0.0.1:5173; style-src 'self' 'unsafe-inline' http://localhost:5173 https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; img-src 'self' data: blob: http://localhost:5173; connect-src 'self' ws://localhost:5173 ws://127.0.0.1:5173;";
+        } else {
+            $csp = "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src-elem 'self'; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; img-src 'self' data: blob:;";
+        }
 
         // ✅ Apply headers
         $response->headers->set('Content-Security-Policy', $csp);
